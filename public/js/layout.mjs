@@ -4,7 +4,7 @@ export const DEFAULT_LAYOUT = {
   uhr: { x: 36, y: 28, s: 1, on: true },
   woerter: { x: 1524, y: 28, s: 1, on: true },
   tasks: { x: 36, y: 300, s: 1, on: true },
-  kamera: { x: 1440, y: 290, w: 420, h: 420, on: true }, // immer quadratisch (1:1)
+  kamera: { x: 1470, y: 290, w: 420, h: 420, on: true }, // immer quadratisch (1:1)
   musik: { x: 36, y: 700, s: 1, on: true },
   blume: { x: 700, y: 930, s: 1, on: true },
   kerze: { x: 960, y: 930, s: 1, on: true },

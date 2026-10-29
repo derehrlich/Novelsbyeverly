@@ -1,6 +1,6 @@
 # Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
 
-Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem Holzpavillon. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem runden Gartenpavillon unter einer mächtigen Eiche. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
 
 ![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
 ![Frühling am Morgen](docs/vorschau-2-fruehling.png)
@@ -10,14 +10,14 @@ Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer l
 
 ## Was es kann
 
-**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu. Im Mittelpunkt stehen ein Baum und ein **Holzpavillon (Pagode)**, in dem Stefanie als kleine Figur sitzt und am Laptop schreibt oder ein Buch liest.
+**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu. Im Mittelpunkt stehen eine große **Eiche** und ein **runder Gartenpavillon** mit Kegeldach, in dem Stefanie als kleine Figur sitzt und am Laptop schreibt oder ein Buch liest. Auch die fernen Hügel bewachsen mit kleinen Blumen und Flecken, die mit dem Fortschritt erscheinen.
 
 | Jahreszeit | Was passiert |
 |---|---|
-| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen. Der Baum bekommt Blätter und Blüten, am Pavillon ranken Rosen, Blütenblätter fallen aufs Dach |
-| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, ein dichter Baum mit Äpfeln, Blumenampeln am Pavillon, Schmetterlinge und Bienen |
-| Herbst | Der Baum verliert Blatt für Blatt, die Blätter fallen aus der Krone und sammeln sich auf Boden und Pavillondach. Viele Pilze, Kürbisse und Astern wachsen |
-| Winter | Es schneit, am Ende liegt alles unter Schnee: Wiese, Äste, Tannen und Pavillondach. Ein Schneemann baut sich auf, das Papierfenster des Pavillons leuchtet warm |
+| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen. Die Eiche treibt hellgrünes Laub mit Kätzchen aus, am Pavillon ranken Rosen, Blütenstaub schwebt aus der Krone |
+| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, eine dichte Eiche mit Eicheln, Blumenampeln am Pavillon, Schmetterlinge und Bienen |
+| Herbst | Die Eiche färbt sich bronze und verliert Blatt für Blatt, die Blätter fallen aus der Krone und sammeln sich auf Boden und Pavillondach. Viele Pilze, Kürbisse und Astern wachsen |
+| Winter | Es schneit, am Ende liegt alles unter Schnee: Wiese, Äste, Tannen und Pavillondach (mit Schnee auf dem Kegeldach). Ein Schneemann baut sich auf, das Papierfenster des Pavillons leuchtet warm |
 
 Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmchen) und die **Jahreszeit** stellst du im Admin fest ein oder lässt sie nach Datum und Uhrzeit wählen („Auto“).
 
