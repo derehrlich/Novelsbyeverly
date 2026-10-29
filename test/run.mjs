@@ -16,6 +16,7 @@ const calls = [];
 let rewards = [];
 let subs = [];
 const failSubTypes = new Set();
+let liveStart = null; // simulierter Twitch-Stream (ISO-Zeit) oder null
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const entry = { method: init.method || 'GET', path: u.pathname, query: Object.fromEntries(u.searchParams), auth: init.headers?.Authorization, body: init.body && !String(init.body).includes('=') ? JSON.parse(init.body) : init.body };
@@ -39,6 +40,7 @@ globalThis.fetch = async (url, init = {}) => {
     subs.push(sub); return ok({ data: [sub] }, 202);
   }
   if (u.pathname.endsWith('/chat/messages')) return ok({ data: [{ is_sent: true }] });
+  if (u.pathname.endsWith('/helix/streams')) return ok({ data: liveStart ? [{ started_at: liveStart }] : [] });
   return ok({ data: [] });
 };
 const chatSent = () => calls.filter((c) => c.path.endsWith('/chat/messages')).map((c) => c.body);
@@ -61,6 +63,8 @@ const musikIngest = (await mod('functions/musik-ingest.mjs')).default;
 const { resolveSeason, resolveTime } = await mod('lib/zeiten.mjs');
 const { getMusik } = await mod('lib/musik.mjs');
 const layoutLib = await import('../public/js/layout.mjs');
+const pagesLib = await mod('lib/pages.mjs');
+const streamLib = await mod('lib/streamzeit.mjs');
 const kat = await import('../public/js/katalog.mjs');
 
 let passed = 0;
@@ -501,6 +505,98 @@ await test('Musik: Schnittstelle mit Schlüssel, Chatbefehl, Veralten und Quelle
   await saveSettings({ musikQuelle: 'lokal', musikUrl: 'http://localhost:1608/' });
   const v = await viewNow(); assert.equal(v.musik.mode, 'lokal'); assert.equal(v.musik.url, 'http://localhost:1608/');
   await saveSettings({ musikQuelle: 'aus' }); assert.equal((await viewNow()).musik, null);
+});
+
+console.log('Ziel-Karte, Streamzeit, Stefanie');
+await test('Kamerafenster ist immer quadratisch', async () => {
+  assert.equal(layoutLib.DEFAULT_LAYOUT.kamera.w, layoutLib.DEFAULT_LAYOUT.kamera.h);
+  const l = layoutLib.normalizeLayout({ kamera: { w: 500, h: 200 } });
+  assert.equal(l.kamera.w, 500); assert.equal(l.kamera.h, 500);
+});
+await test('Seiten: setzen, dazuzählen, Chatbefehle nur für die Streamerin', async () => {
+  const s = await getSettings();
+  assert.equal((await pagesLib.setPages(10, s)).today, 10);
+  assert.equal((await pagesLib.addPages(5, s)).today, 15);
+  const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  assert.match((await say('999', 'Streamerin', '!seiten +3', bc)).message, /Heute 18 von 30 Seiten/);
+  assert.match((await say('999', 'Streamerin', '!seitenziel 40', bc)).message, /Seitenziel: 40 Seiten/);
+  const before = chatSent().length;
+  await say('1', 'Lena', '!seiten 99');
+  assert.equal(chatSent().length, before);
+  assert.equal((await pagesLib.getPages(await getSettings())).today, 18);
+  await saveSettings({ seitenGoal: 30 });
+});
+await test('Streamzeit: von Hand starten und beenden, Twitch-Beginn wird erkannt', async () => {
+  await db.delete('cache/live');
+  await streamLib.stopStream();
+  assert.equal((await streamLib.streamInfo()).startedAt, null);
+  liveStart = new Date(Date.now() - 90 * 60_000).toISOString(); // Twitch meldet: seit 90 Minuten live
+  await db.delete('cache/live');
+  const t = await streamLib.streamInfo(Date.now() + 1);
+  assert.equal(t.startedAt, null); // von Hand beendet, der Twitch-Stream begann vorher: bleibt beendet
+  await streamLib.startStream(Date.now() - 30 * 60_000);
+  const m = await streamLib.streamInfo();
+  assert.equal(m.quelle, 'hand'); assert.ok(Math.abs(Date.now() - m.startedAt - 30 * 60_000) < 5000);
+  await db.set('state/stream', { startedAt: null, stoppedAt: Date.now() - 3 * 3_600_000 }); // früher beendet
+  await db.delete('cache/live');
+  const t2 = await streamLib.streamInfo();
+  assert.equal(t2.quelle, 'twitch'); assert.ok(Math.abs(Date.now() - t2.startedAt - 90 * 60_000) < 5000);
+  assert.equal(streamLib.fmtHM(5_400_000), '1:30');
+  liveStart = null; await db.delete('cache/live'); await db.delete('state/stream');
+});
+await test('Ziel-Karte und Wachstum: Wörter, Seiten, Streamzeit, Pomodoros', async () => {
+  const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  await saveSettings({ zielArt: 'woerter', wachstumQuelle: 'ziel', wordGoal: 1000 });
+  await wordsLib.setToday(400, await getSettings());
+  let v = await viewNow();
+  assert.equal(v.ziel.art, 'woerter'); assert.equal(v.ziel.current, 400); assert.ok(Math.abs(v.progress - 0.4) < 0.001);
+  await saveSettings({ zielArt: 'seiten', seitenGoal: 20 }); await pagesLib.setPages(5, await getSettings());
+  v = await viewNow();
+  assert.equal(v.ziel.label, 'Seiten heute'); assert.equal(v.ziel.numeric, true); assert.ok(Math.abs(v.progress - 0.25) < 0.001);
+  // Streamzeit: 1,5 von 3 Stunden, die Landschaft wächst auch ohne Wörter
+  await saveSettings({ zielArt: 'zeit', wachstumQuelle: 'ziel', streamGoalMinutes: 180 });
+  await streamLib.startStream(Date.now() - 90 * 60_000);
+  v = await viewNow();
+  assert.equal(v.ziel.numeric, false); assert.equal(v.ziel.text, '1:30'); assert.equal(v.ziel.goalText, '3:00'); assert.ok(Math.abs(v.progress - 0.5) < 0.01);
+  await saveSettings({ zielArt: 'woerter', wachstumQuelle: 'zeit' });
+  v = await viewNow(); assert.ok(Math.abs(v.progress - 0.5) < 0.01); // Wörter spielen keine Rolle
+  await saveSettings({ wachstumQuelle: 'kombi' });
+  v = await viewNow(); assert.ok(Math.abs(v.progress - (0.5 + 0.4) / 2) < 0.01);
+  await saveSettings({ zielArt: 'pomodoros', wachstumQuelle: 'ziel', pomodoroGoal: 4 });
+  v = await viewNow(); assert.equal(v.ziel.label, 'Pomodoros heute'); assert.equal(v.ziel.goal, 4);
+  // Chat: Streamzeit steuern
+  assert.match((await say('999', 'Streamerin', '!stream ziel 4', bc)).message, /Streamziel: 4:00 Std/);
+  assert.equal((await getSettings()).streamGoalMinutes, 240);
+  assert.match((await say('999', 'Streamerin', '!stream stop', bc)).message, /gestoppt/);
+  assert.equal((await viewNow()).zeit.startedAt, null);
+  assert.match((await say('999', 'Streamerin', '!stream start', bc)).message, /Streamzeit läuft/);
+  await saveSettings({ zielArt: 'woerter', wachstumQuelle: 'ziel', pomodoroGoal: 6, streamGoalMinutes: 180 });
+  await streamLib.stopStream();
+});
+await test('Stefanie im Pavillon: Figur und Tätigkeit (automatisch nach Phase)', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const saved = await adminCall('PUT', 'settings', { stefanieFigur: { haare: 'rot', frisur: 'zopf', gesicht: 'brille', tisch: 'buch', haut: '9' }, stefanieTaetigkeit: 'auto' }, cookie);
+  assert.equal(saved.body.settings.stefanieFigur.haare, 'rot'); assert.equal(saved.body.settings.stefanieFigur.tisch, 'laptop'); assert.equal(saved.body.settings.stefanieFigur.haut, '2');
+  await timerLib.stopTimer(await getSettings());
+  let v = await viewNow();
+  assert.equal(v.stefanie.taetigkeit, 'laptop'); assert.equal(v.stefanie.figur.frisur, 'zopf');
+  await timerLib.startBreak(await getSettings(), 5);
+  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'buch');
+  await saveSettings({ stefanieTaetigkeit: 'laptop' });
+  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'laptop');
+  await saveSettings({ stefanieTaetigkeit: 'auto' });
+  await timerLib.stopTimer(await getSettings());
+  assert.ok((await adminCall('PUT', 'settings', { stefanieTaetigkeit: 'fliegen' }, cookie)).status === 400);
+});
+await test('Admin: Seiten und Streamzeit', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('POST', 'pages', { mode: 'set', value: 7 }, cookie)).body.today, 7);
+  assert.equal((await adminCall('POST', 'pages', { mode: 'delta', value: 2 }, cookie)).body.today, 9);
+  assert.equal((await adminCall('POST', 'pages', { value: 'x' }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'stream/start', {}, cookie)).body.quelle, 'hand');
+  assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

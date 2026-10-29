@@ -32,8 +32,9 @@ export async function completeTask(id, name, which, now = Date.now()) {
   item.done = true;
   item.doneAt = now;
   t.name = name || t.name;
+  const pos = new Map(t.items.map((i, n) => [i.id, n])); // bei gleicher Zeit bleibt die Reihenfolge des Anlegens
   const done = t.items.filter((i) => i.done).slice(-KEEP_DONE);
-  t.items = [...done, ...t.items.filter((i) => !i.done)].sort((a, b) => a.at - b.at);
+  t.items = [...done, ...t.items.filter((i) => !i.done)].sort((a, b) => a.at - b.at || pos.get(a.id) - pos.get(b.id));
   await db.set(`task/${id}`, t);
   await pushEvent({ type: 'taskdone', name: t.name || name, text: item.text, id });
   return { item, left: open.length - 1 };

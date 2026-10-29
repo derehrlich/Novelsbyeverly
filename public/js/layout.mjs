@@ -4,14 +4,14 @@ export const DEFAULT_LAYOUT = {
   uhr: { x: 36, y: 28, s: 1, on: true },
   woerter: { x: 1524, y: 28, s: 1, on: true },
   tasks: { x: 36, y: 300, s: 1, on: true },
-  kamera: { x: 1360, y: 300, w: 520, h: 320, on: true },
+  kamera: { x: 1440, y: 290, w: 420, h: 420, on: true }, // immer quadratisch (1:1)
   musik: { x: 36, y: 700, s: 1, on: true },
   blume: { x: 700, y: 930, s: 1, on: true },
   kerze: { x: 960, y: 930, s: 1, on: true },
   buecher: { x: 1220, y: 930, s: 1, on: true },
 };
 
-const LIMITS = { x: [-400, 2200], y: [-200, 1300], s: [0.4, 2.5], w: [160, 1920], h: [90, 1080] };
+const LIMITS = { x: [-400, 2200], y: [-200, 1300], s: [0.4, 2.5], w: [160, 1080], h: [160, 1080] };
 
 // Nimmt eine (teilweise) Anordnung und liefert eine vollständige, geprüfte. Unbekannte Schlüssel fallen weg.
 export function normalizeLayout(input, base = DEFAULT_LAYOUT) {
@@ -30,5 +30,6 @@ export function normalizeLayout(input, base = DEFAULT_LAYOUT) {
     }
     out[key] = item;
   }
+  out.kamera.h = out.kamera.w; // das Kamerabild ist immer quadratisch
   return out;
 }

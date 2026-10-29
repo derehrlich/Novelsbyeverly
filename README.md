@@ -1,38 +1,48 @@
 # Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
 
-Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschrieben wird, desto mehr wächst: Blüten, ein Baum, Rosen. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem Holzpavillon. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
 
 ![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
 ![Frühling am Morgen](docs/vorschau-2-fruehling.png)
 ![Sommer](docs/vorschau-3-sommer.png)
-![Herbst am Abend, Pause](docs/vorschau-4-herbst.png)
-![Winter](docs/vorschau-5-winter.png)
+![Herbst](docs/vorschau-4-herbst.png)
+![Winter am Abend, Pause (Stefanie liest)](docs/vorschau-5-winter.png)
 
 ## Was es kann
 
-**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu (Wörter oder Pomodoros, einstellbar). Der Fortschritt ist das Tagesziel in Prozent.
+**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu. Im Mittelpunkt stehen ein Baum und ein **Holzpavillon (Pagode)**, in dem Stefanie als kleine Figur sitzt und am Laptop schreibt oder ein Buch liest.
 
 | Jahreszeit | Was passiert |
 |---|---|
-| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen, ein Baum mit Blüten und Blättern, ein Rosenbogen, der zuwächst |
-| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, ein Baum mit Äpfeln, Schmetterlinge und Bienen |
-| Herbst | Der Baum verliert seine Blätter, Kürbisse, Pilze und Astern wachsen, Laub bedeckt den Boden |
-| Winter | Es schneit, am Ende ist alles weiß, Tannen mit Schnee, ein Schneemann baut sich auf |
+| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen. Der Baum bekommt Blätter und Blüten, am Pavillon ranken Rosen, Blütenblätter fallen aufs Dach |
+| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, ein dichter Baum mit Äpfeln, Blumenampeln am Pavillon, Schmetterlinge und Bienen |
+| Herbst | Der Baum verliert Blatt für Blatt, die Blätter fallen aus der Krone und sammeln sich auf Boden und Pavillondach. Viele Pilze, Kürbisse und Astern wachsen |
+| Winter | Es schneit, am Ende liegt alles unter Schnee: Wiese, Äste, Tannen und Pavillondach. Ein Schneemann baut sich auf, das Papierfenster des Pavillons leuchtet warm |
 
 Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmchen) und die **Jahreszeit** stellst du im Admin fest ein oder lässt sie nach Datum und Uhrzeit wählen („Auto“).
 
-**Pomodoro.** Dauer, kurze und lange Pause, die Anzahl der Pomodoros pro Tag und ob es automatisch weitergeht, stellst du im Admin ein. Die Uhr zeigt Countdown und Fortschrittsbalken, darunter kleine Tomaten für die Tagesziel-Anzahl. Nach der eingestellten Anzahl (Standard 4) gibt es eine lange Pause. Pomodoros lassen sich auch von Hand dazuzählen (Arbeit ohne Timer).
+**Stefanie im Pavillon.** Haare, Frisur, Hautton, Kleidung, Brille, Mütze, Haustier und Getränk stellst du im Admin ein. Beim Fokus tippt sie am Laptop, in der Pause liest sie ein Buch (Blättern, Tee, Dampf). Oder du legst fest, dass sie immer am Laptop sitzt oder immer liest.
+
+**Ziel-Karte.** Sie zeigt, worauf du heute hinarbeitest. Im Admin wählst du die Art:
+- **Wörter schreiben** (Stand aus Papyrus, siehe unten)
+- **Seiten lesen** (`!seiten 12` im Chat oder im Admin)
+- **Streamzeit**: Du gibst vorher an, wie lange du heute streamen willst (z. B. 3 Stunden). Die Karte zeigt die Zeit seit Streambeginn. Läuft dein Twitch-Stream, erkennt das Overlay den Beginn selbst, oder du startest die Zeit von Hand im Admin bzw. mit `!stream start`.
+- **Pomodoros**
+
+**Womit die Landschaft wächst**, wählst du getrennt: Ziel-Karte, Streamzeit, Wörter, Pomodoros oder ein Mittel aus Zeit und Ziel. Bei „Streamzeit“ wachsen Blumen und Pflanzen, auch wenn du nichts eingibst.
+
+**Pomodoro.** Dauer, kurze und lange Pause, die Anzahl pro Tag und ob es automatisch weitergeht, stellst du im Admin ein. Die Uhr zeigt Countdown und Fortschrittsbalken, darunter kleine Tomaten für das Tagesziel. Nach der eingestellten Anzahl (Standard 4) gibt es eine lange Pause. Pomodoros lassen sich auch von Hand dazuzählen.
 
 **Module** (einzeln ein- und ausschaltbar, frei verschiebbar):
-- **Blume:** vom Keimling bis zur Blüte, wächst mit den Wörtern des Tages
+- **Blume:** vom Keimling bis zur Blüte, wächst mit demselben Fortschritt wie die Landschaft
 - **Kerze:** brennt während eines Pomodoros herunter, raucht in der Pause, danach steht eine neue bereit
 - **Bücherstapel:** pro geschafftem Pomodoro ein Buch mehr (bis 8)
 - **To-Do-Liste:** deine Aufgaben, abgehakt mit Konfetti (anlegen im Admin oder per Chat)
 - **Musik:** zeigt Titel, Interpret und Cover (siehe unten)
 
-**Anordnung.** Im Admin unter *Anordnung* ziehst du Uhr, Wörter, To-Do, Musik, Kamera und Module per Maus an die gewünschte Stelle und stellst ihre Größe ein. Das Bild darüber ist das echte Overlay.
+**Anordnung.** Im Admin unter *Anordnung* ziehst du Uhr, Ziel-Karte, To-Do, Musik, Kamera und Module per Maus an die gewünschte Stelle und stellst ihre Größe ein. Das Bild darüber ist das echte Overlay.
 
-**Kamerafenster.** Ein Rahmen mit durchsichtigem Ausschnitt. **In OBS die Kamera unter das Overlay legen**, dann schaut sie durch das Fenster. Position und Größe stellst du in der Anordnung ein.
+**Kamerafenster (1:1).** Ein quadratischer Rahmen mit durchsichtigem Ausschnitt. **In OBS die Kamera unter das Overlay legen**, dann schaut sie durch das Fenster. Position und Seitenlänge stellst du in der Anordnung ein.
 
 **Zimmer-Modus (pausiert).** Die Szenen mit Tischen, an denen Zuschauer als Chibi-Figuren sitzen (Café, Garten, Park, mit Rängen und freischaltbaren Gegenständen), bleiben im Code erhalten. Unter *Einstellungen → Darstellung* lassen sie sich wieder einschalten. In der Landschaft sind die Befehle dafür ausgeschaltet.
 
@@ -59,6 +69,8 @@ Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos
 |---|---|---|
 | `!pomodoro [Min]` · `!pause [Min]` · `!stop` | Moderation, Streamerin | Timer |
 | `!pomodoros 6` · `!ziel 1500` | Streamerin | Ziel für heute (Anzahl bzw. Wörter) |
+| `!seiten 12` · `!seiten +3` · `!seitenziel 40` | Streamerin | Gelesene Seiten heute und Ziel |
+| `!stream start` · `!stream stop` · `!stream ziel 3` | Moderation, Streamerin | Streamzeit starten, beenden, Ziel in Stunden |
 | `!task Text` · `!done [Nr]` · `!tasks` | alle | To-Do-Liste (bis zu 3 offene je Person; im Overlay steht die der Streamerin) |
 | `!wörter 300` | Zuschauer | gemeldete Wörter zählen für den Chat-Zähler |
 | `!wörter 4231` · `!wörter +300` | Streamerin | Stand aus Papyrus bzw. dazugeschrieben |
@@ -121,10 +133,10 @@ ADMIN_PASSWORD=geheim EVENTSUB_SECRET=zufallstext123 node scripts/dev-server.mjs
 Der lokale Server braucht kein Netlify und legt Daten in `./data` ab. Twitch-Funktionen (Chat, Reward) laufen nur auf der veröffentlichten Seite.
 
 Aufbau:
-- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
+- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Pavillon, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/figur.mjs`: Chibi-Figur (Stefanie und Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
 - `public/admin/`: Verwaltung mit Anordnungs-Editor
 - `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`, `musik-ingest`
-- `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
+- `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
 
 Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` (`szene.mjs`) und ein Eintrag in `layout.mjs` und `BOXEN` (`public/admin/admin.js`). Neue Jahreszeit oder Pflanze: in `wachstum.mjs` (`PAL`, `MIX` und die Zeichenfunktionen).
 

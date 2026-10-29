@@ -9,11 +9,36 @@ import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
 import { getMusik } from './musik.mjs';
 import { resolveSeason, resolveTime } from './zeiten.mjs';
+import { getPages } from './pages.mjs';
+import { fmtHM, streamInfo } from './streamzeit.mjs';
+import { cleanFigur } from '../../public/js/katalog.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
 export async function streamerId() {
   return (await storedTokens('broadcaster'))?.user_id ?? STREAMER_TASKS;
+}
+
+const frac = (n, goal) => (goal > 0 ? n / goal : 0);
+
+// Die Ziel-Karte (Wörter, Seiten, Streamzeit oder Pomodoros) und die Streamzeit für die Landschaft
+export async function buildZiel(settings, { words, done, now }) {
+  const stream = await streamInfo(now);
+  const elapsed = stream.startedAt ? Math.max(0, now - stream.startedAt) : 0;
+  const goalMs = settings.streamGoalMinutes * 60_000;
+  const zeit = { startedAt: stream.startedAt, quelle: stream.quelle, goalMinutes: settings.streamGoalMinutes, text: fmtHM(elapsed), goalText: fmtHM(goalMs), fraction: frac(elapsed, goalMs) };
+  let ziel;
+  if (settings.zielArt === 'seiten') {
+    const pages = await getPages(settings, new Date(now));
+    ziel = { art: 'seiten', label: 'Seiten heute', numeric: true, current: pages.today, goal: settings.seitenGoal, fraction: frac(pages.today, settings.seitenGoal) };
+  } else if (settings.zielArt === 'zeit') {
+    ziel = { art: 'zeit', label: 'Streamzeit', numeric: false, ...zeit, current: elapsed / 60_000, goal: settings.streamGoalMinutes };
+  } else if (settings.zielArt === 'pomodoros') {
+    ziel = { art: 'pomodoros', label: 'Pomodoros heute', numeric: true, current: done, goal: settings.pomodoroGoal, fraction: frac(done, settings.pomodoroGoal) };
+  } else {
+    ziel = { art: 'woerter', label: 'Wörter heute', numeric: true, current: words.today, goal: settings.wordGoal, fraction: frac(words.today, settings.wordGoal) };
+  }
+  return { ziel, zeit };
 }
 
 export async function buildView(settings, since, now = Date.now()) {
@@ -32,9 +57,14 @@ export async function buildView(settings, since, now = Date.now()) {
   }
 
   const done = await sprintsToday(settings, now);
-  const progress = settings.wachstumQuelle === 'pomodoro'
-    ? done / (settings.pomodoroGoal || 6)
-    : words.today / (settings.wordGoal || 1000);
+  const { ziel, zeit } = await buildZiel(settings, { words, done, now });
+  const q = settings.wachstumQuelle;
+  const progress = q === 'zeit' ? zeit.fraction
+    : q === 'woerter' ? words.today / (settings.wordGoal || 1000)
+      : q === 'pomodoro' ? done / (settings.pomodoroGoal || 6)
+        : q === 'kombi' ? (zeit.fraction + ziel.fraction) / 2
+          : ziel.fraction;
+  const taetigkeit = settings.stefanieTaetigkeit === 'auto' ? (timer.phase === 'break' ? 'buch' : 'laptop') : settings.stefanieTaetigkeit;
   const musik = settings.musikQuelle === 'aus' ? null : settings.musikQuelle === 'lokal'
     ? { mode: 'lokal', url: settings.musikUrl }
     : { mode: 'server', now: await getMusik(now) };
@@ -46,6 +76,9 @@ export async function buildView(settings, since, now = Date.now()) {
     tageszeit: resolveTime(settings, new Date(now)),
     progress: Math.min(1, Math.max(0, progress)),
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
+    ziel,
+    zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
+    stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     musik,
     scene: settings.scene,

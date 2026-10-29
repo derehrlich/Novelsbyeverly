@@ -25,7 +25,7 @@ if (css.includes('url(fonts/')) throw new Error('Schrift nicht eingebettet');
 
 // Module einbinden (ohne import/export)
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const modules = ['katalog', 'layout', 'jetztlaeuft', 'malerei', 'wachstum', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
+const modules = ['katalog', 'layout', 'jetztlaeuft', 'malerei', 'figur', 'wachstum', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
 script = must(script, "import { Szene, seatPos, moduleLayout } from './js/szene.mjs';", modules);
 script = must(script, "import { nowPlaying } from './js/jetztlaeuft.mjs';", '');
 script = must(script, "const ton = q.get('ton') !== 'aus';", 'let ton = false;');
@@ -70,6 +70,8 @@ const controls = `<section id="steuerung" aria-label="Vorschau steuern">
     <label for="sprintPct">Verlauf <output id="sprintPctWert">28 %</output><input type="range" id="sprintPct" min="0" max="100" value="28"></label>
     <label for="pomoDone">Geschafft <output id="pomoDoneWert">3 von 6</output><input type="range" id="pomoDone" min="0" max="6" value="3"></label>
   </div>
+  <div class="gruppe"><h2>Ziel-Karte</h2><div class="knoepfe" id="k-ziel"><button data-a="woerter">Wörter</button><button data-a="seiten">Seiten lesen</button><button data-a="zeit">Streamzeit</button></div></div>
+  <div class="gruppe"><h2>Stefanie</h2><div class="knoepfe" id="k-tat"><button data-t="laptop">Am Laptop</button><button data-t="buch">Mit Buch</button></div></div>
   <div class="gruppe"><h2>Wachstum</h2>
     <label for="wachsRegler">Landschaft <output id="wachsWert">55 %</output><input type="range" id="wachsRegler" min="0" max="100" value="55"></label>
     <p class="fuss" style="margin:4px 0 0">Zieh den Regler von links nach rechts: so wächst die Wiese im Lauf eines Streams.</p>

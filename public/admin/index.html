@@ -53,9 +53,21 @@
       <div class="szenen" id="jahreszeiten"></div>
       <h3>Tageszeit</h3>
       <div class="szenen" id="tageszeiten"></div>
-      <h3>Wächst mit</h3>
+      <h3>Landschaft wächst mit</h3>
       <div class="szenen" id="quellen"></div>
       <p class="leise">Die Wiese beginnt leer und wächst mit dem Fortschritt zu: im Frühling Blüten, Baum und Rosenbogen, im Sommer Sonnenblumen und Lavendel, im Herbst verliert der Baum seine Blätter, im Winter schneit es alles zu. „Auto“ nimmt Datum und Uhrzeit.</p>
+    </section>
+
+    <section class="karte">
+      <h2>Ziel</h2>
+      <p class="leise">Die Ziel-Karte im Overlay zeigt, worauf du heute hinarbeitest. Wähle eine Art:</p>
+      <div class="szenen" id="zielArten"></div>
+      <div class="felder" style="margin-top:12px">
+        <div class="feld"><label for="zielWoerter">Wörterziel heute</label><input type="number" id="zielWoerter" min="0"></div>
+        <div class="feld"><label for="zielSeiten">Seitenziel heute</label><input type="number" id="zielSeiten" min="0"></div>
+        <div class="feld"><label for="zielStunden">Streamzeit geplant (Stunden)</label><input type="number" id="zielStunden" min="0.25" max="24" step="0.25"></div>
+        <div class="feld"><label>&nbsp;</label><button id="zieleSpeichern">Ziele speichern</button></div>
+      </div>
       <h3>Wörter heute: <span id="woerterHeute">0</span> / <span id="woerterZiel">0</span></h3>
       <div class="reihe">
         <input type="number" id="woerterWert" min="0" placeholder="Zahl" style="width:120px">
@@ -64,7 +76,24 @@
         <button class="hell" id="wToday" title="Wie viele Wörter heute schon geschrieben wurden">Heute schon …</button>
         <button class="hell" id="wReset">Tag zurücksetzen</button>
       </div>
-      <p class="leise">Im Chat geht das auch: <code>!wörter 4231</code> (Stand aus Papyrus) oder <code>!wörter +300</code>.</p>
+      <p class="leise">Im Chat: <code>!wörter 4231</code> (Stand aus Papyrus) oder <code>!wörter +300</code>.</p>
+      <h3>Seiten heute: <span id="seitenHeute">0</span> / <span id="seitenZiel">0</span></h3>
+      <div class="reihe">
+        <input type="number" id="seitenWert" min="0" placeholder="Zahl" style="width:120px">
+        <button id="sSet">Setzen</button><button class="hell" id="sPlus">+ dazu</button>
+      </div>
+      <p class="leise">Im Chat: <code>!seiten 12</code> oder <code>!seiten +3</code>, Ziel mit <code>!seitenziel 40</code>.</p>
+      <h3>Streamzeit: <span id="streamText">nicht gestartet</span></h3>
+      <div class="reihe"><button class="gruen" id="streamStart">▶ Streamzeit starten</button><button class="hell" id="streamStop">■ Beenden</button></div>
+      <p class="leise">Läuft dein Twitch-Stream, erkennt das Overlay den Beginn selbst. Mit „Streamzeit starten“ legst du den Anfang von Hand fest. Im Chat: <code>!stream start</code>, <code>!stream stop</code>, <code>!stream ziel 3</code>. Mit „Landschaft wächst mit: Streamzeit“ wächst die Wiese auch ohne Eingabe.</p>
+    </section>
+
+    <section class="karte">
+      <h2>Stefanie im Pavillon</h2>
+      <p class="leise">Die Figur im Pavillon. Beim Fokus tippt sie am Laptop, in der Pause liest sie ein Buch („Automatisch“), oder du legst es fest.</p>
+      <div class="szenen" id="tat"></div>
+      <div class="felder" id="stefanieFelder" style="margin-top:12px"></div>
+      <div class="reihe"><button class="gruen" id="stefanieSpeichern">Speichern</button></div>
     </section>
 
     <section class="karte">
@@ -96,7 +125,7 @@
         <b id="editorName">Nichts ausgewählt</b>
         <label><input type="checkbox" id="edAn"> sichtbar</label>
         <label>Größe <input type="range" id="edGroesse" min="0.5" max="2" step="0.05" style="width:140px"></label>
-        <span id="edKamera" hidden><label>Breite <input type="number" id="edW" min="160" max="1920" step="10"></label> <label>Höhe <input type="number" id="edH" min="90" max="1080" step="10"></label> <button class="hell" id="edRatio">16:9</button></span>
+        <span id="edKamera" hidden><label>Seitenlänge (1:1) <input type="number" id="edW" min="160" max="1080" step="10"></label></span>
       </div>
       <div class="reihe"><button class="gruen" id="layoutSpeichern">Anordnung speichern</button><button class="hell" id="layoutZurueck">Standard</button><button class="hell" id="layoutLaden">Neu laden</button></div>
     </section>

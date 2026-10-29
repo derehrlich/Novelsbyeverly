@@ -111,7 +111,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     <div class="pomo" id="pomo"></div>
   </section>
   <section class="card" id="woerter" hidden>
-    <div class="kopf"><span class="label">Wörter heute</span><span class="ziel" id="ziel"></span></div>
+    <div class="kopf"><span class="label" id="wlabel">Wörter heute</span><span class="ziel" id="ziel"></span></div>
     <div class="zahl" id="zahl">0</div>
     <div class="bar"><i id="wbalken"></i></div>
     <div class="sprint" id="sprint" hidden></div>
@@ -149,7 +149,7 @@ addEventListener('resize', fit); fit();
 const szene = teile.has('szene') ? new Szene($('szene')) : null;
 const fmt = new Intl.NumberFormat('de-DE');
 let view = null, cursor = null, offset = 0;
-let shownWords = 0, targetWords = 0;
+let shownWords = 0, targetWords = 0, zielNumerisch = true;
 let musikNow = null, musikBusy = false;
 
 // ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
@@ -263,7 +263,7 @@ function updateModuleLabels() {
   const set = (id, small, text) => { const el = $('module').querySelector(`[data-m="${id}"]`); if (!el) return; const v = `${small}|${text}`; if (el.dataset.v === v) return; el.dataset.v = v; el.textContent = ''; const sm = document.createElement('small'); sm.textContent = small; el.append(sm, text); };
   const w = view.words;
   const goal = w.goal || 1000;
-  set('blume', 'Blume', `${Math.min(100, Math.round((w.today / goal) * 100))} %`);
+  set('blume', 'Blume', `${Math.round((view.progress ?? w.today / goal) * 100)} %`);
   const t = view.timer;
   const left = t.phase === 'idle' ? 0 : Math.max(0, Math.ceil((t.endsAt - (Date.now() + offset)) / 1000));
   set('kerze', 'Kerze', t.phase === 'focus' ? `${pad(Math.floor(left / 60))}:${pad(left % 60)}` : t.phase === 'break' ? 'Pause' : 'bereit');
@@ -279,18 +279,20 @@ function renderTasks() {
 }
 
 function renderWords() {
-  const w = view.words;
-  targetWords = w.today;
-  $('ziel').textContent = w.goal ? `Ziel ${fmt.format(w.goal)}` : '';
-  const pct = w.goal ? Math.min(100, (w.today / w.goal) * 100) : 0;
-  $('wbalken').style.width = `${pct}%`;
-  $('woerter').classList.toggle('geschafft', w.goal > 0 && w.today >= w.goal);
-  const sprint = view.timer.phase === 'focus' ? Math.max(0, w.today - view.timer.wordsAtStart) : 0;
-  $('sprint').hidden = view.timer.phase !== 'focus';
+  const z = view.ziel ?? { art: 'woerter', label: 'Wörter heute', numeric: true, current: view.words.today, goal: view.words.goal, fraction: view.words.goal ? view.words.today / view.words.goal : 0 };
+  $('wlabel').textContent = z.label;
+  zielNumerisch = z.numeric;
+  if (z.numeric) { targetWords = z.current; $('ziel').textContent = z.goal ? `Ziel ${fmt.format(z.goal)}` : ''; }
+  else $('ziel').textContent = `Ziel ${z.goalText} Std`;
+  $('wbalken').style.width = `${Math.min(100, (z.fraction || 0) * 100)}%`;
+  $('woerter').classList.toggle('geschafft', z.goal > 0 && z.fraction >= 1);
+  const sprint = z.art === 'woerter' && view.timer.phase === 'focus' ? Math.max(0, view.words.today - view.timer.wordsAtStart) : 0;
+  $('sprint').hidden = !(z.art === 'woerter' && view.timer.phase === 'focus');
   $('sprint').textContent = `Pomodoro +${fmt.format(sprint)}`;
   const bits = [];
+  if (z.art === 'zeit') bits.push(z.startedAt ? (z.quelle === 'twitch' ? 'seit Streambeginn' : 'läuft') : 'noch nicht gestartet');
   if (view.modus === 'zimmer' && view.communityHours) bits.push(`Zimmer ${view.communityHours} Std`);
-  if (w.chat) bits.push(`Chat ${fmt.format(w.chat)} Wörter`);
+  if (view.words.chat) bits.push(`Chat ${fmt.format(view.words.chat)} Wörter`);
   $('gemeinsam').textContent = bits.join(' · ');
 }
 
@@ -315,6 +317,12 @@ function tickClock() {
   $('datum').textContent = d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
   if (!view) return;
   updateModuleLabels();
+  const z = view.ziel;
+  if (z && !z.numeric) {
+    const ms = z.startedAt ? Math.max(0, Date.now() + offset - z.startedAt) : 0, m = Math.floor(ms / 60000);
+    $('zahl').textContent = `${Math.floor(m / 60)}:${pad(m % 60)}`;
+    $('wbalken').style.width = `${Math.min(100, (ms / (z.goalMinutes * 60000)) * 100)}%`;
+  }
   const t = view.timer;
   if (t.phase === 'idle') { $('rest').textContent = "Gleich geht's los"; $('fortschritt').style.width = '0%'; return; }
   const now = Date.now() + offset;
@@ -390,7 +398,7 @@ if (demo) {
   const mk = () => ({
     now: Date.now(), modus: 'wachstum', jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
     scene: 'cafe', deco: [], modules: { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
-    pomodoro: { done: 3, goal: 6, minutes: 25 }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
+    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 }, stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
     timer: { phase: q.get('phase') ?? 'focus', round: 4, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
     words: { today: 1234, goal: 2000, chat: 0 }, communityHours: 0,
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
@@ -411,7 +419,7 @@ function frame(t) {
   last = t;
   if (szene && view) szene.draw(t);
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
-  $('zahl').textContent = fmt.format(Math.round(shownWords));
+  if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();
 }
 requestAnimationFrame(frame);

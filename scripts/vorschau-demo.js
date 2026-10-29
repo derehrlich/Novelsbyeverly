@@ -1,6 +1,12 @@
 // ---- Vorschau: Beispieldaten und Bedienelemente (nur in der Vorschau-Datei, nicht im echten Overlay)
-const cfg = { jahreszeit: 'fruehling', tageszeit: 'mittag', phase: 'focus', progress: 55, sprintPct: 28, done: 3, goal: 6, words: 1100, mod: { blume: true, kerze: true, buecher: true, musik: true, kamera: true }, since: Date.now() - 7 * 60000 };
+const cfg = { zielArt: 'woerter', taetigkeit: 'laptop', jahreszeit: 'fruehling', tageszeit: 'mittag', phase: 'focus', progress: 55, sprintPct: 28, done: 3, goal: 6, words: 1100, mod: { blume: true, kerze: true, buecher: true, musik: true, kamera: true }, since: Date.now() - 7 * 60000 };
 
+function ziel() {
+  const f = cfg.progress / 100;
+  if (cfg.zielArt === 'seiten') return { art: 'seiten', label: 'Seiten heute', numeric: true, current: Math.round(f * 30), goal: 30, fraction: f };
+  if (cfg.zielArt === 'zeit') { const goalMinutes = 180, ms = f * goalMinutes * 60000; return { art: 'zeit', label: 'Streamzeit', numeric: false, startedAt: Date.now() - ms, quelle: 'hand', goalMinutes, goalText: '3:00', fraction: f }; }
+  return { art: 'woerter', label: 'Wörter heute', numeric: true, current: cfg.words, goal: 2000, fraction: cfg.words / 2000 };
+}
 function mk() {
   const layout = structuredClone(DEFAULT_LAYOUT);
   for (const k of ['blume', 'kerze', 'buecher', 'musik']) layout[k].on = cfg.mod[k];
@@ -12,7 +18,7 @@ function mk() {
     pomodoro: { done: cfg.done, goal: cfg.goal, minutes: 25 },
     musik: cfg.mod.musik ? { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } } : null,
     timer: { phase: cfg.phase, round: cfg.done + 1, startedAt: idle ? null : cfg.since, endsAt: idle ? null : cfg.since + length * 60000, wordsAtStart: 640 },
-    words: { today: cfg.words, goal: 2000, chat: 0 }, communityHours: 0,
+    words: { today: cfg.words, goal: 2000, chat: 0 }, communityHours: 0, ziel: ziel(), stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: cfg.taetigkeit },
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }, { id: 'd', text: 'Exposé an Lektorin', done: false }],
     seats: [], events: [], cursor: 'x',
   };
@@ -22,6 +28,7 @@ const mark = (box, attr, value) => { for (const b of $(box).children) b.classLis
 const setSince = () => { const len = cfg.phase === 'break' ? 5 : 25; cfg.since = Date.now() - (cfg.phase === 'break' ? 0.2 : cfg.sprintPct / 100) * len * 60000; };
 
 refresh();
+mark('k-ziel', 'a', cfg.zielArt); mark('k-tat', 't', cfg.taetigkeit);
 mark('k-jahr', 'j', cfg.jahreszeit); mark('k-zeit', 'z', cfg.tageszeit); mark('k-phase', 'p', cfg.phase);
 
 $('k-jahr').onclick = (e) => { const v = e.target.dataset?.j; if (!v) return; cfg.jahreszeit = v; mark('k-jahr', 'j', v); refresh(); };
@@ -41,3 +48,5 @@ $('k-event').onclick = (e) => {
   if (kind === 'woerter') { cfg.words = Math.min(2400, cfg.words + 150); cfg.progress = Math.min(100, Math.round((cfg.words / 2000) * 100)); $('wachsRegler').value = cfg.progress; $('wachsWert').textContent = `${cfg.progress} %`; refresh(); return; }
   handleEvent({ type: kind, n: cfg.done + 1, goal: cfg.goal, writers: 0, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' });
 };
+$('k-ziel').onclick = (e) => { const v = e.target.dataset?.a; if (!v) return; cfg.zielArt = v; mark('k-ziel', 'a', v); refresh(); };
+$('k-tat').onclick = (e) => { const v = e.target.dataset?.t; if (!v) return; cfg.taetigkeit = v; mark('k-tat', 't', v); refresh(); };

@@ -3,13 +3,13 @@ import { adminEnabled, checkPassword, cookie, hasSession, json, makeSession } fr
 import { status } from '../lib/admin/status.mjs';
 import { config as settingsRoute } from '../lib/admin/config.mjs';
 import { setup } from '../lib/admin/setup.mjs';
-import { musik, seats, tasks, tests, timer, words } from '../lib/admin/control.mjs';
+import { musik, pages, seats, stream, tasks, tests, timer, words } from '../lib/admin/control.mjs';
 import { exportCsv, users } from '../lib/admin/users.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, test: tests, users, 'export.csv': exportCsv };
+const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);

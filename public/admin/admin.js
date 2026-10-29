@@ -1,4 +1,4 @@
-import { SZENEN } from '../js/katalog.mjs';
+import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -68,7 +68,7 @@ function renderTimer() {
   $('timerInfo').textContent = t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause';
 }
 setInterval(renderTimer, 500);
-setInterval(() => { if (!$('app').hidden) loadState().catch(() => {}); }, 15000);
+setInterval(() => { if (!$('app').hidden) { loadState().catch(() => {}); loadStream().catch(() => {}); } }, 15000);
 const minutes = () => ($('minuten').value ? Number($('minuten').value) : undefined);
 $('fokus').onclick = run(async () => { await api('POST', 'timer/focus', { minutes: minutes() }); await loadState(); });
 $('pause').onclick = run(async () => { await api('POST', 'timer/break', { minutes: minutes() }); await loadState(); });
@@ -79,7 +79,9 @@ for (const [id, delta] of [['pomoMinus', -1], ['pomoPlus', 1]]) $(id).onclick = 
 const AUSWAHL = {
   jahreszeiten: ['jahreszeit', [['auto', 'Auto'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']]],
   tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']]],
-  quellen: ['wachstumQuelle', [['woerter', 'Wörter'], ['pomodoro', 'Pomodoros']]],
+  quellen: ['wachstumQuelle', [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter'], ['pomodoro', 'Pomodoros'], ['kombi', 'Zeit + Ziel']]],
+  zielArten: ['zielArt', [['woerter', 'Wörter schreiben'], ['seiten', 'Seiten lesen'], ['zeit', 'Streamzeit'], ['pomodoros', 'Pomodoros']]],
+  tat: ['stefanieTaetigkeit', [['auto', 'Automatisch'], ['laptop', 'Am Laptop'], ['buch', 'Mit Buch']]],
 };
 function renderScenes(settings) {
   for (const [boxId, [key, opts]] of Object.entries(AUSWAHL)) {
@@ -92,6 +94,39 @@ function renderScenes(settings) {
 function renderWords(w) { $('woerterHeute').textContent = new Intl.NumberFormat('de-DE').format(w.today); $('woerterZiel').textContent = new Intl.NumberFormat('de-DE').format(w.goal); }
 const sendWords = (mode) => run(async () => { const v = $('woerterWert').value; if (mode !== 'reset' && v === '') throw new Error('Bitte eine Zahl eingeben'); renderWords(await api('POST', 'words', { mode, value: v })); $('woerterWert').value = ''; });
 $('wAbs').onclick = sendWords('absolute'); $('wDelta').onclick = sendWords('delta'); $('wToday').onclick = sendWords('today'); $('wReset').onclick = sendWords('reset');
+
+// ---- Ziele, Seiten, Streamzeit
+const fmtN = (n) => new Intl.NumberFormat('de-DE').format(n);
+function fillZiele(settings) {
+  $('zielWoerter').value = settings.wordGoal; $('zielSeiten').value = settings.seitenGoal; $('zielStunden').value = settings.streamGoalMinutes / 60;
+}
+$('zieleSpeichern').onclick = run(async () => {
+  const r = await api('PUT', 'settings', { wordGoal: Number($('zielWoerter').value), seitenGoal: Number($('zielSeiten').value), streamGoalMinutes: Math.round(Number($('zielStunden').value) * 60) });
+  current = r.settings; fillZiele(r.settings); meldung('Ziele gespeichert'); await loadState();
+});
+async function loadPages() { const p = await api('GET', 'pages'); $('seitenHeute').textContent = fmtN(p.today); $('seitenZiel').textContent = fmtN(p.goal); }
+const sendPages = (mode) => run(async () => { const v = $('seitenWert').value; if (v === '') throw new Error('Bitte eine Zahl eingeben'); await api('POST', 'pages', { mode, value: v }); $('seitenWert').value = ''; await loadPages(); });
+$('sSet').onclick = sendPages('set'); $('sPlus').onclick = sendPages('delta');
+async function loadStream() {
+  const s = await api('GET', 'stream');
+  $('streamText').textContent = s.startedAt ? `${s.text} Std von ${Math.floor(s.goalMinutes / 60)}:${String(s.goalMinutes % 60).padStart(2, '0')} (${s.quelle === 'twitch' ? 'von Twitch erkannt' : 'von Hand gestartet'})` : 'nicht gestartet';
+}
+$('streamStart').onclick = run(async () => { await api('POST', 'stream/start'); await loadStream(); });
+$('streamStop').onclick = run(async () => { await api('POST', 'stream/stop'); await loadStream(); });
+
+// ---- Stefanie im Pavillon
+const STEFANIE_SLOTS = ['haut', 'haare', 'frisur', 'oberteil', 'kopf', 'gesicht', 'hals', 'tier', 'tisch', 'getraenk'];
+const SLOT_NAMEN = { tisch: 'Schreibgerät (am Laptop)' };
+const optionText = (slot, v) => ITEMS.find((i) => i.id === v && i.slot === slot)?.label ?? v;
+function fillStefanie(settings) {
+  const f = settings.stefanieFigur;
+  $('stefanieFelder').innerHTML = STEFANIE_SLOTS.map((slot) => `<div class="feld"><label>${esc(SLOT_NAMEN[slot] ?? SLOTS[slot].label)}</label><select data-slot="${slot}">${slotValues(slot).map((v) => `<option value="${v}" ${f[slot] === v ? 'selected' : ''}>${esc(optionText(slot, v))}</option>`).join('')}</select></div>`).join('');
+}
+$('stefanieSpeichern').onclick = run(async () => {
+  const figur = {};
+  for (const el of $('stefanieFelder').querySelectorAll('[data-slot]')) figur[el.dataset.slot] = el.value;
+  const r = await api('PUT', 'settings', { stefanieFigur: figur }); current = r.settings; fillStefanie(r.settings); meldung('Gespeichert – schau ins Overlay');
+});
 
 // ---- Aufgaben
 async function loadTasks() {
@@ -109,20 +144,21 @@ $('alleAufstehen').onclick = run(async () => { await api('DELETE', 'seats'); awa
 const OPT = {
   szeneModus: [['wachstum', 'Landschaft (wächst mit dem Fortschritt)'], ['zimmer', 'Zimmer mit Tischen und Figuren der Zuschauer (pausiert)']],
   jahreszeit: [['auto', 'Automatisch (nach Datum)'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']],
+  stefanieTaetigkeit: [['auto', 'Automatisch (Laptop beim Fokus, Buch in der Pause)'], ['laptop', 'Immer am Laptop'], ['buch', 'Immer mit Buch']],
   tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
-  wachstumQuelle: [['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages']],
+  wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
   ['Darstellung', [
     ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
-    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'],
+    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
   ]],
   ['Pomodoro', [
     ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
     ['longBreakMinutes', 'Lange Pause (Minuten)', 'number'], ['longBreakEvery', 'Lange Pause nach … Pomodoros (0 = nie)', 'number'],
-    ['pomodoroGoal', 'Ziel pro Tag (Anzahl, 0 = ohne)', 'number'], ['wordGoal', 'Wörterziel pro Tag (0 = ohne)', 'number'],
+    ['pomodoroGoal', 'Ziel pro Tag (Anzahl, 0 = ohne)', 'number'],
     ['autoBreak', 'Nach dem Pomodoro automatisch Pause', 'bool'], ['autoCycle', 'Nach der Pause automatisch nächster Pomodoro', 'bool'],
     ['announceSprint', 'Ansagen im Chat', 'bool'],
   ]],
@@ -167,7 +203,8 @@ async function loadSettings() {
     return `<div class="feld ${type === 'area' ? 'breit' : ''}"><label>${esc(label)}</label>${input}${hint ? `<div class="hinweis">${type === 'area' ? 'Platzhalter: ' : ''}${esc(hint)}</div>` : ''}</div>`;
   }).join('')}</div>`).join('');
   renderScenes(settings);
-  fillMusik(settings);
+  fillMusik(settings); fillZiele(settings); fillStefanie(settings);
+  loadPages().catch(() => {}); loadStream().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
 }
 $('speichern').onclick = run(async () => {
@@ -219,7 +256,7 @@ const BOXEN = {
 let layoutState = null, gewaehlt = null, editScale = 0.5, sendFrame = 0;
 function geom(id) {
   const b = BOXEN[id], l = layoutState[id];
-  if (id === 'kamera') return { x: l.x - 22, y: l.y - 22, w: l.w + 44, h: l.h + 44 };
+  if (id === 'kamera') return { x: l.x - 22, y: l.y - 22, w: l.w + 44, h: l.w + 44 };
   if (b.modul) return { x: l.x - (b.w * l.s) / 2, y: l.y - (b.h - 30) * l.s, w: b.w * l.s, h: b.h * l.s };
   return { x: l.x, y: l.y, w: b.w * l.s, h: b.h * l.s };
 }
@@ -262,7 +299,7 @@ function select(id) {
   $('edGroesse').hidden = id === 'kamera'; $('edGroesse').parentElement.hidden = id === 'kamera';
   if (id !== 'kamera') $('edGroesse').value = l.s;
   $('edKamera').hidden = id !== 'kamera';
-  if (id === 'kamera') { $('edW').value = l.w; $('edH').value = l.h; }
+  if (id === 'kamera') $('edW').value = l.w;
   renderBoxen();
 }
 function fitEditor() {
@@ -276,9 +313,8 @@ function loadLayout(layout) {
   fitEditor(); renderBoxen(); pushLayout();
 }
 addEventListener('resize', fitEditor);
-const edChange = () => { if (!gewaehlt) return; const l = layoutState[gewaehlt]; l.on = $('edAn').checked; if (gewaehlt !== 'kamera') l.s = Number($('edGroesse').value); else { l.w = Number($('edW').value); l.h = Number($('edH').value); } layoutState = normalizeLayout(layoutState); renderBoxen(); pushLayout(); };
-for (const id of ['edAn', 'edGroesse', 'edW', 'edH']) $(id).oninput = edChange;
-$('edRatio').onclick = () => { if (gewaehlt === 'kamera') { $('edH').value = Math.round((Number($('edW').value) * 9) / 16 / 10) * 10; edChange(); } };
+const edChange = () => { if (!gewaehlt) return; const l = layoutState[gewaehlt]; l.on = $('edAn').checked; if (gewaehlt !== 'kamera') l.s = Number($('edGroesse').value); else { l.w = Number($('edW').value); l.h = l.w; } layoutState = normalizeLayout(layoutState); renderBoxen(); pushLayout(); };
+for (const id of ['edAn', 'edGroesse', 'edW']) $(id).oninput = edChange;
 $('layoutSpeichern').onclick = run(async () => { const r = await api('PUT', 'settings', { layout: layoutState }); current = r.settings; layoutState = normalizeLayout(r.settings.layout); renderBoxen(); meldung('Anordnung gespeichert'); });
 $('layoutZurueck').onclick = () => { layoutState = normalizeLayout(structuredClone(DEFAULT_LAYOUT)); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); meldung('Standard geladen – noch speichern'); };
 $('layoutLaden').onclick = run(async () => { const { settings } = await api('GET', 'settings'); layoutState = normalizeLayout(settings.layout); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); });

@@ -8,6 +8,8 @@ import { addTask, clearTasks, completeTask, getTasks, removeTask } from '../task
 import { streamerId } from '../view.mjs';
 import { pushEvent, streamDay } from '../util.mjs';
 import { clearMusik, getMusik, setMusik } from '../musik.mjs';
+import { addPages, getPages, setPages } from '../pages.mjs';
+import { fmtHM, startStream, stopStream, streamInfo } from '../streamzeit.mjs';
 import { json } from '../http.mjs';
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : null);
@@ -119,4 +121,26 @@ export async function musik({ route, method, body }) {
     return json({ musik: await getMusik() });
   }
   if (method === 'DELETE') { await clearMusik(); return json({ ok: true }); }
+}
+
+// Gelesene Seiten heute
+export async function pages({ route, method, body }) {
+  if (route[0] !== 'pages') return;
+  const settings = await getSettings();
+  if (method === 'GET') return json(await getPages(settings));
+  if (method !== 'POST') return;
+  const n = num(body.value);
+  if (n === null || n < 0) return json({ error: 'Bitte eine Zahl eingeben' }, 400);
+  return json(body.mode === 'delta' ? await addPages(Math.round(n), settings) : await setPages(Math.round(n), settings));
+}
+
+// Streamzeit starten und beenden (sonst erkennt das Overlay einen laufenden Twitch-Stream selbst)
+export async function stream({ route, method }) {
+  if (route[0] !== 'stream') return;
+  const settings = await getSettings();
+  if (method === 'POST' && route[1] === 'start') await startStream();
+  else if (method === 'POST' && route[1] === 'stop') await stopStream();
+  else if (method !== 'GET') return;
+  const info = await streamInfo();
+  return json({ startedAt: info.startedAt, quelle: info.quelle, goalMinutes: settings.streamGoalMinutes, text: info.startedAt ? fmtHM(Date.now() - info.startedAt) : null });
 }

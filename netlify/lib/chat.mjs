@@ -9,6 +9,8 @@ import { announceCredit, getTimer, say, startBreak, startFocus, stopTimer, tick 
 import { fill, fmtDuration, fmtNumber, pushEvent } from './util.mjs';
 import { storedTokens } from './twitch.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
+import { addPages, getPages, setPages } from './pages.mjs';
+import { fmtHM, startStream, stopStream, streamInfo } from './streamzeit.mjs';
 
 const MAX_VIEWER_WORDS = 3000;
 const num = (s) => { const n = Number(String(s ?? '').replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -27,13 +29,14 @@ const COMMANDS = {
   sprint: 'sprint', fokus: 'sprint', pomodoro: 'sprint', pomo: 'sprint',
   pomodoros: 'pgoal',
   song: 'song', musik: 'song',
+  seiten: 'pages', seitenziel: 'pagegoal', stream: 'stream',
   pause: 'pause',
   stop: 'stop', stopp: 'stop',
   szene: 'scene', ort: 'scene',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song']);
-const BROADCASTER_ONLY = new Set(['goal', 'pgoal']);
+const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream']);
+const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
 
@@ -121,6 +124,31 @@ async function run(action, ctx) {
       if (n == null || n < 0) return `🍅 Ziel heute: ${settings.pomodoroGoal} Pomodoros. Ändern mit ${pre(settings)}pomodoros 6`;
       const { settings: saved } = await saveSettings({ pomodoroGoal: n });
       return `🍅 Ziel heute: ${saved.pomodoroGoal} Pomodoros.`;
+    }
+    case 'pages': {
+      const raw = String(args[0] ?? '');
+      const n = num(raw.replace(/^\+/, ''));
+      const p = n == null || n < 0 ? await getPages(settings) : raw.startsWith('+') ? await addPages(n, settings) : await setPages(n, settings);
+      return `📖 Heute ${fmtNumber(p.today)}${p.goal ? ` von ${fmtNumber(p.goal)}` : ''} Seiten.`;
+    }
+    case 'pagegoal': {
+      const n = num(args[0]);
+      if (n == null || n < 0) return `📖 Seitenziel: ${settings.seitenGoal}. Ändern mit ${pre(settings)}seitenziel 40`;
+      const { settings: saved } = await saveSettings({ seitenGoal: n });
+      return `📖 Seitenziel: ${saved.seitenGoal} Seiten.`;
+    }
+    case 'stream': {
+      const sub = norm(args[0]);
+      if (sub === 'start') { await startStream(); return `⏱️ Streamzeit läuft (Ziel: ${fmtHM(settings.streamGoalMinutes * 60_000)} Std).`; }
+      if (sub === 'stop' || sub === 'ende') { await stopStream(); return '⏱️ Streamzeit gestoppt.'; }
+      if (sub === 'ziel') {
+        const h = num(args[1]);
+        if (h == null || h <= 0) return `Streamziel: ${fmtHM(settings.streamGoalMinutes * 60_000)} Std. Ändern mit ${pre(settings)}stream ziel 3`;
+        const { settings: saved } = await saveSettings({ streamGoalMinutes: Math.round(h * 60) });
+        return `⏱️ Streamziel: ${fmtHM(saved.streamGoalMinutes * 60_000)} Std.`;
+      }
+      const info = await streamInfo();
+      return info.startedAt ? `⏱️ Streamzeit: ${fmtHM(Date.now() - info.startedAt)} von ${fmtHM(settings.streamGoalMinutes * 60_000)} Std.` : `⏱️ Die Streamzeit läuft nicht. Start mit ${pre(settings)}stream start`;
     }
     case 'song': {
       const text = args.join(' ').trim();
