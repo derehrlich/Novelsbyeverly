@@ -1,0 +1,13 @@
+{
+  "name": "novelsbyeverly",
+  "version": "1.0.0",
+  "description": "Co-Working-Bot für Twitch: Sprint-Timer, Wörterzähler, Aufgaben und eine Szene mit Figuren der Mitschreibenden",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "netlify dev",
+    "test": "node test/run.mjs"
+  },
+  "dependencies": { "@netlify/blobs": "^11.1.7" }
+}

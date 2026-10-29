@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Co-Working-Overlay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- OBS: Browser-Quelle 1920×1080. Teile wählbar: /overlay?teile=uhr,woerter,tasks,szene (Standard: alles).
+     Ohne "szene" ist der Hintergrund durchsichtig. Ton ausschalten: &ton=aus. Vorschau ohne Bot: ?demo=1 -->
+<style>
+@font-face { font-family: Fredoka; font-weight: 400; src: url(fonts/fredoka-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: Fredoka; font-weight: 500; src: url(fonts/fredoka-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: Fredoka; font-weight: 700; src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
+:root {
+  --papier: rgba(255, 248, 235, .93); --rand: #8b5e3c; --text: #4a3320; --leise: #8c7358;
+  --fokus: #4f9a5b; --pause: #d98b2b; --bereit: #8c7358; --akzent: #c0704a;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Fredoka, system-ui, sans-serif; color: var(--text); }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+#szene { position: absolute; inset: 0; width: 1920px; height: 1080px; image-rendering: pixelated; }
+.card { position: absolute; background: var(--papier); border: 4px solid var(--rand); border-radius: 18px; box-shadow: 0 7px 0 rgba(60, 35, 15, .28); padding: 16px 22px; }
+.klein { font-size: 20px; color: var(--leise); font-weight: 500; }
+.bar { height: 14px; border-radius: 8px; background: rgba(139, 94, 60, .18); overflow: hidden; border: 2px solid rgba(139, 94, 60, .35); }
+.bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: var(--fokus); transition: width .9s ease, background .4s; }
+
+#uhr { left: 36px; top: 28px; width: 330px; }
+#uhr .zeit { font-weight: 700; font-size: 76px; line-height: 1; font-variant-numeric: tabular-nums; }
+#uhr .oben { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; }
+#uhr .datum { display: flex; flex-direction: column; text-align: right; font-size: 21px; line-height: 1.1; color: var(--leise); font-weight: 500; margin-bottom: 8px; }
+#uhr .zeile { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.chip { display: inline-block; padding: 3px 14px; border-radius: 20px; font-weight: 700; font-size: 22px; color: #fff; background: var(--bereit); transition: background .4s; }
+.phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); }
+#uhr .runde { font-size: 20px; color: var(--leise); }
+#uhr .rest { font-weight: 700; font-size: 58px; line-height: 1.05; margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
+#uhr.phase-break .bar i { background: var(--pause); } #uhr.phase-idle .bar i { background: var(--bereit); }
+#uhr.phase-idle .rest { font-size: 30px; font-family: Fredoka; font-weight: 600; color: var(--leise); padding: 12px 0 14px; }
+
+#woerter { right: 36px; top: 28px; width: 360px; }
+#woerter .kopf { display: flex; justify-content: space-between; align-items: baseline; }
+#woerter .label { font-size: 24px; font-weight: 600; }
+#woerter .zahl { font-weight: 700; font-size: 84px; line-height: 1.02; font-variant-numeric: tabular-nums; }
+#woerter .ziel { font-size: 22px; color: var(--leise); }
+#woerter .bar { margin: 8px 0 10px; }
+#woerter.geschafft .bar i { background: #e0a43c; } #woerter.geschafft .zahl { color: #b8721e; }
+#woerter .sprint { display: inline-block; background: var(--fokus); color: #fff; border-radius: 14px; padding: 1px 12px; font-weight: 700; font-size: 20px; margin-bottom: 6px; }
+#woerter .sprint[hidden] { display: none; }
+
+#tasks { left: 36px; top: 286px; width: 330px; max-height: 176px; overflow: hidden; padding-top: 12px; padding-bottom: 12px; }
+#tasks h3 { font-size: 23px; font-weight: 600; margin-bottom: 4px; }
+#tasks ul { list-style: none; padding: 0; }
+#tasks li { display: flex; gap: 10px; align-items: center; font-size: 22px; line-height: 1.2; padding: 3px 0; font-weight: 500; white-space: nowrap; }
+#tasks li span { overflow: hidden; text-overflow: ellipsis; }
+#tasks li::before { content: ''; flex: none; width: 20px; height: 20px; border: 3px solid var(--rand); border-radius: 6px; background: #fffdf6; }
+#tasks li.fertig { color: var(--leise); text-decoration: line-through; }
+#tasks li.fertig::before { background: var(--fokus); border-color: var(--fokus); content: '✓'; color: #fff; font-size: 16px; line-height: 14px; text-align: center; text-decoration: none; }
+#tasks li.leer { color: var(--leise); font-size: 20px; }
+#tasks li.leer::before { display: none; }
+
+.name { position: absolute; width: 230px; margin-left: -115px; text-align: center; pointer-events: none; transition: opacity .3s; }
+.name .n { display: inline-block; max-width: 230px; background: rgba(255, 248, 235, .92); border: 3px solid var(--rand); border-radius: 14px; padding: 1px 12px; font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 3px 0 rgba(60, 35, 15, .25); }
+.name .n small { font-size: 15px; color: var(--leise); font-weight: 500; margin-left: 6px; }
+.name .t { display: block; margin: 3px auto 0; width: fit-content; max-width: 220px; background: #fff3a8; border-radius: 4px; padding: 0 8px; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 rgba(60, 35, 15, .2); transform: rotate(-1.5deg); }
+.name .t.fertig { background: #cfeccb; text-decoration: line-through; }
+
+#banner { position: absolute; left: 50%; top: 40px; width: 640px; margin-left: -320px; display: flex; flex-direction: column; gap: 12px; align-items: center; pointer-events: none; }
+.ereignis { width: 100%; background: var(--papier); border: 5px solid var(--rand); border-radius: 22px; box-shadow: 0 8px 0 rgba(60, 35, 15, .3); padding: 14px 24px; display: flex; gap: 18px; align-items: center; animation: rein .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+.ereignis.raus { animation: raus .5s ease-in both; }
+.ereignis .icon { font-size: 52px; line-height: 1; }
+.ereignis .titel { font-size: 32px; font-weight: 700; }
+.ereignis .sub { font-size: 23px; color: var(--leise); font-weight: 500; }
+.ereignis.gold { background: #fff0c2; border-color: #b8721e; }
+@keyframes rein { from { transform: translateY(-140px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes raus { to { transform: translateY(-120px); opacity: 0; } }
+#konfetti { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="szene" hidden></canvas>
+  <div id="namen"></div>
+  <section class="card phase-idle" id="uhr" hidden>
+    <div class="oben"><div class="zeit" id="zeit">--:--</div><div class="datum"><span id="tag"></span><span id="datum"></span></div></div>
+    <div class="zeile"><span class="chip" id="chip">Bereit</span><span class="runde" id="runde"></span></div>
+    <div class="rest" id="rest">Gleich geht's los</div>
+    <div class="bar"><i id="fortschritt"></i></div>
+  </section>
+  <section class="card" id="woerter" hidden>
+    <div class="kopf"><span class="label">Wörter heute</span><span class="ziel" id="ziel"></span></div>
+    <div class="zahl" id="zahl">0</div>
+    <div class="bar"><i id="wbalken"></i></div>
+    <div class="sprint" id="sprint" hidden></div>
+    <div class="klein" id="gemeinsam"></div>
+  </section>
+  <section class="card" id="tasks" hidden>
+    <h3>Aufgaben</h3>
+    <ul id="liste"></ul>
+  </section>
+  <div id="banner"></div>
+  <canvas id="konfetti" width="1920" height="1080"></canvas>
+</div>
+
+<script type="module">
+import { Szene, seatPos } from './js/szene.mjs';
+
+const q = new URLSearchParams(location.search);
+const teile = new Set((q.get('teile') ?? 'uhr,woerter,tasks,szene').split(',').map((s) => s.trim()));
+const ton = q.get('ton') !== 'aus';
+const demo = q.has('demo');
+const $ = (id) => document.getElementById(id);
+for (const t of teile) { const el = $(t === 'szene' ? 'szene' : t); if (el) el.hidden = false; }
+
+// ---- Bühne an das Fenster anpassen
+const stage = $('stage');
+const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };
+addEventListener('resize', fit); fit();
+
+const szene = teile.has('szene') ? new Szene($('szene')) : null;
+const fmt = new Intl.NumberFormat('de-DE');
+let view = null, cursor = null, offset = 0;
+let shownWords = 0, targetWords = 0;
+
+// ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
+let audio = null;
+function chime(notes = [660, 880, 1320], gap = 0.16) {
+  if (!ton) return;
+  try {
+    audio ??= new AudioContext();
+    notes.forEach((f, i) => {
+      const t = audio.currentTime + i * gap, o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + 1.2);
+    });
+  } catch { /* ohne Ton weiter */ }
+}
+
+// ---- Konfetti
+const kc = $('konfetti').getContext('2d');
+let parts = [];
+function burst(x, y, n = 80, spread = 1) {
+  const cols = ['#e86a8b', '#f2c94c', '#6fb8d6', '#78c27a', '#a77bd6', '#f08a4a'];
+  for (let i = 0; i < n; i += 1) {
+    const a = Math.random() * Math.PI * 2, v = (4 + Math.random() * 9) * spread;
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, r: 6 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length], life: 0 });
+  }
+}
+function stepConfetti() {
+  kc.clearRect(0, 0, 1920, 1080);
+  parts = parts.filter((p) => p.life < 150 && p.y < 1100);
+  for (const p of parts) {
+    p.life += 1; p.vy += 0.38; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    kc.save(); kc.translate(p.x, p.y); kc.rotate(p.rot); kc.globalAlpha = Math.min(1, (150 - p.life) / 40);
+    kc.fillStyle = p.c; kc.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); kc.restore();
+  }
+}
+
+// ---- Banner
+const queue = [];
+let showing = false;
+function banner(icon, titel, sub = '', { gold = false, sound = true, confetti = 0 } = {}) {
+  queue.push({ icon, titel, sub, gold, sound, confetti });
+  if (!showing) nextBanner();
+}
+function nextBanner() {
+  const b = queue.shift();
+  if (!b) { showing = false; return; }
+  showing = true;
+  const el = document.createElement('div');
+  el.className = `ereignis${b.gold ? ' gold' : ''}`;
+  el.innerHTML = '<div class="icon"></div><div><div class="titel"></div><div class="sub"></div></div>';
+  el.querySelector('.icon').textContent = b.icon; el.querySelector('.titel').textContent = b.titel; el.querySelector('.sub').textContent = b.sub;
+  el.querySelector('.sub').hidden = !b.sub;
+  $('banner').append(el);
+  if (b.sound) chime();
+  if (b.confetti) burst(960, 140, b.confetti, 1.3);
+  setTimeout(() => el.classList.add('raus'), 5200);
+  setTimeout(() => { el.remove(); nextBanner(); }, 5700);
+}
+
+function handleEvent(ev) {
+  szene?.event(ev);
+  switch (ev.type) {
+    case 'sprint': banner(ev.early ? '⏹️' : '🎉', ev.early ? 'Sprint beendet' : 'Sprint geschafft!', `${ev.writers} Mitschreibende · ${ev.minutes} Min${ev.streamerWords ? ` · +${fmt.format(ev.streamerWords)} Wörter` : ''}`, { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
+    case 'phase': if (ev.phase === 'focus') banner('✍️', 'Fokus!', `${ev.minutes} Minuten schreiben`, { sound: true }); else if (ev.phase === 'break') banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`, { sound: false }); break;
+    case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
+    case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
+    case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
+    case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
+    case 'taskdone': burst(200, 380, 40, .7); break;
+    case 'sit': if (teile.has('szene')) chime([880], 0); break;
+    default: break;
+  }
+}
+
+// ---- Anzeige
+const pad = (n) => String(n).padStart(2, '0');
+function renderNames() {
+  const box = $('namen');
+  if (!szene) { box.textContent = ''; return; }
+  const seen = new Set();
+  for (const s of view.seats) {
+    seen.add(s.id);
+    let el = box.querySelector(`[data-id="${CSS.escape(s.id)}"]`);
+    if (!el) { el = document.createElement('div'); el.className = 'name'; el.dataset.id = s.id; el.innerHTML = '<span class="n"></span><span class="t" hidden></span>'; box.append(el); }
+    const { x, ty } = seatPos(s.slot);
+    el.style.left = `${x * 4}px`; el.style.top = `${(ty - 40) * 4 - 56}px`;
+    const n = el.querySelector('.n');
+    if (n.dataset.v !== `${s.name}|${s.rank}`) { n.dataset.v = `${s.name}|${s.rank}`; n.textContent = s.name; if (s.rank) { const sm = document.createElement('small'); sm.textContent = s.rank; n.append(sm); } }
+    const task = s.tasks.find((t) => !t.done) ?? s.tasks.at(-1);
+    const t = el.querySelector('.t');
+    t.hidden = !task; if (task) { t.textContent = task.text; t.classList.toggle('fertig', task.done); }
+  }
+  for (const el of [...box.children]) if (!seen.has(el.dataset.id)) el.remove();
+}
+
+function renderTasks() {
+  const ul = $('liste');
+  const items = view.streamerTasks;
+  ul.textContent = '';
+  if (!items.length) { const li = document.createElement('li'); li.className = 'leer'; li.textContent = 'Noch keine Aufgaben'; ul.append(li); return; }
+  for (const t of items.slice(-3)) { const li = document.createElement('li'); const sp = document.createElement('span'); sp.textContent = t.text; li.append(sp); if (t.done) li.className = 'fertig'; ul.append(li); }
+}
+
+function renderWords() {
+  const w = view.words;
+  targetWords = w.today;
+  $('ziel').textContent = w.goal ? `Ziel ${fmt.format(w.goal)}` : '';
+  const pct = w.goal ? Math.min(100, (w.today / w.goal) * 100) : 0;
+  $('wbalken').style.width = `${pct}%`;
+  $('woerter').classList.toggle('geschafft', w.goal > 0 && w.today >= w.goal);
+  const sprint = view.timer.phase === 'focus' ? Math.max(0, w.today - view.timer.wordsAtStart) : 0;
+  $('sprint').hidden = view.timer.phase !== 'focus';
+  $('sprint').textContent = `Sprint +${fmt.format(sprint)}`;
+  const bits = [];
+  if (view.communityHours) bits.push(`Zimmer ${view.communityHours} Std`);
+  if (w.chat) bits.push(`Chat ${fmt.format(w.chat)} Wörter`);
+  $('gemeinsam').textContent = bits.join(' · ');
+}
+
+function renderTimer() {
+  const t = view.timer;
+  const card = $('uhr');
+  card.className = `card phase-${t.phase}`;
+  $('chip').textContent = t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
+  $('runde').textContent = t.phase !== 'idle' && t.round ? `Runde ${t.round}` : '';
+}
+
+function tickClock() {
+  const d = new Date();
+  $('zeit').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $('tag').textContent = d.toLocaleDateString('de-DE', { weekday: 'short' });
+  $('datum').textContent = d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  if (!view) return;
+  const t = view.timer;
+  if (t.phase === 'idle') { $('rest').textContent = "Gleich geht's los"; $('fortschritt').style.width = '0%'; return; }
+  const now = Date.now() + offset;
+  const left = Math.max(0, t.endsAt - now);
+  const s = Math.ceil(left / 1000);
+  $('rest').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  $('fortschritt').style.width = `${Math.min(100, ((now - t.startedAt) / (t.endsAt - t.startedAt)) * 100)}%`;
+}
+
+function apply(data) {
+  const first = view === null;
+  offset = data.now - Date.now();
+  view = data;
+  for (const ev of data.events ?? []) handleEvent(ev);
+  if (data.cursor) cursor = data.cursor;
+  szene?.update(view);
+  renderNames(); renderTasks(); renderWords(); renderTimer();
+  if (first) shownWords = targetWords;
+}
+
+// ---- Abrufen
+async function poll() {
+  try {
+    const res = await fetch(`/api/overlay${cursor ? `?since=${encodeURIComponent(cursor)}` : ''}`, { cache: 'no-store' });
+    if (res.ok) apply(await res.json());
+  } catch { /* beim nächsten Mal wieder */ }
+}
+if (demo) {
+  // Vorschau ohne Bot: Beispieldaten
+  const kat = await import('./js/katalog.mjs');
+  const names = ['Lena', 'Marie', 'Jonas', 'Sophie', 'Paul', 'Emma', 'Noah', 'Mia'];
+  const tasksOf = ['Kapitel 3 überarbeiten', 'Dialoge feilen', '', 'Recherche', 'Exposé', '', 'Plot-Twist', ''];
+  const mk = () => ({
+    now: Date.now(), scene: q.get('szene') ?? 'cafe', deco: ['lichter', 'pflanzen', 'katze', 'buecher'],
+    timer: { phase: q.get('phase') ?? 'focus', round: 2, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
+    words: { today: 1234, goal: 2000, chat: 4210 }, communityHours: 14,
+    streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
+    seats: names.map((n, i) => ({ id: 'd' + i, name: n, slot: [2, 7, 0, 5, 4, 9, 1, 6][i], rank: ['Notizbuch', 'Federkiel', 'Tintenfleck', 'Lektorat', 'Schreibstube', 'Manuskript', 'Notizbuch', 'Bestseller'][i],
+      figure: Object.assign(kat.startFigur('demo' + i), i === 1 ? { kopf: 'muetze', tier: 'katze', gesicht: 'brille' } : i === 3 ? { kopf: 'kopfhoerer', tisch: 'schreibmaschine' } : {}),
+      tasks: tasksOf[i] ? [{ id: 't', text: tasksOf[i], done: i === 4 }] : [] })),
+    events: [], cursor: 'x',
+  });
+  apply(mk());
+  if (q.get('ereignis')) setTimeout(() => handleEvent({ type: q.get('ereignis'), writers: 6, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' }), 300);
+} else {
+  await poll();
+  setInterval(poll, 3000);
+}
+
+// ---- Schleifen
+let last = 0;
+function frame(t) {
+  requestAnimationFrame(frame);
+  if (t - last < 70) return; // ca. 14 Bilder pro Sekunde reichen für Pixel-Optik
+  last = t;
+  if (szene && view) szene.draw(t);
+  if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
+  $('zahl').textContent = fmt.format(Math.round(shownWords));
+  stepConfetti();
+}
+requestAnimationFrame(frame);
+setInterval(tickClock, 250); tickClock();
+</script>
+</body>
+</html>

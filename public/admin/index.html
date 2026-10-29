@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Co-Working-Bot · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="reihe" style="justify-content: space-between"><h1>✍️ Co-Working-Bot</h1><button class="hell" id="abmelden">Abmelden</button></div>
+
+    <section class="karte">
+      <h2>Einrichtung</h2>
+      <ul class="status" id="status"></ul>
+      <div class="reihe">
+        <a class="knopf" href="/api/auth/login?role=broadcaster">Kanal mit Twitch verbinden</a>
+        <a class="knopf hell" href="/api/auth/login?role=bot">Bot-Account verbinden</a>
+        <button class="gruen" id="abgleich">Reward &amp; Webhooks abgleichen</button>
+      </div>
+      <p class="leise">Für den Bot-Account vorher bei Twitch ausloggen oder ein privates Fenster nutzen und dort mit dem Bot-Konto anmelden. Der Bot sollte in deinem Chat Moderator sein (höhere Nachrichtenlimits).</p>
+      <h3>Adressen</h3>
+      <div id="urls"></div>
+    </section>
+
+    <section class="karte">
+      <h2>Steuerung</h2>
+      <div class="reihe"><span class="timer" id="timer">–</span><span class="leise" id="timerInfo"></span></div>
+      <div class="reihe">
+        <label>Minuten <input type="number" id="minuten" min="1" max="180" placeholder="Standard"></label>
+        <button class="gruen" id="fokus">▶ Fokus-Sprint</button>
+        <button class="orange" id="pause">☕ Pause</button>
+        <button class="rot" id="stopp">■ Stopp</button>
+      </div>
+      <h3>Szene</h3>
+      <div class="szenen" id="szenen"></div>
+      <h3>Wörter heute: <span id="woerterHeute">0</span> / <span id="woerterZiel">0</span></h3>
+      <div class="reihe">
+        <input type="number" id="woerterWert" min="0" placeholder="Zahl" style="width:120px">
+        <button id="wAbs" title="Gesamtzahl aus der Statuszeile von Papyrus">Stand aus Papyrus</button>
+        <button class="hell" id="wDelta" title="Dazugeschriebene Wörter addieren">+ dazu</button>
+        <button class="hell" id="wToday" title="Wie viele Wörter heute schon geschrieben wurden">Heute schon …</button>
+        <button class="hell" id="wReset">Tag zurücksetzen</button>
+      </div>
+      <p class="leise">Im Chat geht das auch: <code>!wörter 4231</code> (Stand aus Papyrus) oder <code>!wörter +300</code>.</p>
+      <h3>Meine Aufgaben</h3>
+      <div id="aufgaben"></div>
+      <div class="reihe"><input id="neueAufgabe" placeholder="Neue Aufgabe" maxlength="70" style="flex:1; min-width: 200px"><button id="aufgabeAdd">Hinzufügen</button><button class="hell" id="aufgabenLeer">Alle löschen</button></div>
+      <h3>Wer sitzt gerade</h3>
+      <div id="plaetze" class="leise">–</div>
+      <div class="reihe"><button class="hell" id="alleAufstehen">Alle aufstehen lassen</button></div>
+    </section>
+
+    <section class="karte">
+      <h2>Einstellungen</h2>
+      <div id="formular"></div>
+      <div class="reihe"><button class="gruen" id="speichern">Speichern</button><span class="leise">Nach Änderungen an „Erscheinen bei“ oder am Reward-Namen einmal auf „Reward &amp; Webhooks abgleichen“ klicken.</span></div>
+    </section>
+
+    <section class="karte">
+      <h2>Mitschreibende</h2>
+      <div class="reihe"><a class="knopf hell" href="/api/admin/export.csv">CSV-Export</a><button class="hell" id="usersLaden">Aktualisieren</button></div>
+      <table><thead><tr><th>Name</th><th>Rang</th><th>Arbeitszeit</th><th>Sprints</th><th>Wörter</th><th>Besuche</th><th></th></tr></thead><tbody id="users"></tbody></table>
+    </section>
+
+    <section class="karte">
+      <h2>Testen</h2>
+      <p class="leise">Mit Testfiguren und Testereignissen siehst du im Overlay, wie alles aussieht, ohne dass jemand im Chat ist.</p>
+      <div class="reihe">
+        <button data-test="seats">Testfiguren setzen</button><button class="hell" data-test="clear">Testfiguren entfernen</button>
+        <button class="hell" data-event="sprint">Sprint-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
+        <button class="hell" data-event="rankup">Rang</button><button class="hell" data-event="unlock">Freischaltung</button>
+        <button class="hell" data-event="deko">Zimmer wächst</button><button class="hell" data-event="taskdone">Aufgabe erledigt</button>
+      </div>
+    </section>
+
+    <section class="karte">
+      <h2>Chat-Befehle</h2>
+      <table>
+        <tr><td><code>!sitzen</code> · <code>!aufstehen</code></td><td>Figur setzt sich an einen Tisch oder steht auf</td></tr>
+        <tr><td><code>!figur</code></td><td>Figur anpassen: <code>!figur haare rot</code>, <code>!figur kopf mütze</code>, <code>!figur zufall</code></td></tr>
+        <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>Aufgabe anlegen, abhaken, auflisten</td></tr>
+        <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
+        <tr><td><code>!rang</code> · <code>!hilfe</code></td><td>Arbeitszeit und Rang · Befehlsübersicht</td></tr>
+        <tr><td><code>!sprint [Min]</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Timer (nur Moderation und Kanalinhaberin)</td></tr>
+        <tr><td><code>!szene garten</code> · <code>!ziel 1500</code></td><td>Szene wechseln (Moderation) · Tagesziel (nur Kanalinhaberin)</td></tr>
+      </table>
+    </section>
+  </div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="admin.js"></script>
+</body>
+</html>
