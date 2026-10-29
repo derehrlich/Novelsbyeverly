@@ -225,6 +225,16 @@ await test('Zimmer-Dekoration wird durch die Gemeinschaft freigeschaltet', async
   const view = await (await overlay(new Request('https://x/api/overlay'))).json();
   assert.deepEqual(view.deco, ['lichter']);
 });
+await test('Module: Schalter, Sprint-Zähler im Overlay, Deko abschaltbar', async () => {
+  const get = async () => (await overlay(new Request('https://x/api/overlay'))).json();
+  const v = await get();
+  assert.deepEqual(v.modules, { blume: true, kerze: true, buecher: true });
+  assert.ok(v.sprintsToday >= 1); // der abgeschlossene Sprint zählt, abgebrochene nicht
+  await saveSettings({ moduleBlume: false, moduleDeko: false });
+  const v2 = await get();
+  assert.equal(v2.modules.blume, false); assert.deepEqual(v2.deco, []);
+  await saveSettings({ moduleBlume: true, moduleDeko: true });
+});
 await test('automatische Runden, wenn aktiviert', async () => {
   const s = { ...(await getSettings()), autoCycle: true, focusMinutes: 1, breakMinutes: 1 };
   await timerLib.stopTimer(s);

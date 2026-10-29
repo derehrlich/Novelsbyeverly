@@ -5,10 +5,10 @@ export const norm = (s) => String(s ?? '').toLowerCase().trim()
   .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
 
 export const FARBEN = {
-  schwarz: '#2b2430', braun: '#6b4430', blond: '#e3c06a', rot: '#b8452f', orange: '#e08a3c', gelb: '#f0d24a',
-  gruen: '#5aa469', blau: '#4f7fc4', lila: '#8a62b8', rosa: '#e58aa8', weiss: '#f1ece4', grau: '#8c8c96',
+  schwarz: '#3a3036', braun: '#7a5640', blond: '#d9bd86', rot: '#b5604f', orange: '#cf9060', gelb: '#dcc47a',
+  gruen: '#7f9a74', blau: '#7b9bb0', lila: '#9a86ad', rosa: '#d9a6a4', weiss: '#ece5d6', grau: '#9a9aa0',
 };
-export const HAUT = { 1: '#f6d5b8', 2: '#e8b98f', 3: '#c68b5c', 4: '#8d5a3b', 5: '#5e3a26' };
+export const HAUT = { 1: '#f3d9c3', 2: '#e8c1a0', 3: '#cf9f7a', 4: '#a67352', 5: '#7a4f38' };
 export const FRISUREN = ['kurz', 'lang', 'zopf', 'locken', 'dutt', 'glatze'];
 
 // Freischaltbare Gegenstände einer Person (Stunden = persönliche Arbeitszeit)

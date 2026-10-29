@@ -25,8 +25,8 @@ if (css.includes('url(fonts/')) throw new Error('Schrift nicht eingebettet');
 
 // Module einbinden (ohne import/export)
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const modules = `${strip(read('public/js/katalog.mjs'))}\n${strip(read('public/js/szene.mjs'))}`;
-script = must(script, "import { Szene, seatPos } from './js/szene.mjs';", modules);
+const modules = ['katalog', 'malerei', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
+script = must(script, "import { Szene, seatPos, moduleLayout } from './js/szene.mjs';", modules);
 script = must(script, "const ton = q.get('ton') !== 'aus';", 'let ton = false;');
 script = must(script, "const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };",
   "const wrap = $('rahmen');\nconst fit = () => { const s = wrap.clientWidth / 1920; stage.style.transform = `scale(${s})`; wrap.style.height = `${1080 * s}px`; };");
@@ -71,9 +71,20 @@ const controls = `<section id="steuerung" aria-label="Vorschau steuern">
   </div>
   <div class="gruppe"><h2>Ereignisse</h2><div class="knoepfe" id="k-event">
     <button data-e="sprint">Sprint-Ende</button><button data-e="goal">Tagesziel</button><button data-e="rankup">Neuer Rang</button><button data-e="unlock">Gegenstand</button><button data-e="deko">Zimmer wächst</button><button data-e="taskdone">Aufgabe erledigt</button><button data-e="sit">Figur setzt sich</button><button data-e="woerter">+150 Wörter</button></div></div>
+  <div class="gruppe"><h2>Module</h2>
+    <label for="mBlume"><input type="checkbox" id="mBlume" checked> Blume (Wörter)</label>
+    <label for="mKerze"><input type="checkbox" id="mKerze" checked> Kerze (Sprint)</label>
+    <label for="mBuecher"><input type="checkbox" id="mBuecher" checked> Bücher (Sprints)</label>
+    <label for="mDeko"><input type="checkbox" id="mDeko" checked> Zimmer wächst</label>
+  </div>
+  <div class="gruppe"><h2>Verlauf</h2>
+    <label for="woerterPct">Wörter <output id="woerterPctWert">62 %</output><input type="range" id="woerterPct" min="0" max="100" value="62"></label>
+    <label for="sprintPct">Sprint <output id="sprintPctWert">28 %</output><input type="range" id="sprintPct" min="0" max="100" value="28"></label>
+    <label for="sprintsHeute">Sprints heute <output id="sprintsHeuteWert">3</output><input type="range" id="sprintsHeute" min="0" max="8" value="3"></label>
+  </div>
   <div class="gruppe"><h2>Ton</h2><label for="tonAn"><input type="checkbox" id="tonAn"> Glockenton bei Ereignissen</label></div>
 </section>
-<p class="fuss">Der Regler „Zimmer“ zeigt, wie das Zimmer mit der gemeinsamen Arbeitszeit wächst: ab 2, 5, 10, 20, 40 und 80 Stunden kommen Lichterkette, Pflanzen, Katze, Bücher, Vögel und Regenbogen dazu.</p>`;
+<p class="fuss">Module lassen sich im Admin einzeln ein- und ausschalten. Die Blume wächst mit den Wörtern des Tages, die Kerze brennt mit dem Sprint herunter, der Bücherstapel zählt die Sprints. Der Regler „Zimmer“ zeigt, wie das Zimmer mit der gemeinsamen Arbeitszeit wächst: ab 2, 5, 10, 20, 40 und 80 Stunden kommen Lichterkette, Pflanzen, Katze, Bücher, Vögel und Regenbogen dazu.</p>`;
 
 const body = `<main>\n${intro}\n<div id="rahmen">\n${stageHtml}\n</div>\n${controls}\n</main>`;
 const title = 'Co-Working Overlay Vorschau';

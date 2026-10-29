@@ -106,6 +106,12 @@ const SCHEMA = [
     ['seatIdleMinutes', 'Platz frei nach … Min ohne Chatnachricht', 'number'],
     ['unlocksEnabled', 'Freischaltungen (Ränge, Gegenstände, Zimmer-Deko)', 'bool', 'Aus: alle Gegenstände sind sofort frei.'],
   ]],
+  ['Module im Overlay', [
+    ['moduleBlume', 'Blume wächst mit den Wörtern', 'bool', 'Wächst vom Samen bis zur Blüte, sobald das Tagesziel erreicht ist.'],
+    ['moduleKerze', 'Kerze brennt mit dem Sprint', 'bool', 'Brennt während des Fokus herunter, in der Pause raucht sie, danach steht eine neue bereit.'],
+    ['moduleBuecher', 'Bücherstapel wächst mit den Sprints', 'bool', 'Pro abgeschlossenem Sprint kommt ein Buch dazu (bis 8).'],
+    ['moduleDeko', 'Zimmer wächst mit der gemeinsamen Arbeitszeit', 'bool', 'Lichterkette, Pflanzen, Katze, Bücher, Vögel und Regenbogen.'],
+  ]],
   ['Sprints und Wörter', [
     ['focusMinutes', 'Fokus (Minuten)', 'number'], ['breakMinutes', 'Pause (Minuten)', 'number'],
     ['autoBreak', 'Nach dem Fokus automatisch Pause', 'bool'], ['autoCycle', 'Nach der Pause automatisch nächste Runde', 'bool'],

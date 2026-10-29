@@ -3,7 +3,7 @@
 import { db } from './store.mjs';
 import { ITEMS, DEKO } from '../../public/js/katalog.mjs';
 import { activeSeats, credit, sprintMinutes } from './people.mjs';
-import { fill, fmtDuration, fmtNumber, once, pushEvent } from './util.mjs';
+import { fill, fmtDuration, fmtNumber, once, pushEvent, streamDay } from './util.mjs';
 import { sendChat } from './twitch.mjs';
 import { getWords } from './words.mjs';
 
@@ -12,6 +12,11 @@ export const IDLE = { phase: 'idle', sprintId: null, round: 0, startedAt: null, 
 
 export async function getTimer() {
   return (await db.get(KEY)) ?? { ...IDLE };
+}
+
+// Wie viele Sprints heute abgeschlossen wurden (für den Bücherstapel)
+export async function sprintsToday(settings, now = Date.now()) {
+  return ((await db.get(`stats/sprints-${streamDay(settings, new Date(now))}`)) ?? { n: 0 }).n;
 }
 
 export async function say(settings, text, opts) {
@@ -58,6 +63,10 @@ async function finalizeSprint(t, settings, until, { early = false } = {}) {
   const today = (await getWords(settings)).today;
   const streamerWords = Math.max(0, today - (t.wordsAtStart ?? 0));
   const minutes = Math.max(1, Math.round((until - t.startedAt) / 60_000));
+  if (!early) {
+    const key = `stats/sprints-${streamDay(settings, new Date(until))}`;
+    await db.set(key, { n: ((await db.get(key)) ?? { n: 0 }).n + 1 });
+  }
   await pushEvent({ type: 'sprint', writers, minutes, streamerWords, early });
   if (settings.announceSprint) {
     const extra = streamerWords > 0 ? `, ich habe ${fmtNumber(streamerWords)} Wörter geschrieben` : '';

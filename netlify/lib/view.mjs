@@ -3,7 +3,7 @@ import { db } from './store.mjs';
 import { RAENGE, unlockedDeko } from '../../public/js/katalog.mjs';
 import { activeSeats, capacity, communityMinutes, resolveSlots } from './people.mjs';
 import { eventCursor } from './util.mjs';
-import { tick } from './timer.mjs';
+import { sprintsToday, tick } from './timer.mjs';
 import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
@@ -32,7 +32,9 @@ export async function buildView(settings, since, now = Date.now()) {
   const view = {
     now,
     scene: settings.scene,
-    deco: settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),
+    deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),
+    modules: { blume: settings.moduleBlume, kerze: settings.moduleKerze, buecher: settings.moduleBuecher },
+    sprintsToday: await sprintsToday(settings, now),
     timer: { phase: timer.phase, round: timer.round, startedAt: timer.startedAt, endsAt: timer.endsAt, minutes: timer.minutes ?? null, wordsAtStart: timer.wordsAtStart ?? 0 },
     words: { today: words.today, goal: words.goal, chat: await viewerWordsToday(settings) },
     streamerTasks,

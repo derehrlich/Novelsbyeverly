@@ -5,7 +5,7 @@ const TASKS = ['Kapitel 3 überarbeiten', 'Dialoge feilen', '', 'Recherche Mitte
 const SLOT_ORDER = [2, 7, 0, 5, 4, 9, 1, 6, 3, 8];
 const HOURS = [0, 2, 5, 10, 20, 40, 80];
 const DECO = [['lichter', 2], ['pflanzen', 5], ['katze', 10], ['buecher', 20], ['voegel', 40], ['regenbogen', 80]];
-const cfg = { scene: 'cafe', phase: 'focus', count: 8, hourIdx: 3, words: 1234, since: Date.now() - 7 * 60000 };
+const cfg = { scene: 'cafe', phase: 'focus', count: 8, hourIdx: 3, words: 1240, sprintPct: 28, sprints: 3, mod: { blume: true, kerze: true, buecher: true, deko: true }, since: Date.now() - 7 * 60000 };
 
 const figureFor = (i) => Object.assign(startFigur('demo' + i), [
   { kopf: 'muetze', gesicht: 'brille' }, { kopf: 'kopfhoerer', hals: 'schal', tisch: 'notizbuch', getraenk: 'kaffee' }, {},
@@ -17,7 +17,8 @@ function mk() {
   const length = cfg.phase === 'break' ? 5 : 25;
   const idle = cfg.phase === 'idle';
   return {
-    now: Date.now(), scene: cfg.scene, deco: DECO.filter(([, h]) => hours >= h).map(([id]) => id),
+    now: Date.now(), scene: cfg.scene, deco: cfg.mod.deko ? DECO.filter(([, h]) => hours >= h).map(([id]) => id) : [],
+    modules: { blume: cfg.mod.blume, kerze: cfg.mod.kerze, buecher: cfg.mod.buecher }, sprintsToday: cfg.sprints,
     timer: { phase: cfg.phase, round: 2, startedAt: idle ? null : cfg.since, endsAt: idle ? null : cfg.since + length * 60000, wordsAtStart: 640 },
     words: { today: cfg.words, goal: 2000, chat: 4210 }, communityHours: hours,
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
@@ -37,15 +38,20 @@ mark('k-szene', 's', cfg.scene); mark('k-phase', 'p', cfg.phase);
 $('k-szene').onclick = (e) => { const s = e.target.dataset?.s; if (!s) return; cfg.scene = s; mark('k-szene', 's', s); refresh(); };
 $('k-phase').onclick = (e) => {
   const p = e.target.dataset?.p; if (!p) return;
-  cfg.phase = p; cfg.since = Date.now() - (p === 'break' ? 60000 : 7 * 60000); mark('k-phase', 'p', p); refresh();
+  cfg.phase = p; setSince(); mark('k-phase', 'p', p); refresh();
   if (p !== 'idle') handleEvent({ type: 'phase', phase: p, minutes: p === 'focus' ? 25 : 5 });
 };
+const setSince = () => { const len = cfg.phase === 'break' ? 5 : 25; cfg.since = Date.now() - (cfg.phase === 'break' ? 0.2 : cfg.sprintPct / 100) * len * 60000; };
+for (const [id, key] of [['mBlume', 'blume'], ['mKerze', 'kerze'], ['mBuecher', 'buecher'], ['mDeko', 'deko']]) $(id).onchange = (e) => { cfg.mod[key] = e.target.checked; refresh(); };
+$('woerterPct').oninput = (e) => { cfg.words = Math.round((Number(e.target.value) / 100) * 2000); $('woerterPctWert').textContent = `${e.target.value} %`; refresh(); };
+$('sprintPct').oninput = (e) => { cfg.sprintPct = Number(e.target.value); $('sprintPctWert').textContent = `${e.target.value} %`; if (cfg.phase === 'idle') cfg.phase = 'focus'; setSince(); mark('k-phase', 'p', cfg.phase); refresh(); };
+$('sprintsHeute').oninput = (e) => { cfg.sprints = Number(e.target.value); $('sprintsHeuteWert').textContent = cfg.sprints; refresh(); };
 $('anzahl').oninput = (e) => { cfg.count = Number(e.target.value); $('anzahlWert').textContent = cfg.count; refresh(); };
 $('stunden').oninput = (e) => { cfg.hourIdx = Number(e.target.value); $('stundenWert').textContent = `${HOURS[cfg.hourIdx]} Std`; refresh(); };
 $('tonAn').onchange = (e) => { ton = e.target.checked; if (ton) chime([660, 880], 0.14); };
 $('k-event').onclick = (e) => {
   const kind = e.target.dataset?.e; if (!kind) return;
-  if (kind === 'woerter') { cfg.words += 150; refresh(); return; }
+  if (kind === 'woerter') { cfg.words = Math.min(2400, cfg.words + 150); $('woerterPct').value = Math.min(100, Math.round((cfg.words / 2000) * 100)); $('woerterPctWert').textContent = `${$('woerterPct').value} %`; refresh(); return; }
   if (kind === 'sit') {
     if (cfg.count >= 10) cfg.count = 9;
     cfg.count += 1; $('anzahl').value = cfg.count; $('anzahlWert').textContent = cfg.count; refresh();

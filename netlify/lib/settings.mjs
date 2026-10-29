@@ -16,6 +16,11 @@ export const DEFAULTS = {
   dayRolloverHour: 5,
   wordGoal: 1000,
   unlocksEnabled: true,
+  // Module im Overlay (auf dem Regalbrett und im Zimmer)
+  moduleBlume: true, // Blume wächst mit den Wörtern des Tages
+  moduleKerze: true, // Kerze brennt mit dem Sprint herunter
+  moduleBuecher: true, // Bücherstapel wächst mit den Sprints des Tages
+  moduleDeko: true, // Zimmer wächst mit der gemeinsamen Arbeitszeit
   // Check-in-Reward (nur nötig, wenn appearOn 'checkin' oder 'both' ist)
   checkinRewardTitle: 'Check-in',
   checkinRewardCost: 1,
@@ -43,7 +48,7 @@ export const DEFAULTS = {
 };
 
 const INT = { maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
 const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN) };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';

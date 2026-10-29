@@ -12,10 +12,21 @@ Ein Bot für Co-Working- und Schreib-Streams. Die Zuschauer setzen sich als klei
 - **Uhr** mit Sprint-Timer (Fokus und Pause, Fortschrittsbalken, Runde)
 - **Wortzähler** der Streamerin mit Tagesziel, der Zahl zählt sichtbar hoch; dazu Sprint-Wörter und die Wörter, die der Chat meldet
 - **Aufgabenliste** der Streamerin, abgehakt mit Konfetti. Die Aufgaben der Mitschreibenden hängen als Notizzettel an ihren Namensschildern
-- **Szene** mit Figuren: Café, Garten oder Park, 10 Plätze. Beim Fokus tippen die Figuren, in der Pause trinken sie
+- **Szene** mit Figuren: Café, Garten oder Park, 10 Plätze. Weich gemalter Look in gedeckten Tönen mit vielen Zimmerpflanzen (Monstera, Farn, Bogenhanf, Efeutute). Die Figuren sind kleine Chibis mit Frisuren, Mützen, Brillen, Schals, Haustieren und Schreibgeräten. Beim Fokus tippen sie, in der Pause lächeln sie bei einer Tasse Tee
 - **Ereignisse** mit Banner, Konfetti und kleinem Glockenton: Sprint geschafft, Tagesziel, neuer Rang, neuer Gegenstand, Zimmer wächst
 
 Einzelne Teile lassen sich getrennt einbinden, z. B. nur die Karten über einem eigenen Hintergrund: `/overlay?teile=uhr,woerter,tasks`. Ton aus: `&ton=aus`. Vorschau ohne Bot: `/overlay?demo=1`.
+
+**Module** (im Admin einzeln ein- und ausschaltbar, sie stehen auf einem Regalbrett in der Szene)
+
+| Modul | Was passiert |
+|---|---|
+| Blume | wächst mit den Wörtern des Tages (Tagesziel = 100 %): Keimling, Blätter, Knospe, Blüte |
+| Kerze | brennt während des Fokus herunter, in der Pause raucht sie, danach steht eine neue bereit |
+| Bücherstapel | pro abgeschlossenem Sprint des Tages ein Buch mehr (bis 8) |
+| Zimmer wächst | Lichterkette, Pflanzen, Katze, Bücher, Vögel, Regenbogen durch die gemeinsame Arbeitszeit |
+
+Weitere Module lassen sich im selben Muster ergänzen (siehe unten).
 
 **Figur erscheint bei … (im Admin umschaltbar)**
 - `!sitzen`: Chatbefehl
@@ -107,12 +118,14 @@ ADMIN_PASSWORD=geheim EVENTSUB_SECRET=zufallstext123 node scripts/dev-server.mjs
 Der lokale Server braucht kein Netlify und legt Daten in `./data` ab. Twitch-Funktionen (Chat, Reward) laufen nur auf der veröffentlichten Seite.
 
 Aufbau:
-- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/szene.mjs`: Zeichnen der Szenen und Figuren · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände, Dekoration
+- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/szene.mjs`: Szenen, Figuren und Module · `public/js/malerei.mjs`: Malwerkzeuge (Pflanzen, Bäume, Verläufe) · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände, Dekoration
 - `public/admin/`: Verwaltung
 - `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`
 - `netlify/lib/`: `chat` (Befehle), `people` (Plätze, Arbeitszeit), `timer`, `words`, `tasks`, `view`
 
-Neue Szene: Hintergrund und Dekoanker in `public/js/szene.mjs` ergänzen, Eintrag in `SZENEN` (`katalog.mjs`) und die Tischfarben in `STYLE`. Neue Gegenstände: in `ITEMS` eintragen und in `drawFigure`/`drawDesk` zeichnen.
+Neue Szene: Hintergrundfunktion in `public/js/szene.mjs` ergänzen (in `BACKGROUNDS` eintragen), Eintrag in `SZENEN` (`katalog.mjs`) und die Tischfarben in `STYLE`. Neue Gegenstände: in `ITEMS` eintragen und in `drawFigure`/`drawDesk`/`drawAccessories` zeichnen. Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` und Platz in `moduleLayout` (`szene.mjs`).
+
+Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene Illustrationen verwenden möchte, ersetzt die Funktionen in `szene.mjs` durch Bilder.
 
 ## Hinweise
 
