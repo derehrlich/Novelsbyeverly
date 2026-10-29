@@ -25,8 +25,9 @@ if (css.includes('url(fonts/')) throw new Error('Schrift nicht eingebettet');
 
 // Module einbinden (ohne import/export)
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const modules = ['katalog', 'malerei', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
+const modules = ['katalog', 'layout', 'jetztlaeuft', 'malerei', 'wachstum', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
 script = must(script, "import { Szene, seatPos, moduleLayout } from './js/szene.mjs';", modules);
+script = must(script, "import { nowPlaying } from './js/jetztlaeuft.mjs';", '');
 script = must(script, "const ton = q.get('ton') !== 'aus';", 'let ton = false;');
 script = must(script, "const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };",
   "const wrap = $('rahmen');\nconst fit = () => { const s = wrap.clientWidth / 1920; stage.style.transform = `scale(${s})`; wrap.style.height = `${1080 * s}px`; };");
@@ -60,31 +61,31 @@ h1 { font-size: clamp(24px, 4vw, 34px); margin: 0; text-wrap: balance; }
 
 const intro = `<header>
   <h1>Co-Working-Overlay zum Ausprobieren</h1>
-  <p class="intro">So sieht das Overlay in OBS aus. Alles hier sind Beispieldaten, es ist nichts mit Twitch verbunden. Wechsle Szene und Phase, setze Figuren dazu und löse Ereignisse aus.</p>
+  <p class="intro">So sieht das Overlay in OBS aus. Alles hier sind Beispieldaten, es ist nichts mit Twitch verbunden. Wechsle Jahres- und Tageszeit, zieh den Regler für das Wachstum und löse Ereignisse aus.</p>
 </header>`;
 const controls = `<section id="steuerung" aria-label="Vorschau steuern">
-  <div class="gruppe"><h2>Szene</h2><div class="knoepfe" id="k-szene"><button data-s="cafe">Café</button><button data-s="garten">Garten</button><button data-s="park">Park</button></div></div>
-  <div class="gruppe"><h2>Timer</h2><div class="knoepfe" id="k-phase"><button data-p="focus">Fokus</button><button data-p="break">Pause</button><button data-p="idle">Bereit</button></div></div>
-  <div class="gruppe"><h2>Figuren</h2>
-    <label for="anzahl">Sitzen <output id="anzahlWert">8</output><input type="range" id="anzahl" min="0" max="10" value="8"></label>
-    <label for="stunden">Zimmer <output id="stundenWert">14 Std</output><input type="range" id="stunden" min="0" max="6" value="3"></label>
+  <div class="gruppe"><h2>Jahreszeit</h2><div class="knoepfe" id="k-jahr"><button data-j="fruehling">Frühling</button><button data-j="sommer">Sommer</button><button data-j="herbst">Herbst</button><button data-j="winter">Winter</button></div></div>
+  <div class="gruppe"><h2>Tageszeit</h2><div class="knoepfe" id="k-zeit"><button data-z="morgen">Morgengrauen</button><button data-z="mittag">Mittag</button><button data-z="abend">Abend</button></div></div>
+  <div class="gruppe"><h2>Pomodoro</h2><div class="knoepfe" id="k-phase"><button data-p="focus">Fokus</button><button data-p="break">Pause</button><button data-p="idle">Bereit</button></div>
+    <label for="sprintPct">Verlauf <output id="sprintPctWert">28 %</output><input type="range" id="sprintPct" min="0" max="100" value="28"></label>
+    <label for="pomoDone">Geschafft <output id="pomoDoneWert">3 von 6</output><input type="range" id="pomoDone" min="0" max="6" value="3"></label>
   </div>
-  <div class="gruppe"><h2>Ereignisse</h2><div class="knoepfe" id="k-event">
-    <button data-e="sprint">Sprint-Ende</button><button data-e="goal">Tagesziel</button><button data-e="rankup">Neuer Rang</button><button data-e="unlock">Gegenstand</button><button data-e="deko">Zimmer wächst</button><button data-e="taskdone">Aufgabe erledigt</button><button data-e="sit">Figur setzt sich</button><button data-e="woerter">+150 Wörter</button></div></div>
+  <div class="gruppe"><h2>Wachstum</h2>
+    <label for="wachsRegler">Landschaft <output id="wachsWert">55 %</output><input type="range" id="wachsRegler" min="0" max="100" value="55"></label>
+    <p class="fuss" style="margin:4px 0 0">Zieh den Regler von links nach rechts: so wächst die Wiese im Lauf eines Streams.</p>
+  </div>
   <div class="gruppe"><h2>Module</h2>
     <label for="mBlume"><input type="checkbox" id="mBlume" checked> Blume (Wörter)</label>
-    <label for="mKerze"><input type="checkbox" id="mKerze" checked> Kerze (Sprint)</label>
-    <label for="mBuecher"><input type="checkbox" id="mBuecher" checked> Bücher (Sprints)</label>
-    <label for="mDeko"><input type="checkbox" id="mDeko" checked> Zimmer wächst</label>
+    <label for="mKerze"><input type="checkbox" id="mKerze" checked> Kerze (Pomodoro)</label>
+    <label for="mBuecher"><input type="checkbox" id="mBuecher" checked> Bücher (Pomodoros)</label>
+    <label for="mMusik"><input type="checkbox" id="mMusik" checked> Musik</label>
+    <label for="mKamera"><input type="checkbox" id="mKamera" checked> Kamerafenster</label>
   </div>
-  <div class="gruppe"><h2>Verlauf</h2>
-    <label for="woerterPct">Wörter <output id="woerterPctWert">62 %</output><input type="range" id="woerterPct" min="0" max="100" value="62"></label>
-    <label for="sprintPct">Sprint <output id="sprintPctWert">28 %</output><input type="range" id="sprintPct" min="0" max="100" value="28"></label>
-    <label for="sprintsHeute">Sprints heute <output id="sprintsHeuteWert">3</output><input type="range" id="sprintsHeute" min="0" max="8" value="3"></label>
-  </div>
-  <div class="gruppe"><h2>Ton</h2><label for="tonAn"><input type="checkbox" id="tonAn"> Glockenton bei Ereignissen</label></div>
+  <div class="gruppe"><h2>Ereignisse</h2><div class="knoepfe" id="k-event">
+    <button data-e="sprint">Pomodoro-Ende</button><button data-e="goal">Tagesziel</button><button data-e="taskdone">Aufgabe erledigt</button><button data-e="woerter">+150 Wörter</button></div>
+    <label for="tonAn" style="margin-top:10px"><input type="checkbox" id="tonAn"> Glockenton</label></div>
 </section>
-<p class="fuss">Module lassen sich im Admin einzeln ein- und ausschalten. Die Blume wächst mit den Wörtern des Tages, die Kerze brennt mit dem Sprint herunter, der Bücherstapel zählt die Sprints. Der Regler „Zimmer“ zeigt, wie das Zimmer mit der gemeinsamen Arbeitszeit wächst: ab 2, 5, 10, 20, 40 und 80 Stunden kommen Lichterkette, Pflanzen, Katze, Bücher, Vögel und Regenbogen dazu.</p>`;
+<p class="fuss">Im Admin lassen sich Karten, Module und das Kamerafenster frei verschieben, Module einzeln abschalten und Jahres- und Tageszeit festlegen. Alles hier sind Beispieldaten.</p>`;
 
 const body = `<main>\n${intro}\n<div id="rahmen">\n${stageHtml}\n</div>\n${controls}\n</main>`;
 const title = 'Co-Working Overlay Vorschau';

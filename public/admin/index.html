@@ -32,16 +32,30 @@
     </section>
 
     <section class="karte">
-      <h2>Steuerung</h2>
+      <h2>Pomodoro</h2>
       <div class="reihe"><span class="timer" id="timer">–</span><span class="leise" id="timerInfo"></span></div>
       <div class="reihe">
         <label>Minuten <input type="number" id="minuten" min="1" max="180" placeholder="Standard"></label>
-        <button class="gruen" id="fokus">▶ Fokus-Sprint</button>
+        <button class="gruen" id="fokus">▶ Pomodoro starten</button>
         <button class="orange" id="pause">☕ Pause</button>
         <button class="rot" id="stopp">■ Stopp</button>
       </div>
-      <h3>Szene</h3>
-      <div class="szenen" id="szenen"></div>
+      <div class="reihe">
+        <span>Heute geschafft: <b id="pomoHeute">0</b> von <b id="pomoZiel">0</b></span>
+        <button class="hell" id="pomoMinus" title="Eins abziehen">−</button><button class="hell" id="pomoPlus" title="Eins dazuzählen, z. B. für Arbeit ohne Timer">+</button>
+      </div>
+      <p class="leise">Dauer, Pausen und das Tagesziel stellst du unter „Einstellungen → Pomodoro“ ein. Im Chat: <code>!pomodoro 25</code>, <code>!pause</code>, <code>!stop</code>.</p>
+    </section>
+
+    <section class="karte">
+      <h2>Landschaft</h2>
+      <h3>Jahreszeit</h3>
+      <div class="szenen" id="jahreszeiten"></div>
+      <h3>Tageszeit</h3>
+      <div class="szenen" id="tageszeiten"></div>
+      <h3>Wächst mit</h3>
+      <div class="szenen" id="quellen"></div>
+      <p class="leise">Die Wiese beginnt leer und wächst mit dem Fortschritt zu: im Frühling Blüten, Baum und Rosenbogen, im Sommer Sonnenblumen und Lavendel, im Herbst verliert der Baum seine Blätter, im Winter schneit es alles zu. „Auto“ nimmt Datum und Uhrzeit.</p>
       <h3>Wörter heute: <span id="woerterHeute">0</span> / <span id="woerterZiel">0</span></h3>
       <div class="reihe">
         <input type="number" id="woerterWert" min="0" placeholder="Zahl" style="width:120px">
@@ -51,12 +65,40 @@
         <button class="hell" id="wReset">Tag zurücksetzen</button>
       </div>
       <p class="leise">Im Chat geht das auch: <code>!wörter 4231</code> (Stand aus Papyrus) oder <code>!wörter +300</code>.</p>
-      <h3>Meine Aufgaben</h3>
+    </section>
+
+    <section class="karte">
+      <h2>To-Do-Liste</h2>
       <div id="aufgaben"></div>
       <div class="reihe"><input id="neueAufgabe" placeholder="Neue Aufgabe" maxlength="70" style="flex:1; min-width: 200px"><button id="aufgabeAdd">Hinzufügen</button><button class="hell" id="aufgabenLeer">Alle löschen</button></div>
-      <h3>Wer sitzt gerade</h3>
-      <div id="plaetze" class="leise">–</div>
-      <div class="reihe"><button class="hell" id="alleAufstehen">Alle aufstehen lassen</button></div>
+      <p class="leise">Im Chat: <code>!task Text</code>, <code>!done</code>, <code>!tasks</code> (für alle, die Liste im Overlay zeigt die der Streamerin).</p>
+      <div id="plaetze" class="leise" hidden></div>
+      <div class="reihe" id="zimmerKnoepfe" hidden><button class="hell" id="alleAufstehen">Alle Figuren aufstehen lassen</button></div>
+    </section>
+
+    <section class="karte">
+      <h2>Musik</h2>
+      <div class="reihe"><label for="musikQuelleSel">Anzeige</label><select id="musikQuelleSel"></select><input id="musikUrlFeld" placeholder="http://localhost:1608/" style="flex:1; min-width: 220px"><button id="musikSpeichern">Speichern</button></div>
+      <div class="reihe"><input id="musikText" placeholder="Titel - Interpret" maxlength="160" style="flex:1; min-width: 220px"><button id="musikSetzen">Von Hand setzen</button><button class="hell" id="musikLoeschen">Löschen</button></div>
+      <p class="leise" id="musikStatus">–</p>
+      <details><summary>So kommt YouTube Music ins Overlay</summary><div class="leise">
+        <p><b>Variante 1 (lokal, am einfachsten):</b> Die YouTube-Music-Desktop-App (<i>Pear Desktop</i>, früher „th-ch/youtube-music“) hat ein Plugin <b>„Tuna OBS“</b>. Zusammen mit dem OBS-Plugin <b>Tuna</b> (in Tuna als Quelle „Web browser“ wählen und „Host/receive information on local webserver“ mit Port 1608 aktivieren) steht der aktuelle Titel unter <code>http://localhost:1608/</code>. Hier „Anzeige: lokal“ wählen und diese Adresse eintragen. Das Overlay liest sie selbst, es muss auf demselben PC laufen wie OBS.</p>
+        <p><b>Variante 2 (Server):</b> „Anzeige: Server“ wählen. Dann kommt der Titel per Chat (<code>!song Titel - Interpret</code>, <code>!song aus</code>), von Hand (oben) oder von einem Hilfsprogramm, das <code>POST /api/musik</code> mit dem <code>INGEST_TOKEN</code> aufruft.</p>
+        <p>Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos führen. Gut ist Musik ohne Urheberrechtsprobleme oder Musik, die nur du hörst (dann zeigt das Overlay nur den Titel).</p>
+      </div></details>
+    </section>
+
+    <section class="karte">
+      <h2>Anordnung</h2>
+      <p class="leise">Ziehe Uhr, Wörter, To-Do-Liste, Musik, Kamerafenster und Module an die gewünschte Stelle. Anklicken und Größe ändern. Das Bild zeigt den echten Stand. <b>Kamera in OBS unter das Overlay legen</b>: Das Kamerafenster ist durchsichtig ausgeschnitten.</p>
+      <div id="editor"><iframe id="editorFrame" title="Vorschau" tabindex="-1"></iframe><div id="editorBoxen"></div></div>
+      <div class="reihe" id="editorPanel">
+        <b id="editorName">Nichts ausgewählt</b>
+        <label><input type="checkbox" id="edAn"> sichtbar</label>
+        <label>Größe <input type="range" id="edGroesse" min="0.5" max="2" step="0.05" style="width:140px"></label>
+        <span id="edKamera" hidden><label>Breite <input type="number" id="edW" min="160" max="1920" step="10"></label> <label>Höhe <input type="number" id="edH" min="90" max="1080" step="10"></label> <button class="hell" id="edRatio">16:9</button></span>
+      </div>
+      <div class="reihe"><button class="gruen" id="layoutSpeichern">Anordnung speichern</button><button class="hell" id="layoutZurueck">Standard</button><button class="hell" id="layoutLaden">Neu laden</button></div>
     </section>
 
     <section class="karte">
@@ -66,17 +108,17 @@
     </section>
 
     <section class="karte">
-      <h2>Mitschreibende</h2>
+      <h2>Mitschreibende (Zimmer-Modus)</h2>
       <div class="reihe"><a class="knopf hell" href="/api/admin/export.csv">CSV-Export</a><button class="hell" id="usersLaden">Aktualisieren</button></div>
       <table><thead><tr><th>Name</th><th>Rang</th><th>Arbeitszeit</th><th>Sprints</th><th>Wörter</th><th>Besuche</th><th></th></tr></thead><tbody id="users"></tbody></table>
     </section>
 
     <section class="karte">
       <h2>Testen</h2>
-      <p class="leise">Mit Testfiguren und Testereignissen siehst du im Overlay, wie alles aussieht, ohne dass jemand im Chat ist.</p>
+      <p class="leise">Mit Testereignissen (und im Zimmer-Modus Testfiguren) siehst du im Overlay, wie alles aussieht, ohne dass jemand im Chat ist.</p>
       <div class="reihe">
         <button data-test="seats">Testfiguren setzen</button><button class="hell" data-test="clear">Testfiguren entfernen</button>
-        <button class="hell" data-event="sprint">Sprint-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
+        <button class="hell" data-event="sprint">Pomodoro-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
         <button class="hell" data-event="rankup">Rang</button><button class="hell" data-event="unlock">Freischaltung</button>
         <button class="hell" data-event="deko">Zimmer wächst</button><button class="hell" data-event="taskdone">Aufgabe erledigt</button>
       </div>
@@ -85,13 +127,13 @@
     <section class="karte">
       <h2>Chat-Befehle</h2>
       <table>
-        <tr><td><code>!sitzen</code> · <code>!aufstehen</code></td><td>Figur setzt sich an einen Tisch oder steht auf</td></tr>
-        <tr><td><code>!figur</code></td><td>Figur anpassen: <code>!figur haare rot</code>, <code>!figur kopf mütze</code>, <code>!figur zufall</code></td></tr>
-        <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>Aufgabe anlegen, abhaken, auflisten</td></tr>
+        <tr><td><code>!pomodoro [Min]</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Timer (nur Moderation und Streamerin)</td></tr>
+        <tr><td><code>!pomodoros 6</code> · <code>!ziel 1500</code></td><td>Pomodoro-Ziel bzw. Wörterziel für heute (nur Streamerin)</td></tr>
+        <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>
         <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
-        <tr><td><code>!rang</code> · <code>!hilfe</code></td><td>Arbeitszeit und Rang · Befehlsübersicht</td></tr>
-        <tr><td><code>!sprint [Min]</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Timer (nur Moderation und Kanalinhaberin)</td></tr>
-        <tr><td><code>!szene garten</code> · <code>!ziel 1500</code></td><td>Szene wechseln (Moderation) · Tagesziel (nur Kanalinhaberin)</td></tr>
+        <tr><td><code>!song Titel - Interpret</code> · <code>!song aus</code></td><td>Musik-Anzeige von Hand (Moderation)</td></tr>
+        <tr><td><code>!hilfe</code></td><td>Befehlsübersicht</td></tr>
+        <tr><td><i>Zimmer-Modus (pausiert):</i> <code>!sitzen</code> · <code>!aufstehen</code> · <code>!figur</code> · <code>!rang</code> · <code>!szene</code></td><td>Figuren der Zuschauer an Tischen, nur wenn „Darstellung: Zimmer“ gewählt ist</td></tr>
       </table>
     </section>
   </div>

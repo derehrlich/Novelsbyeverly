@@ -1,10 +1,9 @@
 // Malt die Szene (Café, Garten, Park) mit den sitzenden Figuren und den Modulen auf ein 1920×1080-Canvas.
 // Stil: weiche, gemalte Flächen in gedeckten Tönen, runde Chibi-Figuren, viele Zimmerpflanzen.
 import { FARBEN, HAUT } from './katalog.mjs';
-import { TAU, alpha, blossoms, cloud, ell, fern, glow, grassStrokes, lg, leaf, monstera, monsteraLeaf, palm, path, pot, rg, rng, rr, shade, snakePlant, tree, vine } from './malerei.mjs';
+import { Wachstum } from './wachstum.mjs';
+import { H, TAU, W, alpha, blossoms, clamp01, cloud, ell, fern, glow, grassStrokes, lg, leaf, monstera, monsteraLeaf, palm, path, pot, rg, rng, rr, shade, snakePlant, tree, vine } from './malerei.mjs';
 
-export const W = 1920;
-export const H = 1080;
 
 // ---- Plätze: 2 Reihen mit je 5 Tischen. Platz 0–4 hinten, 5–9 vorne. Koordinaten in Bildpunkten (1920×1080).
 const COLS = [256, 608, 960, 1312, 1664];
@@ -21,12 +20,14 @@ const STYLE = {
   park: { top: '#d3ae7e', rim: '#957650', chair: '#a3916f', chairDark: '#85734f' },
 };
 
-// Regalbrett für die Module (Oberkante) und Verteilung der Module darauf
+// Regalbrett für die Module im Zimmer-Modus (Oberkante) und Verteilung der Module darauf
 export const REGAL = { x0: 560, x1: 1360, y: 404 };
-export function moduleLayout(modules = {}) {
-  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id]);
+// Wo die Module stehen: im Wachstums-Modus frei nach Anordnung (layout), im Zimmer auf dem Regalbrett.
+export function moduleLayout(modules = {}, layout = null, modus = 'zimmer') {
+  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id] && (modus !== 'wachstum' || layout?.[id]?.on !== false));
+  if (modus === 'wachstum' && layout) return ids.map((id) => ({ id, x: layout[id].x, y: layout[id].y, s: layout[id].s ?? 1 }));
   const xs = ids.length === 1 ? [960] : ids.length === 2 ? [860, 1060] : [760, 960, 1160];
-  return ids.map((id, i) => ({ id, x: xs[i], y: REGAL.y }));
+  return ids.map((id, i) => ({ id, x: xs[i], y: REGAL.y, s: 1 }));
 }
 
 // ---------------------------------------------------------------- Hintergründe
@@ -370,7 +371,6 @@ function drawDesk(c, f, x, ty, a) {
 }
 
 // ---------------------------------------------------------------- Module
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 function drawFlower(c, x, y, p, t) {
   const potH = 70;
@@ -458,6 +458,24 @@ function finishLayer() {
   return cv;
 }
 
+// Holzbrett unter einem Modul (Wachstums-Modus, wo es kein Regal gibt)
+function plank(c, w) {
+  ell(c, 0, 18, w * 0.52, 12, alpha('#2b2118', 0.16));
+  rr(c, -w / 2, -2, w, 24, 10, lg(c, 0, -2, 0, 22, [[0, '#d2b083'], [1, '#a98660']]), alpha('#2b2118', 0.25), 2);
+  c.fillStyle = alpha('#fff6e0', 0.3); c.fillRect(-w / 2 + 12, 1, w - 24, 3);
+}
+
+// Rahmen um das Kamerabild. Das Innere wird durchsichtig geschnitten: In OBS liegt die Kamera unter dem Overlay.
+function cameraFrame(c, k) {
+  const { x, y, w, h } = k;
+  rr(c, x - 22, y - 22, w + 44, h + 44, 34, lg(c, x, y - 22, x, y + h + 22, [[0, '#d9bf94'], [1, '#a88660']]), alpha('#2b2118', 0.3), 3);
+  rr(c, x - 12, y - 12, w + 24, h + 24, 26, null, alpha('#fff6e0', 0.35), 3);
+  for (const [lx, ly, a] of [[x - 14, y + 30, -0.4], [x - 8, y + 56, -0.9], [x + w + 14, y + h - 30, 2.7], [x + w + 8, y + h - 56, 2.2], [x + w * 0.3, y - 18, 0.9], [x + w * 0.7, y + h + 18, 3.9]]) leaf(c, lx, ly, 48, 17, a, '#7f9d6f');
+  c.globalCompositeOperation = 'destination-out';
+  rr(c, x, y, w, h, 20, '#000000');
+  c.globalCompositeOperation = 'source-over';
+}
+
 export class Szene {
   constructor(canvas) {
     this.canvas = canvas;
@@ -466,6 +484,7 @@ export class Szene {
     this.cache = document.createElement('canvas'); this.cache.width = W; this.cache.height = H;
     this.cacheKey = '';
     this.finish = finishLayer();
+    this.wachstum = new Wachstum();
     this.view = { scene: 'cafe', deco: [], seats: [], timer: { phase: 'idle' }, modules: {} };
     this.seen = new Map();
     this.effects = [];
@@ -501,17 +520,29 @@ export class Szene {
   }
 
   draw(t = performance.now()) {
-    this.background();
     const { c } = this;
-    const { scene, deco, seats, timer, modules } = this.view;
+    const { scene, deco, seats, timer, modules, modus, layout } = this.view;
+    const wachs = modus === 'wachstum';
+    c.clearRect(0, 0, W, H);
+    if (wachs) {
+      this.wachstum.draw(c, this.view, t);
+    } else {
+      this.background();
+      c.drawImage(this.cache, 0, 0);
+      this.rays(c, t);
+      this.live(c, STYLE[scene] ? scene : 'cafe', deco, t);
+    }
+    this.drawModules(c, t, modules ?? {}, timer);
+    if (!wachs) this.drawSeats(c, t, scene, seats, timer);
+    this.drawEffects(c, t);
+    if (!wachs) this.particles(c, t);
+    c.drawImage(this.finish, 0, 0);
+    if (layout?.kamera?.on) cameraFrame(c, layout.kamera);
+  }
+
+  drawSeats(c, t, scene, seats, timer) {
     const sc = STYLE[scene] ? scene : 'cafe';
     const st = STYLE[sc];
-    c.clearRect(0, 0, W, H);
-    c.drawImage(this.cache, 0, 0);
-    this.rays(c, t);
-    this.live(c, sc, deco, t);
-    this.drawModules(c, t, modules ?? {}, timer);
-
     const phase = timer?.phase;
     const ordered = [...seats].sort((p, q) => seatPos(p.slot).ty - seatPos(q.slot).ty);
     for (const s of ordered) {
@@ -530,9 +561,6 @@ export class Szene {
       drawDesk(c, s.figure, x, ty, a);
       c.restore();
     }
-    this.drawEffects(c, t);
-    this.particles(c, t);
-    c.drawImage(this.finish, 0, 0);
   }
 
   rays(c, t) {
@@ -588,13 +616,17 @@ export class Szene {
 
   drawModules(c, t, modules, timer) {
     const view = this.view;
-    for (const m of moduleLayout(modules)) {
-      if (m.id === 'blume') drawFlower(c, m.x, m.y, view.words?.goal ? view.words.today / view.words.goal : view.words?.today / 1000, t);
+    const wachs = view.modus === 'wachstum';
+    for (const m of moduleLayout(modules, view.layout, view.modus)) {
+      c.save(); c.translate(m.x, m.y); c.scale(m.s, m.s);
+      if (wachs) plank(c, m.id === 'buecher' ? 230 : 210);
+      if (m.id === 'blume') drawFlower(c, 0, 0, view.words?.goal ? view.words.today / view.words.goal : (view.words?.today ?? 0) / 1000, t);
       else if (m.id === 'kerze') {
         const len = timer?.endsAt && timer?.startedAt ? timer.endsAt - timer.startedAt : 1;
         const elapsed = Date.now() + (this.offset ?? 0) - (timer?.startedAt ?? 0);
-        drawCandle(c, m.x, m.y, { phase: timer?.phase ?? 'idle', fraction: 1 - elapsed / len }, t);
-      } else drawBooks(c, m.x, m.y, view.sprintsToday ?? 0, t);
+        drawCandle(c, 0, 0, { phase: timer?.phase ?? 'idle', fraction: 1 - elapsed / len }, t);
+      } else drawBooks(c, 0, 0, view.sprintsToday ?? 0, t);
+      c.restore();
     }
   }
 

@@ -2,7 +2,7 @@
 import { db } from '../store.mjs';
 import { getSettings, needsReward } from '../settings.mjs';
 import { activeSeats, communityMinutes } from '../people.mjs';
-import { getTimer } from '../timer.mjs';
+import { getTimer, sprintsToday } from '../timer.mjs';
 import { getWords } from '../words.mjs';
 import { json } from '../http.mjs';
 import { listSubscriptions, ROLES, siteUrl, storedTokens } from '../twitch.mjs';
@@ -42,6 +42,8 @@ export async function status({ req, route, method }) {
     subscription, subscriptionError,
     urls: { site: siteUrl(req), redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, words: `${siteUrl(req)}/api/words` },
     timer: await getTimer(),
+    pomodoro: { done: await sprintsToday(settings), goal: settings.pomodoroGoal },
+    modus: settings.szeneModus,
     words: await getWords(settings),
     seated: (await activeSeats(settings)).length,
     communityHours: Math.floor((await communityMinutes()) / 60),

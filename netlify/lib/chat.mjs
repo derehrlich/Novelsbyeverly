@@ -8,6 +8,7 @@ import { addViewerWords, addWords, getWords, setAbsolute } from './words.mjs';
 import { announceCredit, getTimer, say, startBreak, startFocus, stopTimer, tick } from './timer.mjs';
 import { fill, fmtDuration, fmtNumber, pushEvent } from './util.mjs';
 import { storedTokens } from './twitch.mjs';
+import { clearMusik, setMusik } from './musik.mjs';
 
 const MAX_VIEWER_WORDS = 3000;
 const num = (s) => { const n = Number(String(s ?? '').replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -23,14 +24,18 @@ const COMMANDS = {
   woerter: 'words', worte: 'words', words: 'words',
   ziel: 'goal',
   rang: 'rank', level: 'rank',
-  sprint: 'sprint', fokus: 'sprint',
+  sprint: 'sprint', fokus: 'sprint', pomodoro: 'sprint', pomo: 'sprint',
+  pomodoros: 'pgoal',
+  song: 'song', musik: 'song',
   pause: 'pause',
   stop: 'stop', stopp: 'stop',
   szene: 'scene', ort: 'scene',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene']);
-const BROADCASTER_ONLY = new Set(['goal']);
+const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song']);
+const BROADCASTER_ONLY = new Set(['goal', 'pgoal']);
+// Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
+const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
 
 const hasBadge = (e, ...ids) => (e.badges ?? []).some((b) => ids.includes(b.set_id));
 
@@ -48,7 +53,8 @@ export async function handleChat(e, settings = null) {
   const id = e.chatter_user_id, name = e.chatter_user_name;
   if (!id) return { ok: false };
   const bot = await storedTokens('bot');
-  if (bot && bot.user_id === id) return { ok: true, ignored: 'bot' }; // eigene Nachrichten des Bots
+  // Eigene Nachrichten des Bots ignorieren, außer Bot und Kanal sind dasselbe Konto (dann sind es die Befehle der Streamerin)
+  if (bot && bot.user_id === id && id !== e.broadcaster_user_id) return { ok: true, ignored: 'bot' };
   const isBroadcaster = id === e.broadcaster_user_id;
   const isMod = isBroadcaster || hasBadge(e, 'moderator');
 
@@ -61,6 +67,7 @@ export async function handleChat(e, settings = null) {
   const action = COMMANDS[norm(word)];
   if (!action) return { ok: true };
   if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true }; // doppelt zugestellt
+  if (ZIMMER_ONLY.has(action) && settings.szeneModus !== 'zimmer') return { ok: true };
   if (MOD_ONLY.has(action) && !isMod) return { ok: true };
   if (BROADCASTER_ONLY.has(action) && !isBroadcaster) return { ok: true };
 
@@ -109,6 +116,19 @@ async function run(action, ctx) {
       await saveSettings({ wordGoal: n });
       return `🎯 Tagesziel steht auf ${fmtNumber(n)} Wörter.`;
     }
+    case 'pgoal': {
+      const n = num(args[0]);
+      if (n == null || n < 0) return `🍅 Ziel heute: ${settings.pomodoroGoal} Pomodoros. Ändern mit ${pre(settings)}pomodoros 6`;
+      const { settings: saved } = await saveSettings({ pomodoroGoal: n });
+      return `🍅 Ziel heute: ${saved.pomodoroGoal} Pomodoros.`;
+    }
+    case 'song': {
+      const text = args.join(' ').trim();
+      if (!text || norm(text) === 'aus') { await clearMusik(); return '🎵 Musik-Anzeige aus.'; }
+      const [title, artist] = text.split(/\s+[-–]\s+/);
+      await setMusik({ title, artist }, { manual: true });
+      return `🎵 Jetzt läuft: ${text}`;
+    }
     case 'rank': {
       const user = await getUser(id);
       if (!user || !user.minutes) return `${name}, du hast noch keine Arbeitszeit. Setz dich mit ${pre(settings)}sitzen dazu und nimm an einem Sprint teil!`;
@@ -138,6 +158,7 @@ async function run(action, ctx) {
     }
     case 'help': {
       const p = pre(settings);
+      if (settings.szeneModus !== 'zimmer') return `📖 ${p}task Text · ${p}done · ${p}tasks · ${p}wörter 300`;
       const sit = allowsSit(settings) ? `${p}sitzen · ` : needsReward(settings) ? `Platz per Reward „${settings.checkinRewardTitle}“ · ` : '';
       return `📖 ${sit}${p}aufstehen · ${p}figur · ${p}task Text · ${p}done · ${p}wörter 300 · ${p}rang`;
     }

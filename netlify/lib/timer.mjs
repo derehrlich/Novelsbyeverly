@@ -67,15 +67,16 @@ async function finalizeSprint(t, settings, until, { early = false } = {}) {
     const key = `stats/sprints-${streamDay(settings, new Date(until))}`;
     await db.set(key, { n: ((await db.get(key)) ?? { n: 0 }).n + 1 });
   }
-  await pushEvent({ type: 'sprint', writers, minutes, streamerWords, early });
+  const n = await sprintsToday(settings, until);
+  await pushEvent({ type: 'sprint', writers, minutes, streamerWords, early, n, goal: settings.pomodoroGoal });
   if (settings.announceSprint) {
-    const extra = streamerWords > 0 ? `, ich habe ${fmtNumber(streamerWords)} Wörter geschrieben` : '';
+    const extra = streamerWords > 0 ? `, ${fmtNumber(streamerWords)} Wörter in dieser Runde` : '';
     await say(settings, early
-      ? `⏹️ Sprint beendet nach ${fmtDuration(minutes)}.`
-      : fill(settings.sprintEndTemplate, { writers, streamer: extra }));
+      ? `⏹️ Pomodoro beendet nach ${fmtDuration(minutes)}.`
+      : fill(settings.sprintEndTemplate, { writers, n, ziel: settings.pomodoroGoal ? ` von ${settings.pomodoroGoal}` : '', streamer: extra }));
   }
   for (const r of results) await announceCredit(r, settings);
-  return { writers, streamerWords };
+  return { writers, streamerWords, n };
 }
 
 async function startPhase(phase, minutes, settings, round, now) {
@@ -127,11 +128,14 @@ export async function tick(settings, now = Date.now()) {
     if (t.phase === 'focus') {
       await finalizeSprint(t, settings, at);
       if (settings.autoBreak) {
-        t = { ...t, phase: 'break', sprintId: null, startedAt: at, endsAt: at + settings.breakMinutes * 60_000, minutes: settings.breakMinutes, wordsAtStart: 0 };
+        const n = await sprintsToday(settings, at);
+        const long = settings.longBreakEvery > 0 && n > 0 && n % settings.longBreakEvery === 0;
+        const mins = long ? settings.longBreakMinutes : settings.breakMinutes;
+        t = { ...t, phase: 'break', sprintId: null, startedAt: at, endsAt: at + mins * 60_000, minutes: mins, wordsAtStart: 0 };
         await db.set(KEY, t);
         if (await once(`break-${at}`)) {
-          await pushEvent({ type: 'phase', phase: 'break', minutes: settings.breakMinutes });
-          if (settings.announceSprint) await say(settings, fill(settings.breakTemplate, { minutes: settings.breakMinutes }));
+          await pushEvent({ type: 'phase', phase: 'break', minutes: mins, long });
+          if (settings.announceSprint) await say(settings, fill(long ? settings.longBreakTemplate : settings.breakTemplate, { minutes: mins, n }));
         }
       } else {
         t = { ...IDLE, round: t.round };

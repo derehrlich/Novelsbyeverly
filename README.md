@@ -1,66 +1,71 @@
-# Novels by Everly – Co-Working-Bot für Twitch (Netlify)
+# Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
 
-Ein Bot für Co-Working- und Schreib-Streams. Die Zuschauer setzen sich als kleine Figur in eine gemütliche Szene (Café, Garten oder Park), schreiben gemeinsam in Sprints und schalten mit wachsender Arbeitszeit Ränge, Gegenstände und Zimmer-Dekoration frei. Alles läuft als Browser-Quelle in OBS und wird im Browser verwaltet (`/admin/`).
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschrieben wird, desto mehr wächst: Blüten, ein Baum, Rosen. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
 
-![Café](docs/vorschau-cafe.png)
-![Garten, Pause](docs/vorschau-garten.png)
-![Park, Sprint geschafft](docs/vorschau-park-sprint.png)
+![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
+![Frühling am Morgen](docs/vorschau-2-fruehling.png)
+![Sommer](docs/vorschau-3-sommer.png)
+![Herbst am Abend, Pause](docs/vorschau-4-herbst.png)
+![Winter](docs/vorschau-5-winter.png)
 
-## Was der Bot kann
+## Was es kann
 
-**Overlay** (`/overlay`, Browser-Quelle 1920×1080)
-- **Uhr** mit Sprint-Timer (Fokus und Pause, Fortschrittsbalken, Runde)
-- **Wortzähler** der Streamerin mit Tagesziel, der Zahl zählt sichtbar hoch; dazu Sprint-Wörter und die Wörter, die der Chat meldet
-- **Aufgabenliste** der Streamerin, abgehakt mit Konfetti. Die Aufgaben der Mitschreibenden hängen als Notizzettel an ihren Namensschildern
-- **Szene** mit Figuren: Café, Garten oder Park, 10 Plätze. Weich gemalter Look in gedeckten Tönen mit vielen Zimmerpflanzen (Monstera, Farn, Bogenhanf, Efeutute). Die Figuren sind kleine Chibis mit Frisuren, Mützen, Brillen, Schals, Haustieren und Schreibgeräten. Beim Fokus tippen sie, in der Pause lächeln sie bei einer Tasse Tee
-- **Ereignisse** mit Banner, Konfetti und kleinem Glockenton: Sprint geschafft, Tagesziel, neuer Rang, neuer Gegenstand, Zimmer wächst
+**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu (Wörter oder Pomodoros, einstellbar). Der Fortschritt ist das Tagesziel in Prozent.
 
-Einzelne Teile lassen sich getrennt einbinden, z. B. nur die Karten über einem eigenen Hintergrund: `/overlay?teile=uhr,woerter,tasks`. Ton aus: `&ton=aus`. Vorschau ohne Bot: `/overlay?demo=1`.
-
-**Module** (im Admin einzeln ein- und ausschaltbar, sie stehen auf einem Regalbrett in der Szene)
-
-| Modul | Was passiert |
+| Jahreszeit | Was passiert |
 |---|---|
-| Blume | wächst mit den Wörtern des Tages (Tagesziel = 100 %): Keimling, Blätter, Knospe, Blüte |
-| Kerze | brennt während des Fokus herunter, in der Pause raucht sie, danach steht eine neue bereit |
-| Bücherstapel | pro abgeschlossenem Sprint des Tages ein Buch mehr (bis 8) |
-| Zimmer wächst | Lichterkette, Pflanzen, Katze, Bücher, Vögel, Regenbogen durch die gemeinsame Arbeitszeit |
+| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen, ein Baum mit Blüten und Blättern, ein Rosenbogen, der zuwächst |
+| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, ein Baum mit Äpfeln, Schmetterlinge und Bienen |
+| Herbst | Der Baum verliert seine Blätter, Kürbisse, Pilze und Astern wachsen, Laub bedeckt den Boden |
+| Winter | Es schneit, am Ende ist alles weiß, Tannen mit Schnee, ein Schneemann baut sich auf |
 
-Weitere Module lassen sich im selben Muster ergänzen (siehe unten).
+Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmchen) und die **Jahreszeit** stellst du im Admin fest ein oder lässt sie nach Datum und Uhrzeit wählen („Auto“).
 
-**Figur erscheint bei … (im Admin umschaltbar)**
-- `!sitzen`: Chatbefehl
-- **Check-in**: Kanalpunkte-Reward (Name und Preis einstellbar, Punkte zurück, wenn man schon sitzt oder alles belegt ist)
-- **Beides**
+**Pomodoro.** Dauer, kurze und lange Pause, die Anzahl der Pomodoros pro Tag und ob es automatisch weitergeht, stellst du im Admin ein. Die Uhr zeigt Countdown und Fortschrittsbalken, darunter kleine Tomaten für die Tagesziel-Anzahl. Nach der eingestellten Anzahl (Standard 4) gibt es eine lange Pause. Pomodoros lassen sich auch von Hand dazuzählen (Arbeit ohne Timer).
 
-**Freischaltungen durch Arbeitszeit.** Als Arbeitszeit zählen die Fokus-Minuten in Sprints, bei denen jemand sitzt. Wer mittendrin aufsteht, bekommt die Zeit bis dahin.
+**Module** (einzeln ein- und ausschaltbar, frei verschiebbar):
+- **Blume:** vom Keimling bis zur Blüte, wächst mit den Wörtern des Tages
+- **Kerze:** brennt während eines Pomodoros herunter, raucht in der Pause, danach steht eine neue bereit
+- **Bücherstapel:** pro geschafftem Pomodoro ein Buch mehr (bis 8)
+- **To-Do-Liste:** deine Aufgaben, abgehakt mit Konfetti (anlegen im Admin oder per Chat)
+- **Musik:** zeigt Titel, Interpret und Cover (siehe unten)
 
-| Persönlich (Rang und Gegenstände) | Ab |
-|---|---|
-| Rang Tintenfleck → Notizbuch → Federkiel → Schreibstube → Lektorat → Manuskript → Bestseller → Bibliothek → Legende | 0 / 1 / 3 / 6 / 12 / 25 / 50 / 100 / 200 Std |
-| Mütze 1 Std · Brille 3 · Kakao 5 · Kopfhörer 6 · Schal 10 · Sonnenbrille 12 · Katze 15 · Blumenkranz 25 · Schreibmaschine 30 · Eule 40 | |
+**Anordnung.** Im Admin unter *Anordnung* ziehst du Uhr, Wörter, To-Do, Musik, Kamera und Module per Maus an die gewünschte Stelle und stellst ihre Größe ein. Das Bild darüber ist das echte Overlay.
 
-| Gemeinsam (Zimmer wächst mit der Summe aller) | Ab |
-|---|---|
-| Lichterkette · Pflanzen · Zimmerkatze · Bücherstapel · Vögel & Schmetterlinge · Regenbogen | 2 / 5 / 10 / 20 / 40 / 80 Std |
+**Kamerafenster.** Ein Rahmen mit durchsichtigem Ausschnitt. **In OBS die Kamera unter das Overlay legen**, dann schaut sie durch das Fenster. Position und Größe stellst du in der Anordnung ein.
 
-Alle Schwellen stehen in `public/js/katalog.mjs`. Im Admin lassen sich Freischaltungen abschalten (dann ist alles sofort frei).
+**Zimmer-Modus (pausiert).** Die Szenen mit Tischen, an denen Zuschauer als Chibi-Figuren sitzen (Café, Garten, Park, mit Rängen und freischaltbaren Gegenständen), bleiben im Code erhalten. Unter *Einstellungen → Darstellung* lassen sie sich wieder einschalten. In der Landschaft sind die Befehle dafür ausgeschaltet.
+
+## Musik anzeigen (YouTube Music)
+
+Das Overlay zeigt, was gerade läuft. Es gibt zwei Wege (*Admin → Musik*):
+
+1. **Lokal (am einfachsten):** Die YouTube-Music-Desktop-App (heute *Pear Desktop*, früher „th-ch/youtube-music“) hat ein Plugin „Tuna OBS“. Zusammen mit dem OBS-Plugin [Tuna](https://obsproject.com/forum/resources/tuna.843/) (Quelle „Web browser“, „Host/receive information on local webserver“ mit Port 1608) steht der Titel unter `http://localhost:1608/`. Im Admin *Anzeige: Lokal* und diese Adresse eintragen. Das Overlay liest sie selbst, es muss im OBS auf demselben PC laufen.
+2. **Über den Server:** *Anzeige: Server*. Der Titel kommt per Chat (`!song Titel - Interpret`, `!song aus`), von Hand im Admin oder von einem Hilfsprogramm, das `POST /api/musik` aufruft. Das mitgelieferte `scripts/pc-helfer.mjs` liest Tuna und meldet den Titel alle paar Sekunden:
+
+   ```
+   SITE_URL=https://DEINE-SEITE.netlify.app INGEST_TOKEN=dein-schluessel node scripts/pc-helfer.mjs
+   ```
+
+Andere Programme, die einen Titel auf einer lokalen Adresse bereitstellen, funktionieren ebenfalls, weil die Antwort tolerant gelesen wird (`title`, `artist(s)`, `cover`/`cover_url`, `status`). Alternativen aus der Recherche: das Windows-Programm *Streamling*, die Browser-Erweiterung *memesound.live* und das OBS-Widget *Now Playing*.
+
+Die Tuna-Adresse und ihre Felder konnte ich nur aus Beschreibungen übernehmen, nicht gegen die laufende App prüfen. Falls der Titel nicht erscheint, einmal `http://localhost:1608/` im Browser öffnen und schauen, was dort steht.
+
+Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos oder Verwarnungen führen. Sicherer ist Musik ohne Urheberrechtsprobleme, oder Musik, die nur die Streamerin hört (dann zeigt das Overlay nur den Titel).
 
 ## Chat-Befehle
 
 | Befehl | Wer | Wirkung |
 |---|---|---|
-| `!sitzen` · `!aufstehen` | alle | Figur setzt sich an einen Tisch oder steht auf |
-| `!figur` | alle | Figur anpassen: `!figur haare rot`, `!figur frisur lang`, `!figur oberteil blau`, `!figur kopf mütze`, `!figur tier katze`, `!figur zufall`. Ohne Wert zeigt `!figur haare` die Möglichkeiten (Gesperrtes mit Stundenangabe) |
-| `!task Text` · `!done [Nr]` · `!tasks` | alle | Aufgaben (bis zu 3 offene, einstellbar) |
+| `!pomodoro [Min]` · `!pause [Min]` · `!stop` | Moderation, Streamerin | Timer |
+| `!pomodoros 6` · `!ziel 1500` | Streamerin | Ziel für heute (Anzahl bzw. Wörter) |
+| `!task Text` · `!done [Nr]` · `!tasks` | alle | To-Do-Liste (bis zu 3 offene je Person; im Overlay steht die der Streamerin) |
 | `!wörter 300` | Zuschauer | gemeldete Wörter zählen für den Chat-Zähler |
 | `!wörter 4231` · `!wörter +300` | Streamerin | Stand aus Papyrus bzw. dazugeschrieben |
-| `!rang` · `!hilfe` | alle | Arbeitszeit und Rang, Befehlsübersicht |
-| `!sprint [Min]` · `!pause [Min]` · `!stop` | Moderation, Streamerin | Timer |
-| `!szene garten` | Moderation, Streamerin | Szene wechseln |
-| `!ziel 1500` | Streamerin | Tagesziel |
+| `!song Titel - Interpret` · `!song aus` | Moderation, Streamerin | Musik-Anzeige von Hand |
+| `!hilfe` | alle | Übersicht |
 
-Das Befehlszeichen, alle Texte, Zeiten und Limits sind im Admin einstellbar.
+Nur im Zimmer-Modus: `!sitzen`, `!aufstehen`, `!figur`, `!rang`, `!szene`.
 
 ## Einrichtung
 
@@ -75,22 +80,20 @@ Das Befehlszeichen, alle Texte, Zeiten und Limits sind im Admin einstellbar.
    | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | aus der Twitch-App |
    | `EVENTSUB_SECRET` | beliebiger Zufallstext, 10 bis 100 Zeichen |
    | `ADMIN_PASSWORD` | Passwort für `/admin/`, lang wählen |
-   | `INGEST_TOKEN` | optional: Schlüssel für die Wörter-Schnittstelle (siehe unten) |
+   | `INGEST_TOKEN` | optional: Schlüssel für die Schnittstellen `/api/words` und `/api/musik` (Hilfsprogramme) |
    | `SITE_URL` | optional, nur bei eigener Domain |
 
 4. **Admin** öffnen (`/admin/`), anmelden und **Kanal mit Twitch verbinden** (Broadcaster-Konto).
-5. **Bot-Account verbinden**: eigenes Twitch-Konto für den Bot anlegen, dort im Chat zum **Moderator** machen (höhere Nachrichtenlimits) und über die Schaltfläche verbinden. Dafür bei Twitch ausloggen oder ein privates Fenster nutzen, sonst meldet Twitch das Kanal-Konto an. Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
-6. **Reward & Webhooks abgleichen** klicken. Die Statusanzeige oben im Admin sollte grün sein. Nach jeder Änderung an *Figur erscheint bei* oder am Reward-Namen erneut abgleichen.
-7. **OBS**: Browser-Quelle mit `https://DEINE-SEITE.netlify.app/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren.
-8. Im Admin unter **Testen** Testfiguren setzen und Ereignisse auslösen, um alles im Overlay zu sehen.
-
-Der Reward „Check-in“ wird von der App angelegt. Gibt es schon einen Reward gleichen Namens, der nicht von der App stammt, bitte vorher umbenennen oder löschen.
+5. **Bot-Account verbinden**: eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen (höhere Nachrichtenlimits) und über die Schaltfläche verbinden. Dafür bei Twitch ausloggen oder ein privates Fenster nutzen, sonst meldet Twitch das Kanal-Konto an. Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
+6. **Reward & Webhooks abgleichen** klicken. Die Statusanzeige oben sollte grün sein.
+7. **OBS**: Browser-Quelle mit `https://DEINE-SEITE.netlify.app/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
+8. Im Admin unter *Anordnung* alles an die gewünschte Stelle ziehen und speichern, unter *Landschaft* Jahres- und Tageszeit wählen.
 
 ## Wortzähler und Papyrus Autor
 
-Papyrus Autor hat nach meiner Recherche keine Schnittstelle, die ein Overlay auslesen könnte. Die Zahl steht in der Statuszeile (Wörter statt Anschläge einstellen) und in der Dokumentstatistik. Deshalb kommt der Wert über eine **Schnittstelle**, die verschiedene Quellen füttern können:
+Papyrus Autor hat nach meiner Recherche keine Schnittstelle, die ein Overlay auslesen könnte. Die Zahl steht in der Statuszeile (Wörter statt Anschläge einstellen) und in der Dokumentstatistik. Deshalb kommt der Wert über eine Schnittstelle, die verschiedene Quellen füttern können:
 
-1. **Von Hand (heute)**: im Admin unter *Steuerung* oder per Chat `!wörter 4231`. Das Overlay zählt die Zahl sanft hoch.
+1. **Von Hand (heute)**: im Admin unter *Landschaft* oder per Chat `!wörter 4231`. Das Overlay zählt die Zahl sanft hoch.
 2. **Hilfsprogramm auf dem PC (später)**: liest die Zahl regelmäßig aus der Statuszeile (Barrierefreiheits-Schnittstelle von Windows/macOS oder Texterkennung) und schickt sie an die Schnittstelle:
 
    ```
@@ -105,7 +108,7 @@ Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt si
 
 ## Vorschau ohne Twitch
 
-Die Datei `docs/vorschau.html` per Doppelklick im Browser öffnen: das echte Overlay mit Beispieldaten, dazu Schalter für Szene, Timer, Figuren und Ereignisse. Neu erzeugen nach Änderungen am Overlay: `node scripts/build-vorschau.mjs`.
+`docs/vorschau.html` per Doppelklick im Browser öffnen: das echte Overlay mit Beispieldaten und Schaltern für Jahreszeit, Tageszeit, Wachstum, Pomodoro, Module und Ereignisse. Neu erzeugen nach Änderungen am Overlay: `node scripts/build-vorschau.mjs`.
 
 ## Entwicklung
 
@@ -118,17 +121,17 @@ ADMIN_PASSWORD=geheim EVENTSUB_SECRET=zufallstext123 node scripts/dev-server.mjs
 Der lokale Server braucht kein Netlify und legt Daten in `./data` ab. Twitch-Funktionen (Chat, Reward) laufen nur auf der veröffentlichten Seite.
 
 Aufbau:
-- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/szene.mjs`: Szenen, Figuren und Module · `public/js/malerei.mjs`: Malwerkzeuge (Pflanzen, Bäume, Verläufe) · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände, Dekoration
-- `public/admin/`: Verwaltung
-- `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`
-- `netlify/lib/`: `chat` (Befehle), `people` (Plätze, Arbeitszeit), `timer`, `words`, `tasks`, `view`
+- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
+- `public/admin/`: Verwaltung mit Anordnungs-Editor
+- `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`, `musik-ingest`
+- `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
 
-Neue Szene: Hintergrundfunktion in `public/js/szene.mjs` ergänzen (in `BACKGROUNDS` eintragen), Eintrag in `SZENEN` (`katalog.mjs`) und die Tischfarben in `STYLE`. Neue Gegenstände: in `ITEMS` eintragen und in `drawFigure`/`drawDesk`/`drawAccessories` zeichnen. Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` und Platz in `moduleLayout` (`szene.mjs`).
+Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` (`szene.mjs`) und ein Eintrag in `layout.mjs` und `BOXEN` (`public/admin/admin.js`). Neue Jahreszeit oder Pflanze: in `wachstum.mjs` (`PAL`, `MIX` und die Zeichenfunktionen).
 
-Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene Illustrationen verwenden möchte, ersetzt die Funktionen in `szene.mjs` durch Bilder.
+Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene Illustrationen verwenden möchte, ersetzt die Zeichenfunktionen durch Bilder.
 
 ## Hinweise
 
-- Es läuft kein Hintergrundprozess. Timer-Wechsel und Abrechnung holen das Overlay und der Chat beim nächsten Abruf nach (spätestens nach wenigen Sekunden). Läuft das Overlay nicht und schreibt niemand, wird ein Sprint beim nächsten Aufruf abgerechnet.
-- Wer lange nichts im Chat schreibt, verliert den Platz (Standard 120 Minuten). Wörter, die Zuschauer melden, beruhen auf Vertrauen.
+- Es läuft kein Hintergrundprozess. Timer-Wechsel und Abrechnung holt das Overlay oder der Chat beim nächsten Abruf nach (spätestens nach wenigen Sekunden).
+- Wörter, die Zuschauer melden, beruhen auf Vertrauen und zählen nur für den Chat-Zähler.
 - Die Daten liegen in Netlify Blobs. Schreibzugriffe von gleichzeitigen Anfragen sind pro Person getrennt; sehr gleichzeitige Meldungen derselben Person könnten sich theoretisch überschreiben.

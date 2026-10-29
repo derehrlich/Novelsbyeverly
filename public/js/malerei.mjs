@@ -2,6 +2,10 @@
 // Alles wird mit Canvas-Pfaden gezeichnet (keine Bilddateien), im Koordinatensystem 1920×1080.
 
 export const TAU = Math.PI * 2;
+export const W = 1920; // Bildgröße (OBS-Browserquelle 1920×1080)
+export const H = 1080;
+export const clamp01 = (v) => Math.max(0, Math.min(1, v));
+export const smooth = (v) => { const x = clamp01(v); return x * x * (3 - 2 * x); };
 
 export const rng = (seed) => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 

@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <title>Co-Working-Overlay</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- OBS: Browser-Quelle 1920×1080. Teile wählbar: /overlay?teile=uhr,woerter,tasks,szene (Standard: alles).
-     Ohne "szene" ist der Hintergrund durchsichtig. Ton ausschalten: &ton=aus. Vorschau ohne Bot: ?demo=1 -->
+<!-- OBS: Browser-Quelle 1920×1080. Teile wählbar: /overlay?teile=uhr,woerter,tasks,musik,szene (Standard: alles).
+     Ohne "szene" ist der Hintergrund durchsichtig. Ton ausschalten: &ton=aus. Vorschau ohne Bot: ?demo=1.
+     Position und Größe der Karten, Module und des Kamerafensters stellt der Admin unter "Anordnung" ein.
+     Die Kamera in OBS UNTER dieses Overlay legen: das Kamerafenster ist durchsichtig ausgeschnitten. -->
 <style>
 @font-face { font-family: Fredoka; font-weight: 400; src: url(fonts/fredoka-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 500; src: url(fonts/fredoka-latin-500-normal.woff2) format('woff2'); }
@@ -32,6 +34,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .chip { display: inline-block; padding: 3px 14px; border-radius: 20px; font-weight: 700; font-size: 22px; color: #fff; background: var(--bereit); transition: background .4s; }
 .phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); }
 #uhr .runde { font-size: 20px; color: var(--leise); }
+.pomo { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; min-height: 22px; }
+.pomo i { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #c9988f; background: transparent; position: relative; }
+.pomo i::after { content: ''; position: absolute; left: 6px; top: -7px; width: 9px; height: 7px; border-radius: 6px 6px 0 0; background: #7f9a74; opacity: 0; }
+.pomo i.fertig { background: #c7766a; border-color: #a95c52; } .pomo i.fertig::after, .pomo i.aktiv::after { opacity: 1; }
+.pomo i.aktiv { background: conic-gradient(#c7766a var(--p, 0%), rgba(199, 118, 106, .12) 0); }
 #uhr .rest { font-weight: 700; font-size: 58px; line-height: 1.05; margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
 #uhr.phase-break .bar i { background: var(--pause); } #uhr.phase-idle .bar i { background: var(--bereit); }
 #uhr.phase-idle .rest { font-size: 30px; font-family: Fredoka; font-weight: 600; color: var(--leise); padding: 12px 0 14px; }
@@ -46,8 +53,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #woerter .sprint { display: inline-block; background: var(--fokus); color: #fff; border-radius: 14px; padding: 1px 12px; font-weight: 700; font-size: 20px; margin-bottom: 6px; }
 #woerter .sprint[hidden] { display: none; }
 
-#tasks { left: 36px; top: 284px; width: 330px; max-height: 162px; overflow: hidden; padding-top: 12px; padding-bottom: 12px; }
-#tasks h3 { font-size: 23px; font-weight: 600; margin-bottom: 4px; }
+#tasks { left: 36px; top: 300px; width: 330px; padding-top: 14px; padding-bottom: 14px; }
+#tasks h3 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
 #tasks ul { list-style: none; padding: 0; }
 #tasks li { display: flex; gap: 10px; align-items: center; font-size: 22px; line-height: 1.2; padding: 3px 0; font-weight: 500; white-space: nowrap; }
 #tasks li span { overflow: hidden; text-overflow: ellipsis; }
@@ -57,6 +64,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #tasks li.leer { color: var(--leise); font-size: 20px; }
 #tasks li.leer::before { display: none; }
 
+#musik { left: 36px; top: 700px; width: 380px; display: flex; gap: 16px; align-items: center; padding: 14px 20px; }
+#musik .cover { width: 84px; height: 84px; flex: none; border-radius: 18px; object-fit: cover; background: linear-gradient(135deg, #d9c3a6, #a9bfa0); box-shadow: 0 4px 12px rgba(50, 40, 28, .22); }
+#musik .info { min-width: 0; flex: 1; }
+#musik .kopf { font-size: 16px; font-weight: 600; color: var(--leise); letter-spacing: .06em; text-transform: uppercase; }
+#musik .titel { font-size: 24px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#musik .kuenstler { font-size: 19px; color: var(--leise); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#musik .eq { display: flex; gap: 4px; align-items: flex-end; height: 34px; flex: none; }
+#musik .eq i { width: 6px; border-radius: 3px; background: var(--fokus); animation: eq 1s ease-in-out infinite; }
+#musik .eq i:nth-child(2) { animation-delay: -.3s; background: #c9a45f; } #musik .eq i:nth-child(3) { animation-delay: -.6s; } #musik .eq i:nth-child(4) { animation-delay: -.15s; background: #c08a72; }
+@keyframes eq { 0%, 100% { height: 8px; } 50% { height: 32px; } }
+@media (prefers-reduced-motion: reduce) { #musik .eq i { animation: none; height: 18px; } }
+#kamera { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 20px; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-size: 34px; font-weight: 600; letter-spacing: .04em; }
 .name { position: absolute; width: 230px; margin-left: -115px; transform: translateY(-100%); text-align: center; pointer-events: none; transition: opacity .3s; }
 .name .n { display: inline-block; max-width: 230px; background: rgba(255, 248, 235, .92); border: 2px solid var(--rand); border-radius: 16px; padding: 1px 13px; font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 12px rgba(50, 40, 28, .2); }
 .name .n small { font-size: 15px; color: var(--leise); font-weight: 500; margin-left: 6px; }
@@ -80,6 +99,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 </head>
 <body>
 <div id="stage">
+  <div id="kamera" hidden>Kamera</div>
   <canvas id="szene" hidden></canvas>
   <div id="namen"></div>
   <div id="module"></div>
@@ -88,6 +108,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     <div class="zeile"><span class="chip" id="chip">Bereit</span><span class="runde" id="runde"></span></div>
     <div class="rest" id="rest">Gleich geht's los</div>
     <div class="bar"><i id="fortschritt"></i></div>
+    <div class="pomo" id="pomo"></div>
   </section>
   <section class="card" id="woerter" hidden>
     <div class="kopf"><span class="label">Wörter heute</span><span class="ziel" id="ziel"></span></div>
@@ -97,8 +118,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     <div class="klein" id="gemeinsam"></div>
   </section>
   <section class="card" id="tasks" hidden>
-    <h3>Aufgaben</h3>
+    <h3>To-Do</h3>
     <ul id="liste"></ul>
+  </section>
+  <section class="card" id="musik" hidden>
+    <img class="cover" id="cover" alt="" hidden>
+    <div class="info"><div class="kopf">Jetzt läuft</div><div class="titel" id="titel"></div><div class="kuenstler" id="kuenstler"></div></div>
+    <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   </section>
   <div id="banner"></div>
   <canvas id="konfetti" width="1920" height="1080"></canvas>
@@ -106,13 +132,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 
 <script type="module">
 import { Szene, seatPos, moduleLayout } from './js/szene.mjs';
+import { nowPlaying } from './js/jetztlaeuft.mjs';
 
 const q = new URLSearchParams(location.search);
-const teile = new Set((q.get('teile') ?? 'uhr,woerter,tasks,szene').split(',').map((s) => s.trim()));
+const teile = new Set((q.get('teile') ?? 'uhr,woerter,tasks,musik,szene').split(',').map((s) => s.trim()));
 const ton = q.get('ton') !== 'aus';
 const demo = q.has('demo');
 const $ = (id) => document.getElementById(id);
-for (const t of teile) { const el = $(t === 'szene' ? 'szene' : t); if (el) el.hidden = false; }
+if (teile.has('szene')) $('szene').hidden = false;
 
 // ---- Bühne an das Fenster anpassen
 const stage = $('stage');
@@ -123,6 +150,7 @@ const szene = teile.has('szene') ? new Szene($('szene')) : null;
 const fmt = new Intl.NumberFormat('de-DE');
 let view = null, cursor = null, offset = 0;
 let shownWords = 0, targetWords = 0;
+let musikNow = null, musikBusy = false;
 
 // ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
 let audio = null;
@@ -184,8 +212,8 @@ function nextBanner() {
 function handleEvent(ev) {
   szene?.event(ev);
   switch (ev.type) {
-    case 'sprint': banner(ev.early ? '⏹️' : '🎉', ev.early ? 'Sprint beendet' : 'Sprint geschafft!', `${ev.writers} Mitschreibende · ${ev.minutes} Min${ev.streamerWords ? ` · +${fmt.format(ev.streamerWords)} Wörter` : ''}`, { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
-    case 'phase': if (ev.phase === 'focus') banner('✍️', 'Fokus!', `${ev.minutes} Minuten schreiben`, { sound: true }); else if (ev.phase === 'break') banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`, { sound: false }); break;
+    case 'sprint': banner(ev.early ? '⏹️' : '🍅', ev.early ? 'Pomodoro beendet' : `Pomodoro ${ev.n ?? ''}${ev.goal ? ` von ${ev.goal}` : ''} geschafft!`.replace('  ', ' '), [`${ev.minutes} Min`, ev.streamerWords ? `+${fmt.format(ev.streamerWords)} Wörter` : '', ev.writers ? `${ev.writers} Mitschreibende` : ''].filter(Boolean).join(' · '), { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
+    case 'phase': if (ev.phase === 'focus') banner('✍️', 'Pomodoro startet', `${ev.minutes} Minuten schreiben`, { sound: true }); else if (ev.phase === 'break') banner(ev.long ? '🌿' : '☕', ev.long ? 'Lange Pause' : 'Pause', `${ev.minutes} Minuten durchatmen`, { sound: false }); break;
     case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
@@ -220,12 +248,12 @@ function renderNames() {
 function renderModules() {
   const box = $('module');
   if (!szene) { box.textContent = ''; return; }
-  const layout = moduleLayout(view.modules);
+  const layout = moduleLayout(view.modules, view.layout, view.modus);
   const keep = new Set(layout.map((m) => m.id));
   for (const m of layout) {
     let el = box.querySelector(`[data-m="${m.id}"]`);
     if (!el) { el = document.createElement('div'); el.className = 'modul'; el.dataset.m = m.id; box.append(el); }
-    el.style.left = `${m.x}px`; el.style.top = `${m.y - 1}px`;
+    el.style.left = `${m.x}px`; el.style.top = `${view.modus === 'wachstum' ? m.y + 30 * m.s : m.y - 1}px`; el.style.transform = `translateX(-50%) scale(${Math.max(0.8, m.s)})`; el.style.transformOrigin = 'top center';
   }
   for (const el of [...box.children]) if (!keep.has(el.dataset.m)) el.remove();
   updateModuleLabels();
@@ -239,15 +267,15 @@ function updateModuleLabels() {
   const t = view.timer;
   const left = t.phase === 'idle' ? 0 : Math.max(0, Math.ceil((t.endsAt - (Date.now() + offset)) / 1000));
   set('kerze', 'Kerze', t.phase === 'focus' ? `${pad(Math.floor(left / 60))}:${pad(left % 60)}` : t.phase === 'break' ? 'Pause' : 'bereit');
-  set('buecher', 'Sprints', String(view.sprintsToday ?? 0));
+  set('buecher', 'Pomodoros', String(view.sprintsToday ?? 0));
 }
 
 function renderTasks() {
   const ul = $('liste');
   const items = view.streamerTasks;
   ul.textContent = '';
-  if (!items.length) { const li = document.createElement('li'); li.className = 'leer'; li.textContent = 'Noch keine Aufgaben'; ul.append(li); return; }
-  for (const t of items.slice(-3)) { const li = document.createElement('li'); const sp = document.createElement('span'); sp.textContent = t.text; li.append(sp); if (t.done) li.className = 'fertig'; ul.append(li); }
+  if (!items.length) { const li = document.createElement('li'); li.className = 'leer'; li.textContent = 'Noch nichts geplant'; ul.append(li); return; }
+  for (const t of items.slice(view.modus === 'zimmer' ? -3 : -7)) { const li = document.createElement('li'); const sp = document.createElement('span'); sp.textContent = t.text; li.append(sp); if (t.done) li.className = 'fertig'; ul.append(li); }
 }
 
 function renderWords() {
@@ -259,9 +287,9 @@ function renderWords() {
   $('woerter').classList.toggle('geschafft', w.goal > 0 && w.today >= w.goal);
   const sprint = view.timer.phase === 'focus' ? Math.max(0, w.today - view.timer.wordsAtStart) : 0;
   $('sprint').hidden = view.timer.phase !== 'focus';
-  $('sprint').textContent = `Sprint +${fmt.format(sprint)}`;
+  $('sprint').textContent = `Pomodoro +${fmt.format(sprint)}`;
   const bits = [];
-  if (view.communityHours) bits.push(`Zimmer ${view.communityHours} Std`);
+  if (view.modus === 'zimmer' && view.communityHours) bits.push(`Zimmer ${view.communityHours} Std`);
   if (w.chat) bits.push(`Chat ${fmt.format(w.chat)} Wörter`);
   $('gemeinsam').textContent = bits.join(' · ');
 }
@@ -271,7 +299,13 @@ function renderTimer() {
   const card = $('uhr');
   card.className = `card phase-${t.phase}`;
   $('chip').textContent = t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
-  $('runde').textContent = t.phase !== 'idle' && t.round ? `Runde ${t.round}` : '';
+  const pm = view.pomodoro ?? { done: 0, goal: 0 };
+  $('runde').textContent = t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} geschafft` : pm.done ? `${pm.done} geschafft` : '';
+  const total = pm.goal > 0 ? pm.goal : Math.max(4, pm.done + 1);
+  const box = $('pomo');
+  while (box.children.length < total) box.append(document.createElement('i'));
+  while (box.children.length > total) box.lastChild.remove();
+  [...box.children].forEach((el, i) => { el.className = i < pm.done ? 'fertig' : i === pm.done && t.phase === 'focus' ? 'aktiv' : ''; });
 }
 
 function tickClock() {
@@ -287,7 +321,45 @@ function tickClock() {
   const left = Math.max(0, t.endsAt - now);
   const s = Math.ceil(left / 1000);
   $('rest').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-  $('fortschritt').style.width = `${Math.min(100, ((now - t.startedAt) / (t.endsAt - t.startedAt)) * 100)}%`;
+  const frac = Math.min(1, (now - t.startedAt) / (t.endsAt - t.startedAt));
+  $('fortschritt').style.width = `${frac * 100}%`;
+  const act = $('pomo').querySelector('.aktiv'); if (act) act.style.setProperty('--p', `${Math.round(frac * 100)}%`);
+}
+
+// ---- Anordnung (Position und Größe aus dem Admin) und Sichtbarkeit
+const KARTEN = ['uhr', 'woerter', 'tasks', 'musik'];
+function applyLayout() {
+  const L = view?.layout;
+  if (!L) return;
+  for (const id of KARTEN) {
+    const el = $(id), l = L[id];
+    if (!l) continue;
+    el.style.left = `${l.x}px`; el.style.top = `${l.y}px`; el.style.right = 'auto';
+    el.style.transformOrigin = 'top left'; el.style.transform = `scale(${l.s})`;
+    el.hidden = !(teile.has(id) && l.on && (id !== 'musik' || musikNow));
+  }
+  const k = L.kamera, ph = $('kamera');
+  ph.hidden = !(q.has('kamera') || q.has('editor') || demo) || !k?.on;
+  if (k) { ph.style.left = `${k.x}px`; ph.style.top = `${k.y}px`; ph.style.width = `${k.w}px`; ph.style.height = `${k.h}px`; }
+}
+
+// ---- Musik
+async function updateMusik() {
+  const m = view?.musik;
+  if (!m) musikNow = null;
+  else if (m.mode === 'server') musikNow = m.now ?? null;
+  else if (!musikBusy) { // das Overlay liest die Adresse selbst (z. B. Tuna auf demselben PC)
+    musikBusy = true;
+    try { const r = await fetch(m.url, { cache: 'no-store' }); musikNow = nowPlaying(await r.json()); } catch { musikNow = null; }
+    musikBusy = false;
+  }
+  renderMusik();
+}
+function renderMusik() {
+  const m = musikNow;
+  $('titel').textContent = m?.title ?? ''; $('kuenstler').textContent = m?.artist ?? '';
+  const img = $('cover'); img.hidden = !m?.cover; if (m?.cover && img.src !== m.cover) img.src = m.cover;
+  applyLayout();
 }
 
 function apply(data) {
@@ -297,9 +369,13 @@ function apply(data) {
   for (const ev of data.events ?? []) handleEvent(ev);
   if (data.cursor) cursor = data.cursor;
   szene?.update(view);
-  renderNames(); renderModules(); renderTasks(); renderWords(); renderTimer();
+  renderNames(); renderModules(); renderTasks(); renderWords(); renderTimer(); applyLayout();
+  updateMusik();
   if (first) shownWords = targetWords;
 }
+
+// ---- Anordnungs-Editor im Admin schickt neue Positionen, damit man sie live sieht
+if (q.has('editor')) addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'layout' && view) { view.layout = e.data.layout; szene?.update(view); renderModules(); applyLayout(); } });
 
 // ---- Abrufen
 async function poll() {
@@ -310,18 +386,15 @@ async function poll() {
 }
 if (demo) {
   // Vorschau ohne Bot: Beispieldaten
-  const kat = await import('./js/katalog.mjs');
-  const names = ['Lena', 'Marie', 'Jonas', 'Sophie', 'Paul', 'Emma', 'Noah', 'Mia'];
-  const tasksOf = ['Kapitel 3 überarbeiten', 'Dialoge feilen', '', 'Recherche', 'Exposé', '', 'Plot-Twist', ''];
+  const { DEFAULT_LAYOUT } = await import('./js/layout.mjs');
   const mk = () => ({
-    now: Date.now(), scene: q.get('szene') ?? 'cafe', deco: ['lichter', 'pflanzen', 'katze', 'buecher'], modules: { blume: true, kerze: true, buecher: true }, sprintsToday: 3,
-    timer: { phase: q.get('phase') ?? 'focus', round: 2, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
-    words: { today: 1234, goal: 2000, chat: 4210 }, communityHours: 14,
+    now: Date.now(), modus: 'wachstum', jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
+    scene: 'cafe', deco: [], modules: { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
+    pomodoro: { done: 3, goal: 6, minutes: 25 }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
+    timer: { phase: q.get('phase') ?? 'focus', round: 4, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
+    words: { today: 1234, goal: 2000, chat: 0 }, communityHours: 0,
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
-    seats: names.map((n, i) => ({ id: 'd' + i, name: n, slot: [2, 7, 0, 5, 4, 9, 1, 6][i], rank: ['Notizbuch', 'Federkiel', 'Tintenfleck', 'Lektorat', 'Schreibstube', 'Manuskript', 'Notizbuch', 'Bestseller'][i],
-      figure: Object.assign(kat.startFigur('demo' + i), i === 1 ? { kopf: 'muetze', tier: 'katze', gesicht: 'brille' } : i === 3 ? { kopf: 'kopfhoerer', tisch: 'schreibmaschine' } : {}),
-      tasks: tasksOf[i] ? [{ id: 't', text: tasksOf[i], done: i === 4 }] : [] })),
-    events: [], cursor: 'x',
+    seats: [], events: [], cursor: 'x',
   });
   apply(mk());
   if (q.get('ereignis')) setTimeout(() => handleEvent({ type: q.get('ereignis'), writers: 6, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' }), 300);

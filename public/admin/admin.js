@@ -1,4 +1,5 @@
 import { SZENEN } from '../js/katalog.mjs';
+import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -41,13 +42,15 @@ async function loadState() {
   $('status').innerHTML = rows.join('');
   const u = state.urls;
   const urlRow = (label, url, hint = '') => `<div class="url"><b>${label}</b> <code>${esc(url)}</code><button class="hell" data-copy="${esc(url)}">Kopieren</button></div>${hint ? `<div class="leise">${hint}</div>` : ''}`;
-  $('urls').innerHTML = urlRow('OBS-Overlay', u.overlay, 'Browser-Quelle 1920×1080, „Audio über OBS steuern“ aktivieren. Nur einzelne Teile: <code>?teile=uhr,woerter,tasks,szene</code>')
+  $('urls').innerHTML = urlRow('OBS-Overlay', u.overlay, 'Browser-Quelle 1920×1080, „Audio über OBS steuern“ aktivieren. Die Kamera in OBS <b>unter</b> das Overlay legen. Nur einzelne Teile: <code>?teile=uhr,woerter,tasks,musik,szene</code>')
     + urlRow('Twitch-Weiterleitung', u.redirect, 'Diese Adresse muss in der Twitch-Entwickler-App als „OAuth Redirect URL“ stehen.')
-    + urlRow('Wörter-Schnittstelle', u.words, `Für ein späteres Hilfsprogramm: <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);
+    + urlRow('Wörter-Schnittstelle', u.words, `Für ein Hilfsprogramm (Papyrus): <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);
   for (const b of document.querySelectorAll('[data-copy]')) b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => meldung('Kopiert'));
   renderTimer();
   renderWords(state.words);
   $('plaetze').textContent = `${state.seated} sitzen · Zimmer: ${state.communityHours} Std gemeinsame Arbeitszeit`;
+  $('plaetze').hidden = state.modus !== 'zimmer'; $('zimmerKnoepfe').hidden = state.modus !== 'zimmer';
+  $('pomoHeute').textContent = state.pomodoro.done; $('pomoZiel').textContent = state.pomodoro.goal || '–';
 }
 $('abgleich').onclick = run(async () => {
   const r = await api('POST', 'setup');
@@ -62,7 +65,7 @@ function renderTimer() {
   if (!t || t.phase === 'idle') { $('timer').textContent = 'bereit'; $('timerInfo').textContent = ''; return; }
   const s = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
   $('timer').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-  $('timerInfo').textContent = `${t.phase === 'focus' ? 'Fokus' : 'Pause'} · Runde ${t.round}`;
+  $('timerInfo').textContent = t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause';
 }
 setInterval(renderTimer, 500);
 setInterval(() => { if (!$('app').hidden) loadState().catch(() => {}); }, 15000);
@@ -70,11 +73,19 @@ const minutes = () => ($('minuten').value ? Number($('minuten').value) : undefin
 $('fokus').onclick = run(async () => { await api('POST', 'timer/focus', { minutes: minutes() }); await loadState(); });
 $('pause').onclick = run(async () => { await api('POST', 'timer/break', { minutes: minutes() }); await loadState(); });
 $('stopp').onclick = run(async () => { await api('POST', 'timer/stop'); await loadState(); });
+for (const [id, delta] of [['pomoMinus', -1], ['pomoPlus', 1]]) $(id).onclick = run(async () => { await api('POST', 'timer/count', { delta }); await loadState(); });
 
-// ---- Szene
-async function renderScenes(current) {
-  $('szenen').innerHTML = Object.entries(SZENEN).map(([k, v]) => `<button data-s="${k}" class="${k === current ? 'aktiv' : ''}">${v.label}</button>`).join('');
-  for (const b of $('szenen').querySelectorAll('button')) b.onclick = run(async () => { await api('POST', 'seats/scene', { scene: b.dataset.s }); await loadSettings(); meldung(`Szene: ${SZENEN[b.dataset.s].label}`); });
+// ---- Landschaft (Jahreszeit, Tageszeit, Quelle) und Szene
+const AUSWAHL = {
+  jahreszeiten: ['jahreszeit', [['auto', 'Auto'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']]],
+  tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']]],
+  quellen: ['wachstumQuelle', [['woerter', 'Wörter'], ['pomodoro', 'Pomodoros']]],
+};
+function renderScenes(settings) {
+  for (const [boxId, [key, opts]] of Object.entries(AUSWAHL)) {
+    $(boxId).innerHTML = opts.map(([v, label]) => `<button data-v="${v}" class="${settings[key] === v ? 'aktiv' : ''}">${label}</button>`).join('');
+    for (const b of $(boxId).querySelectorAll('button')) b.onclick = run(async () => { const r = await api('PUT', 'settings', { [key]: b.dataset.v }); current = r.settings; renderScenes(r.settings); meldung('Gespeichert – schau ins Overlay'); });
+  }
 }
 
 // ---- Wörter
@@ -96,41 +107,53 @@ $('alleAufstehen').onclick = run(async () => { await api('DELETE', 'seats'); awa
 
 // ---- Einstellungen
 const OPT = {
+  szeneModus: [['wachstum', 'Landschaft (wächst mit dem Fortschritt)'], ['zimmer', 'Zimmer mit Tischen und Figuren der Zuschauer (pausiert)']],
+  jahreszeit: [['auto', 'Automatisch (nach Datum)'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']],
+  tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
+  wachstumQuelle: [['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
-  ['Figuren', [
-    ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Bei Reward oder „Beides“ danach auf „Reward & Webhooks abgleichen“ klicken.'],
-    ['scene', 'Szene', 'select'], ['maxSeats', 'Plätze (1–10)', 'number'],
-    ['seatIdleMinutes', 'Platz frei nach … Min ohne Chatnachricht', 'number'],
-    ['unlocksEnabled', 'Freischaltungen (Ränge, Gegenstände, Zimmer-Deko)', 'bool', 'Aus: alle Gegenstände sind sofort frei.'],
+  ['Darstellung', [
+    ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
+    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'],
+  ]],
+  ['Pomodoro', [
+    ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
+    ['longBreakMinutes', 'Lange Pause (Minuten)', 'number'], ['longBreakEvery', 'Lange Pause nach … Pomodoros (0 = nie)', 'number'],
+    ['pomodoroGoal', 'Ziel pro Tag (Anzahl, 0 = ohne)', 'number'], ['wordGoal', 'Wörterziel pro Tag (0 = ohne)', 'number'],
+    ['autoBreak', 'Nach dem Pomodoro automatisch Pause', 'bool'], ['autoCycle', 'Nach der Pause automatisch nächster Pomodoro', 'bool'],
+    ['announceSprint', 'Ansagen im Chat', 'bool'],
   ]],
   ['Module im Overlay', [
-    ['moduleBlume', 'Blume wächst mit den Wörtern', 'bool', 'Wächst vom Samen bis zur Blüte, sobald das Tagesziel erreicht ist.'],
-    ['moduleKerze', 'Kerze brennt mit dem Sprint', 'bool', 'Brennt während des Fokus herunter, in der Pause raucht sie, danach steht eine neue bereit.'],
-    ['moduleBuecher', 'Bücherstapel wächst mit den Sprints', 'bool', 'Pro abgeschlossenem Sprint kommt ein Buch dazu (bis 8).'],
-    ['moduleDeko', 'Zimmer wächst mit der gemeinsamen Arbeitszeit', 'bool', 'Lichterkette, Pflanzen, Katze, Bücher, Vögel und Regenbogen.'],
-  ]],
-  ['Sprints und Wörter', [
-    ['focusMinutes', 'Fokus (Minuten)', 'number'], ['breakMinutes', 'Pause (Minuten)', 'number'],
-    ['autoBreak', 'Nach dem Fokus automatisch Pause', 'bool'], ['autoCycle', 'Nach der Pause automatisch nächste Runde', 'bool'],
-    ['wordGoal', 'Tagesziel (Wörter, 0 = aus)', 'number'], ['announceSprint', 'Sprint-Ansagen im Chat', 'bool'],
+    ['moduleBlume', 'Blume wächst mit den Wörtern', 'bool', 'Vom Keimling bis zur Blüte, wenn das Tagesziel erreicht ist.'],
+    ['moduleKerze', 'Kerze brennt mit dem Pomodoro', 'bool', 'Brennt während des Fokus herunter, in der Pause raucht sie, danach steht eine neue bereit.'],
+    ['moduleBuecher', 'Bücherstapel wächst mit den Pomodoros', 'bool', 'Pro geschafftem Pomodoro kommt ein Buch dazu (bis 8).'],
+    ['moduleDeko', 'Zimmer wächst mit der gemeinsamen Arbeitszeit', 'bool', 'Nur im Zimmer-Modus.'],
   ]],
   ['Tag und Zeit', [['timezone', 'Zeitzone', 'text'], ['dayRolloverHour', 'Neuer Stream-Tag ab (Uhr)', 'number', 'Streams nach Mitternacht zählen zum Vortag.']]],
-  ['Check-in-Reward', [['checkinRewardTitle', 'Name', 'text'], ['checkinRewardCost', 'Preis (Kanalpunkte)', 'number']]],
   ['Chat', [
     ['chatCommands', 'Bot versteht Befehle', 'bool'], ['chatEnabled', 'Bot darf schreiben', 'bool'],
     ['commandPrefix', 'Befehlszeichen', 'text'], ['commandCooldown', 'Pause zwischen Info-Antworten (Sek.)', 'number'], ['maxTasks', 'Offene Aufgaben je Person', 'number'],
   ]],
   ['Chat-Texte', [
+    ['sprintStartTemplate', 'Pomodoro-Start', 'area', '{minutes}'], ['breakTemplate', 'Kurze Pause', 'area', '{minutes}'], ['longBreakTemplate', 'Lange Pause', 'area', '{minutes} {n}'],
+    ['sprintEndTemplate', 'Pomodoro geschafft', 'area', '{n} {ziel} {streamer}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
+  ]],
+  ['Zimmer-Modus (pausiert)', [
+    ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Bei Reward oder „Beides“ danach auf „Reward & Webhooks abgleichen“ klicken.'],
+    ['scene', 'Szene', 'select'], ['maxSeats', 'Plätze (1–10)', 'number'],
+    ['seatIdleMinutes', 'Platz frei nach … Min ohne Chatnachricht', 'number'],
+    ['unlocksEnabled', 'Freischaltungen (Ränge, Gegenstände, Zimmer-Deko)', 'bool', 'Aus: alle Gegenstände sind sofort frei.'],
+    ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis', 'number'],
     ['sitTemplate', 'Hinsetzen', 'area', '{user} {ort} {rank}'], ['sitAgainTemplate', 'Schon gesetzt', 'area', '{user} {ort}'], ['fullTemplate', 'Alles belegt', 'area', '{user}'],
     ['leaveTemplate', 'Aufstehen', 'area', '{user} {minutes} {total}'], ['notSeatedTemplate', 'Sitzt nicht', 'area', '{user} {sit}'], ['checkinTemplate', 'Check-in per Reward', 'area', '{user} {count} {ort} {rank}'],
-    ['sprintStartTemplate', 'Sprint-Start', 'area', '{minutes}'], ['breakTemplate', 'Pause', 'area', '{minutes}'], ['sprintEndTemplate', 'Sprint-Ende', 'area', '{writers} {streamer}'],
-    ['rankUpTemplate', 'Neuer Rang', 'area', '{user} {rank} {hours}'], ['unlockTemplate', 'Neuer Gegenstand', 'area', '{user} {item} {figur}'], ['decoTemplate', 'Zimmer wächst', 'area', '{deko}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
+    ['rankUpTemplate', 'Neuer Rang', 'area', '{user} {rank} {hours}'], ['unlockTemplate', 'Neuer Gegenstand', 'area', '{user} {item} {figur}'], ['decoTemplate', 'Zimmer wächst', 'area', '{deko}'],
   ]],
 ];
 let current = null;
+
 async function loadSettings() {
   const { settings } = await api('GET', 'settings');
   current = settings;
@@ -143,13 +166,15 @@ async function loadSettings() {
             : `<input data-k="${key}" value="${esc(v)}">`;
     return `<div class="feld ${type === 'area' ? 'breit' : ''}"><label>${esc(label)}</label>${input}${hint ? `<div class="hinweis">${type === 'area' ? 'Platzhalter: ' : ''}${esc(hint)}</div>` : ''}</div>`;
   }).join('')}</div>`).join('');
-  renderScenes(settings.scene);
+  renderScenes(settings);
+  fillMusik(settings);
+  if (!layoutState) loadLayout(settings.layout);
 }
 $('speichern').onclick = run(async () => {
   const body = {};
   for (const el of $('formular').querySelectorAll('[data-k]')) body[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
   const { settings } = await api('PUT', 'settings', body);
-  current = settings; renderScenes(settings.scene);
+  current = settings; renderScenes(settings);
   meldung('Gespeichert');
 });
 
@@ -165,6 +190,98 @@ $('usersLaden').onclick = run(loadUsers);
 // ---- Tests
 for (const b of document.querySelectorAll('[data-test]')) b.onclick = run(async () => { await api('POST', `test/${b.dataset.test}`, { count: 8 }); meldung('Erledigt – schau ins Overlay'); await loadState(); });
 for (const b of document.querySelectorAll('[data-event]')) b.onclick = run(async () => { await api('POST', 'test/event', { kind: b.dataset.event }); meldung('Gesendet – schau ins Overlay'); });
+
+// ---- Musik
+const MUSIK_OPT = [['aus', 'Aus'], ['lokal', 'Lokal (Adresse, z. B. Tuna)'], ['server', 'Server (Chat, von Hand, Hilfsprogramm)']];
+function fillMusik(settings) {
+  $('musikQuelleSel').innerHTML = MUSIK_OPT.map(([v, t]) => `<option value="${v}" ${settings.musikQuelle === v ? 'selected' : ''}>${esc(t)}</option>`).join('');
+  $('musikUrlFeld').value = settings.musikUrl;
+  musikStatus().catch(() => {});
+}
+async function musikStatus() {
+  const { musik } = await api('GET', 'musik');
+  $('musikStatus').textContent = musik ? `Von Hand oder per Schnittstelle gesetzt: ${musik.title}${musik.artist ? ` – ${musik.artist}` : ''}` : 'Über den Server ist gerade nichts gesetzt.';
+}
+$('musikSpeichern').onclick = run(async () => { const r = await api('PUT', 'settings', { musikQuelle: $('musikQuelleSel').value, musikUrl: $('musikUrlFeld').value }); current = r.settings; meldung('Gespeichert – schau ins Overlay'); });
+$('musikSetzen').onclick = run(async () => {
+  const [title, artist = ''] = $('musikText').value.split(/\s+[-–]\s+/);
+  await api('POST', 'musik', { title, artist }); $('musikText').value = ''; await musikStatus();
+  meldung('Gesetzt (zeigt nur, wenn die Anzeige auf „Server“ steht)');
+});
+$('musikLoeschen').onclick = run(async () => { await api('DELETE', 'musik'); await musikStatus(); });
+
+// ---- Anordnung: Karten, Module und Kamerafenster per Ziehen verschieben
+const BOXEN = {
+  uhr: { label: 'Uhr + Pomodoro', w: 366, h: 300 }, woerter: { label: 'Wörter', w: 366, h: 215 }, tasks: { label: 'To-Do', w: 366, h: 210 }, musik: { label: 'Musik', w: 380, h: 110 },
+  kamera: { label: 'Kamera' },
+  blume: { label: 'Blume', w: 210, h: 270, modul: true }, kerze: { label: 'Kerze', w: 150, h: 220, modul: true }, buecher: { label: 'Bücher', w: 230, h: 210, modul: true },
+};
+let layoutState = null, gewaehlt = null, editScale = 0.5, sendFrame = 0;
+function geom(id) {
+  const b = BOXEN[id], l = layoutState[id];
+  if (id === 'kamera') return { x: l.x - 22, y: l.y - 22, w: l.w + 44, h: l.h + 44 };
+  if (b.modul) return { x: l.x - (b.w * l.s) / 2, y: l.y - (b.h - 30) * l.s, w: b.w * l.s, h: b.h * l.s };
+  return { x: l.x, y: l.y, w: b.w * l.s, h: b.h * l.s };
+}
+function pushLayout() {
+  cancelAnimationFrame(sendFrame);
+  sendFrame = requestAnimationFrame(() => $('editorFrame').contentWindow?.postMessage({ type: 'layout', layout: layoutState }, location.origin));
+}
+function renderBoxen() {
+  const box = $('editorBoxen');
+  if (!box.children.length) {
+    for (const id of Object.keys(BOXEN)) {
+      const el = document.createElement('div');
+      el.className = 'ebox'; el.dataset.id = id; el.textContent = BOXEN[id].label;
+      el.onpointerdown = (e) => startDrag(e, id, el);
+      box.append(el);
+    }
+  }
+  for (const el of box.children) {
+    const id = el.dataset.id, g = geom(id);
+    el.style.left = `${g.x * editScale}px`; el.style.top = `${g.y * editScale}px`; el.style.width = `${g.w * editScale}px`; el.style.height = `${g.h * editScale}px`;
+    el.classList.toggle('aktiv', id === gewaehlt); el.classList.toggle('aus', !layoutState[id].on);
+  }
+}
+function startDrag(e, id, el) {
+  e.preventDefault(); select(id);
+  const l = layoutState[id], sx = e.clientX, sy = e.clientY, x0 = l.x, y0 = l.y;
+  el.setPointerCapture(e.pointerId);
+  el.onpointermove = (m) => {
+    layoutState[id].x = Math.round((x0 + (m.clientX - sx) / editScale) / 4) * 4;
+    layoutState[id].y = Math.round((y0 + (m.clientY - sy) / editScale) / 4) * 4;
+    layoutState = normalizeLayout(layoutState); renderBoxen(); pushLayout();
+  };
+  el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; };
+}
+function select(id) {
+  gewaehlt = id;
+  const l = layoutState[id];
+  $('editorName').textContent = BOXEN[id].label;
+  $('edAn').checked = l.on; $('edAn').disabled = false;
+  $('edGroesse').hidden = id === 'kamera'; $('edGroesse').parentElement.hidden = id === 'kamera';
+  if (id !== 'kamera') $('edGroesse').value = l.s;
+  $('edKamera').hidden = id !== 'kamera';
+  if (id === 'kamera') { $('edW').value = l.w; $('edH').value = l.h; }
+  renderBoxen();
+}
+function fitEditor() {
+  editScale = $('editor').clientWidth / 1920;
+  $('editorFrame').style.transform = `scale(${editScale})`;
+  if (layoutState) renderBoxen();
+}
+function loadLayout(layout) {
+  layoutState = normalizeLayout(layout);
+  if (!$('editorFrame').src) { $('editorFrame').src = '/overlay.html?editor=1&kamera=1&ton=aus'; $('editorFrame').onload = pushLayout; }
+  fitEditor(); renderBoxen(); pushLayout();
+}
+addEventListener('resize', fitEditor);
+const edChange = () => { if (!gewaehlt) return; const l = layoutState[gewaehlt]; l.on = $('edAn').checked; if (gewaehlt !== 'kamera') l.s = Number($('edGroesse').value); else { l.w = Number($('edW').value); l.h = Number($('edH').value); } layoutState = normalizeLayout(layoutState); renderBoxen(); pushLayout(); };
+for (const id of ['edAn', 'edGroesse', 'edW', 'edH']) $(id).oninput = edChange;
+$('edRatio').onclick = () => { if (gewaehlt === 'kamera') { $('edH').value = Math.round((Number($('edW').value) * 9) / 16 / 10) * 10; edChange(); } };
+$('layoutSpeichern').onclick = run(async () => { const r = await api('PUT', 'settings', { layout: layoutState }); current = r.settings; layoutState = normalizeLayout(r.settings.layout); renderBoxen(); meldung('Anordnung gespeichert'); });
+$('layoutZurueck').onclick = () => { layoutState = normalizeLayout(structuredClone(DEFAULT_LAYOUT)); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); meldung('Standard geladen – noch speichern'); };
+$('layoutLaden').onclick = run(async () => { const { settings } = await api('GET', 'settings'); layoutState = normalizeLayout(settings.layout); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); });
 
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login

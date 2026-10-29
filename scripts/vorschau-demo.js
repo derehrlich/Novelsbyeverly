@@ -1,62 +1,43 @@
 // ---- Vorschau: Beispieldaten und Bedienelemente (nur in der Vorschau-Datei, nicht im echten Overlay)
-const NAMES = ['Lena', 'Marie', 'Jonas', 'Sophie', 'Paul', 'Emma', 'Noah', 'Mia', 'Ben', 'Lotta'];
-const RANKS = ['Notizbuch', 'Federkiel', 'Tintenfleck', 'Lektorat', 'Schreibstube', 'Manuskript', 'Notizbuch', 'Bestseller', 'Tintenfleck', 'Federkiel'];
-const TASKS = ['Kapitel 3 überarbeiten', 'Dialoge feilen', '', 'Recherche Mittelalter', 'Exposé', '', 'Plot-Twist', '', 'Figurenbogen', ''];
-const SLOT_ORDER = [2, 7, 0, 5, 4, 9, 1, 6, 3, 8];
-const HOURS = [0, 2, 5, 10, 20, 40, 80];
-const DECO = [['lichter', 2], ['pflanzen', 5], ['katze', 10], ['buecher', 20], ['voegel', 40], ['regenbogen', 80]];
-const cfg = { scene: 'cafe', phase: 'focus', count: 8, hourIdx: 3, words: 1240, sprintPct: 28, sprints: 3, mod: { blume: true, kerze: true, buecher: true, deko: true }, since: Date.now() - 7 * 60000 };
-
-const figureFor = (i) => Object.assign(startFigur('demo' + i), [
-  { kopf: 'muetze', gesicht: 'brille' }, { kopf: 'kopfhoerer', hals: 'schal', tisch: 'notizbuch', getraenk: 'kaffee' }, {},
-  { kopf: 'blumenkranz', tisch: 'schreibmaschine', tier: 'eule' }, { gesicht: 'sonnenbrille' }, { tier: 'katze' }, {}, { kopf: 'muetze', tier: 'katze', getraenk: 'kakao' }, {}, { gesicht: 'brille', hals: 'schal' },
-][i % 10]);
+const cfg = { jahreszeit: 'fruehling', tageszeit: 'mittag', phase: 'focus', progress: 55, sprintPct: 28, done: 3, goal: 6, words: 1100, mod: { blume: true, kerze: true, buecher: true, musik: true, kamera: true }, since: Date.now() - 7 * 60000 };
 
 function mk() {
-  const hours = HOURS[cfg.hourIdx];
-  const length = cfg.phase === 'break' ? 5 : 25;
-  const idle = cfg.phase === 'idle';
+  const layout = structuredClone(DEFAULT_LAYOUT);
+  for (const k of ['blume', 'kerze', 'buecher', 'musik']) layout[k].on = cfg.mod[k];
+  layout.kamera.on = cfg.mod.kamera;
+  const length = cfg.phase === 'break' ? 5 : 25, idle = cfg.phase === 'idle';
   return {
-    now: Date.now(), scene: cfg.scene, deco: cfg.mod.deko ? DECO.filter(([, h]) => hours >= h).map(([id]) => id) : [],
-    modules: { blume: cfg.mod.blume, kerze: cfg.mod.kerze, buecher: cfg.mod.buecher }, sprintsToday: cfg.sprints,
-    timer: { phase: cfg.phase, round: 2, startedAt: idle ? null : cfg.since, endsAt: idle ? null : cfg.since + length * 60000, wordsAtStart: 640 },
-    words: { today: cfg.words, goal: 2000, chat: 4210 }, communityHours: hours,
-    streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
-    seats: Array.from({ length: cfg.count }, (_, i) => ({
-      id: 'demo' + i, name: NAMES[i], slot: SLOT_ORDER[i], rank: RANKS[i], figure: figureFor(i),
-      tasks: TASKS[i] ? [{ id: 't' + i, text: TASKS[i], done: i === 4 }] : [],
-    })),
-    events: [], cursor: 'x',
+    now: Date.now(), modus: 'wachstum', jahreszeit: cfg.jahreszeit, tageszeit: cfg.tageszeit, progress: cfg.progress / 100,
+    scene: 'cafe', deco: [], modules: { blume: cfg.mod.blume, kerze: cfg.mod.kerze, buecher: cfg.mod.buecher }, sprintsToday: cfg.done, layout,
+    pomodoro: { done: cfg.done, goal: cfg.goal, minutes: 25 },
+    musik: cfg.mod.musik ? { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } } : null,
+    timer: { phase: cfg.phase, round: cfg.done + 1, startedAt: idle ? null : cfg.since, endsAt: idle ? null : cfg.since + length * 60000, wordsAtStart: 640 },
+    words: { today: cfg.words, goal: 2000, chat: 0 }, communityHours: 0,
+    streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }, { id: 'd', text: 'Exposé an Lektorin', done: false }],
+    seats: [], events: [], cursor: 'x',
   };
 }
 const refresh = () => apply(mk());
 const mark = (box, attr, value) => { for (const b of $(box).children) b.classList.toggle('aktiv', b.dataset[attr] === String(value)); };
+const setSince = () => { const len = cfg.phase === 'break' ? 5 : 25; cfg.since = Date.now() - (cfg.phase === 'break' ? 0.2 : cfg.sprintPct / 100) * len * 60000; };
 
 refresh();
-mark('k-szene', 's', cfg.scene); mark('k-phase', 'p', cfg.phase);
+mark('k-jahr', 'j', cfg.jahreszeit); mark('k-zeit', 'z', cfg.tageszeit); mark('k-phase', 'p', cfg.phase);
 
-$('k-szene').onclick = (e) => { const s = e.target.dataset?.s; if (!s) return; cfg.scene = s; mark('k-szene', 's', s); refresh(); };
+$('k-jahr').onclick = (e) => { const v = e.target.dataset?.j; if (!v) return; cfg.jahreszeit = v; mark('k-jahr', 'j', v); refresh(); };
+$('k-zeit').onclick = (e) => { const v = e.target.dataset?.z; if (!v) return; cfg.tageszeit = v; mark('k-zeit', 'z', v); refresh(); };
 $('k-phase').onclick = (e) => {
   const p = e.target.dataset?.p; if (!p) return;
   cfg.phase = p; setSince(); mark('k-phase', 'p', p); refresh();
   if (p !== 'idle') handleEvent({ type: 'phase', phase: p, minutes: p === 'focus' ? 25 : 5 });
 };
-const setSince = () => { const len = cfg.phase === 'break' ? 5 : 25; cfg.since = Date.now() - (cfg.phase === 'break' ? 0.2 : cfg.sprintPct / 100) * len * 60000; };
-for (const [id, key] of [['mBlume', 'blume'], ['mKerze', 'kerze'], ['mBuecher', 'buecher'], ['mDeko', 'deko']]) $(id).onchange = (e) => { cfg.mod[key] = e.target.checked; refresh(); };
-$('woerterPct').oninput = (e) => { cfg.words = Math.round((Number(e.target.value) / 100) * 2000); $('woerterPctWert').textContent = `${e.target.value} %`; refresh(); };
-$('sprintPct').oninput = (e) => { cfg.sprintPct = Number(e.target.value); $('sprintPctWert').textContent = `${e.target.value} %`; if (cfg.phase === 'idle') cfg.phase = 'focus'; setSince(); mark('k-phase', 'p', cfg.phase); refresh(); };
-$('sprintsHeute').oninput = (e) => { cfg.sprints = Number(e.target.value); $('sprintsHeuteWert').textContent = cfg.sprints; refresh(); };
-$('anzahl').oninput = (e) => { cfg.count = Number(e.target.value); $('anzahlWert').textContent = cfg.count; refresh(); };
-$('stunden').oninput = (e) => { cfg.hourIdx = Number(e.target.value); $('stundenWert').textContent = `${HOURS[cfg.hourIdx]} Std`; refresh(); };
+$('sprintPct').oninput = (e) => { cfg.sprintPct = Number(e.target.value); $('sprintPctWert').textContent = `${e.target.value} %`; if (cfg.phase !== 'focus') { cfg.phase = 'focus'; mark('k-phase', 'p', 'focus'); } setSince(); refresh(); };
+$('pomoDone').oninput = (e) => { cfg.done = Number(e.target.value); $('pomoDoneWert').textContent = `${cfg.done} von ${cfg.goal}`; refresh(); };
+$('wachsRegler').oninput = (e) => { cfg.progress = Number(e.target.value); cfg.words = Math.round((cfg.progress / 100) * 2000); $('wachsWert').textContent = `${e.target.value} %`; refresh(); };
+for (const [id, key] of [['mBlume', 'blume'], ['mKerze', 'kerze'], ['mBuecher', 'buecher'], ['mMusik', 'musik'], ['mKamera', 'kamera']]) $(id).onchange = (e) => { cfg.mod[key] = e.target.checked; refresh(); };
 $('tonAn').onchange = (e) => { ton = e.target.checked; if (ton) chime([660, 880], 0.14); };
 $('k-event').onclick = (e) => {
   const kind = e.target.dataset?.e; if (!kind) return;
-  if (kind === 'woerter') { cfg.words = Math.min(2400, cfg.words + 150); $('woerterPct').value = Math.min(100, Math.round((cfg.words / 2000) * 100)); $('woerterPctWert').textContent = `${$('woerterPct').value} %`; refresh(); return; }
-  if (kind === 'sit') {
-    if (cfg.count >= 10) cfg.count = 9;
-    cfg.count += 1; $('anzahl').value = cfg.count; $('anzahlWert').textContent = cfg.count; refresh();
-    handleEvent({ type: 'sit', slot: SLOT_ORDER[cfg.count - 1], name: NAMES[cfg.count - 1] });
-    return;
-  }
-  handleEvent({ type: kind, writers: Math.max(1, cfg.count), minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' });
+  if (kind === 'woerter') { cfg.words = Math.min(2400, cfg.words + 150); cfg.progress = Math.min(100, Math.round((cfg.words / 2000) * 100)); $('wachsRegler').value = cfg.progress; $('wachsWert').textContent = `${cfg.progress} %`; refresh(); return; }
+  handleEvent({ type: kind, n: cfg.done + 1, goal: cfg.goal, writers: 0, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' });
 };

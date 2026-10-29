@@ -57,6 +57,10 @@ const timerLib = await mod('lib/timer.mjs');
 const wordsLib = await mod('lib/words.mjs');
 const tasksLib = await mod('lib/tasks.mjs');
 const { ensureCheckinReward } = await mod('lib/twitch.mjs');
+const musikIngest = (await mod('functions/musik-ingest.mjs')).default;
+const { resolveSeason, resolveTime } = await mod('lib/zeiten.mjs');
+const { getMusik } = await mod('lib/musik.mjs');
+const layoutLib = await import('../public/js/layout.mjs');
 const kat = await import('../public/js/katalog.mjs');
 
 let passed = 0;
@@ -82,6 +86,8 @@ const adminCall = async (method, p, body, cookie) => {
 // ---- Verbindung herstellen (Kanal und Bot)
 await db.set('config/tokens', { access_token: 'tokB', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '999', login: 'streamerin', scopes: ['channel:read:redemptions', 'channel:manage:redemptions', 'user:write:chat', 'user:read:chat', 'user:bot', 'channel:bot'] });
 await db.set('config/bot-tokens', { access_token: 'tokBot', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '555', login: 'everlybot', scopes: ['user:write:chat', 'user:read:chat', 'user:bot'] });
+
+await saveSettings({ szeneModus: 'zimmer' }); // die Figuren der Zuschauer gibt es im Zimmer-Modus
 
 console.log('Katalog und Einstellungen');
 await test('Ränge und Freischaltungen nach Arbeitszeit', () => {
@@ -180,7 +186,7 @@ await test('!sprint startet, am Ende bekommen Sitzende Arbeitszeit, Rang und Geg
   await db.set('seat/1', { ...(await db.get('seat/1')), since: Date.now() - 120_000 });
   const msg = await say('999', 'Streamerin', '!sprint 1', { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] });
   assert.equal(msg.sender_id, '555');
-  assert.match(msg.message, /Sprint startet: 1 Minuten/);
+  assert.match(msg.message, /Pomodoro startet: 1 Minuten/);
   const t = await timerLib.getTimer();
   assert.equal(t.phase, 'focus');
   await timerLib.tick(s, t.endsAt + 500);
@@ -188,7 +194,7 @@ await test('!sprint startet, am Ende bekommen Sitzende Arbeitszeit, Rang und Geg
   assert.equal(lena.minutes, 1); assert.equal(lena.sprints, 1);
   assert.equal((await db.get('stats/community')).minutes, 1);
   assert.equal((await timerLib.getTimer()).phase, 'break');
-  assert.ok(chatSent().some((m) => /Sprint geschafft! 1 Mitschreibende/.test(m.message)));
+  assert.ok(chatSent().some((m) => /Pomodoro 1 von 6 geschafft/.test(m.message)));
   assert.ok(chatSent().some((m) => /Pause! 5 Minuten/.test(m.message)));
 });
 await test('ein Sprint wird nur einmal abgerechnet, auch bei gleichzeitigen Abrufen', async () => {
@@ -389,6 +395,112 @@ await test('OAuth: Bot-Rolle fordert nur Bot-Berechtigungen, Callback speichert 
   assert.equal(cb.status, 302); assert.match(cb.headers.get('location'), /verbunden=bot/);
   assert.equal((await db.get('config/bot-tokens')).login, 'streamerin'); // Mock liefert immer denselben Nutzer
   assert.equal((await db.get('config/tokens')).access_token, 'tokB');
+});
+
+console.log('Landschaft, Pomodoro, Layout, Musik');
+await saveSettings({ szeneModus: 'wachstum', appearOn: 'sit', scene: 'cafe', moduleBlume: true, moduleKerze: true, moduleBuecher: true, moduleDeko: true });
+const viewNow = async () => (await overlay(new Request('https://x/api/overlay'))).json();
+await test('Wachstums-Modus: Platz-Befehle sind pausiert, keine Figuren im Overlay', async () => {
+  const before = chatSent().length;
+  await webhook(sign(chatEvent('31', 'Neu', '!sitzen')));
+  await webhook(sign(chatEvent('31', 'Neu', '!figur haare rot')));
+  assert.equal(chatSent().length, before);
+  assert.equal(await db.get('seat/31'), null);
+  const v = await viewNow();
+  assert.equal(v.modus, 'wachstum'); assert.deepEqual(v.seats, []);
+});
+await test('Jahres- und Tageszeit: automatisch nach Datum und Uhrzeit, oder fest', () => {
+  const s = { ...DEFAULTS, timezone: 'Europe/Berlin' };
+  assert.equal(resolveSeason(s, new Date('2026-04-10T12:00:00Z')), 'fruehling');
+  assert.equal(resolveSeason(s, new Date('2026-07-10T12:00:00Z')), 'sommer');
+  assert.equal(resolveSeason(s, new Date('2026-10-29T12:00:00Z')), 'herbst');
+  assert.equal(resolveSeason(s, new Date('2026-12-24T12:00:00Z')), 'winter');
+  assert.equal(resolveTime(s, new Date('2026-06-01T05:30:00Z')), 'morgen'); // 7:30 Uhr in Berlin
+  assert.equal(resolveTime(s, new Date('2026-06-01T11:00:00Z')), 'mittag');
+  assert.equal(resolveTime(s, new Date('2026-06-01T20:00:00Z')), 'abend');
+  assert.equal(resolveSeason({ ...s, jahreszeit: 'winter' }), 'winter'); assert.equal(resolveTime({ ...s, tageszeit: 'morgen' }), 'morgen');
+});
+await test('Fortschritt der Landschaft: Wörter oder Pomodoros', async () => {
+  const w = await wordsLib.getWords(await getSettings());
+  await saveSettings({ wordGoal: 1000, wachstumQuelle: 'woerter' });
+  const v1 = await viewNow();
+  assert.ok(Math.abs(v1.progress - Math.min(1, w.today / 1000)) < 0.001);
+  await saveSettings({ wachstumQuelle: 'pomodoro', pomodoroGoal: 4 });
+  const v2 = await viewNow();
+  assert.ok(Math.abs(v2.progress - Math.min(1, v2.pomodoro.done / 4)) < 0.001); assert.equal(v2.pomodoro.goal, 4);
+  await saveSettings({ wachstumQuelle: 'woerter', pomodoroGoal: 6 });
+});
+await test('Einstellungen: neue Auswahlfelder werden geprüft', () => {
+  assert.equal(normalize({ szeneModus: 'zimmer' }).settings.szeneModus, 'zimmer');
+  assert.ok(normalize({ jahreszeit: 'regenzeit' }).error);
+  assert.ok(normalize({ musikUrl: 'javascript:alert(1)' }).error);
+  assert.equal(normalize({ pomodoroGoal: 999 }).settings.pomodoroGoal, 30);
+  assert.equal(normalize({ longBreakEvery: -3 }).settings.longBreakEvery, 0);
+});
+await test('Pomodoro: lange Pause nach der eingestellten Anzahl, Ziel im Chattext', async () => {
+  await saveSettings({ longBreakEvery: 2, longBreakMinutes: 15, breakMinutes: 5, focusMinutes: 1, pomodoroGoal: 6, autoBreak: true, autoCycle: false });
+  const s = await getSettings();
+  await timerLib.stopTimer(s);
+  const key = `stats/sprints-${(await mod('lib/util.mjs')).streamDay(s)}`;
+  const start = (await db.get(key))?.n ?? 0;
+  await db.set(key, { n: start + (2 - ((start) % 2)) - 1 }); // eine Runde vor der langen Pause
+  const t0 = Date.now() - 200_000;
+  await timerLib.startFocus(s, 1, t0);
+  const t = await timerLib.getTimer();
+  await timerLib.tick(s, t.endsAt + 500);
+  const brk = await timerLib.getTimer();
+  assert.equal(brk.phase, 'break'); assert.equal(brk.minutes, 15);
+  assert.ok(chatSent().some((m) => /Lange Pause! 15 Minuten/.test(m.message)));
+  assert.ok(chatSent().some((m) => /Pomodoro \d+ von 6 geschafft/.test(m.message)));
+  await timerLib.stopTimer(s);
+  await db.set(key, { n: start });
+});
+await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const before = (await viewNow()).pomodoro.done;
+  assert.equal((await adminCall('POST', 'timer/count', { delta: 2 }, cookie)).body.done, before + 2);
+  assert.equal((await adminCall('POST', 'timer/count', { delta: -99 }, cookie)).body.done, 0);
+  const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  assert.match((await say('999', 'Streamerin', '!pomodoros 8', bc)).message, /Ziel heute: 8 Pomodoros/);
+  assert.equal((await getSettings()).pomodoroGoal, 8);
+  await saveSettings({ pomodoroGoal: 6 });
+  assert.match((await say('999', 'Streamerin', '!pomodoro 20', bc)).message, /Pomodoro startet: 20 Minuten/);
+  await timerLib.stopTimer(await getSettings());
+});
+await test('Layout: wird geprüft, begrenzt und mit Standard ergänzt', async () => {
+  const l = layoutLib.normalizeLayout({ uhr: { x: 99999, y: -5, s: 99 }, kamera: { w: 10, on: 0 }, unbekannt: { x: 1 } });
+  assert.equal(l.uhr.x, 2200); assert.equal(l.uhr.s, 2.5); assert.equal(l.kamera.w, 160); assert.equal(l.kamera.on, false);
+  assert.ok(!('unbekannt' in l)); assert.equal(l.musik.s, 1);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const saved = await adminCall('PUT', 'settings', { layout: { tasks: { x: 120, y: 340, s: 1.2 }, kamera: { x: 100, y: 100, w: 640, h: 360 } } }, cookie);
+  assert.equal(saved.body.settings.layout.tasks.x, 120); assert.equal(saved.body.settings.layout.kamera.w, 640);
+  assert.equal(saved.body.settings.layout.uhr.x, 36); // Rest bleibt
+  const v = await viewNow();
+  assert.equal(v.layout.tasks.y, 340);
+});
+await test('Musik: Schnittstelle mit Schlüssel, Chatbefehl, Veralten und Quellen', async () => {
+  const post = (body, token) => musikIngest(new Request('https://x/api/musik', { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) }));
+  assert.equal((await post({ title: 'X' })).status, 401);
+  assert.equal((await post({ title: 'Lofi Rain', artist: 'Mondschein', cover: 'https://bild.example/c.jpg' }, 'ingest-geheim')).status, 200);
+  assert.deepEqual(await getMusik(), { title: 'Lofi Rain', artist: 'Mondschein', cover: 'https://bild.example/c.jpg' });
+  assert.equal(await getMusik(Date.now() + 10 * 60_000), null); // nichts mehr gemeldet: läuft nicht mehr
+  await post({ title: '<b>Evil</b>', cover: 'javascript:alert(1)' }, 'ingest-geheim');
+  assert.deepEqual(await getMusik(), { title: 'bEvil/b', artist: '', cover: '' });
+  await saveSettings({ musikQuelle: 'server' });
+  assert.equal((await viewNow()).musik.mode, 'server');
+  const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  assert.match((await say('999', 'Streamerin', '!song Rainy Café - Mondschein', bc)).message, /Jetzt läuft: Rainy Café - Mondschein/);
+  assert.equal((await viewNow()).musik.now.artist, 'Mondschein');
+  assert.equal((await getMusik(Date.now() + 3 * 3_600_000)).title, 'Rainy Café'); // von Hand gesetzt bleibt stehen
+  await say('1', 'Lena', '!song Geheim - Hacker'); // Zuschauer dürfen nicht
+  assert.equal((await getMusik()).title, 'Rainy Café');
+  await say('999', 'Streamerin', '!song aus', bc);
+  assert.equal(await getMusik(), null);
+  await saveSettings({ musikQuelle: 'lokal', musikUrl: 'http://localhost:1608/' });
+  const v = await viewNow(); assert.equal(v.musik.mode, 'lokal'); assert.equal(v.musik.url, 'http://localhost:1608/');
+  await saveSettings({ musikQuelle: 'aus' }); assert.equal((await viewNow()).musik, null);
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

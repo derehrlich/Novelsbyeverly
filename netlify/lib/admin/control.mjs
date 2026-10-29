@@ -6,7 +6,8 @@ import { startBreak, startFocus, stopTimer, tick } from '../timer.mjs';
 import { addWords, getWords, resetDay, setAbsolute, setToday } from '../words.mjs';
 import { addTask, clearTasks, completeTask, getTasks, removeTask } from '../tasks.mjs';
 import { streamerId } from '../view.mjs';
-import { pushEvent } from '../util.mjs';
+import { pushEvent, streamDay } from '../util.mjs';
+import { clearMusik, getMusik, setMusik } from '../musik.mjs';
 import { json } from '../http.mjs';
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : null);
@@ -19,6 +20,12 @@ export async function timer({ route, method, body }) {
   if (route[1] === 'break') return json({ timer: await startBreak(settings, minutes) });
   if (route[1] === 'stop') return json({ timer: await stopTimer(settings) });
   if (route[1] === 'tick') return json({ timer: await tick(settings) });
+  if (route[1] === 'count') { // Pomodoros von Hand zählen (z. B. Arbeit ohne Timer)
+    const key = `stats/sprints-${streamDay(settings)}`;
+    const n = Math.max(0, ((await db.get(key)) ?? { n: 0 }).n + Math.round(Number(body.delta) || 0));
+    await db.set(key, { n });
+    return json({ done: n });
+  }
 }
 
 export async function words({ route, method, body }) {
@@ -100,4 +107,16 @@ export async function tests({ route, method, body }) {
     await pushEvent(kinds[body.kind]);
     return json({ ok: true });
   }
+}
+
+// Musik von Hand setzen oder löschen (wenn kein Hilfsprogramm läuft)
+export async function musik({ route, method, body }) {
+  if (route[0] !== 'musik') return;
+  if (method === 'GET') return json({ musik: await getMusik() });
+  if (method === 'POST') {
+    if (!String(body.title ?? '').trim()) return json({ error: 'Bitte einen Titel eingeben' }, 400);
+    await setMusik(body, { manual: true });
+    return json({ musik: await getMusik() });
+  }
+  if (method === 'DELETE') { await clearMusik(); return json({ ok: true }); }
 }

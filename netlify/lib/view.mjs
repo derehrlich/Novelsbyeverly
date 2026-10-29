@@ -7,6 +7,8 @@ import { sprintsToday, tick } from './timer.mjs';
 import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
+import { getMusik } from './musik.mjs';
+import { resolveSeason, resolveTime } from './zeiten.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -23,18 +25,33 @@ export async function buildView(settings, since, now = Date.now()) {
   const words = await getWords(settings, new Date(now));
   const community = await communityMinutes();
   const sid = await streamerId();
-  const streamerTasks = visibleTasks(await getTasks(sid), now, 5);
+  const streamerTasks = visibleTasks(await getTasks(sid), now, 7);
   const people = [];
-  for (const s of seats) {
+  for (const s of settings.szeneModus === 'zimmer' ? seats : []) {
     people.push({ id: s.id, name: s.name, slot: s.slot, figure: s.figure, rank: RAENGE.find((r) => r.id === s.rank)?.label ?? '', tasks: visibleTasks(await getTasks(s.id), now, 2) });
   }
 
+  const done = await sprintsToday(settings, now);
+  const progress = settings.wachstumQuelle === 'pomodoro'
+    ? done / (settings.pomodoroGoal || 6)
+    : words.today / (settings.wordGoal || 1000);
+  const musik = settings.musikQuelle === 'aus' ? null : settings.musikQuelle === 'lokal'
+    ? { mode: 'lokal', url: settings.musikUrl }
+    : { mode: 'server', now: await getMusik(now) };
+
   const view = {
     now,
+    modus: settings.szeneModus,
+    jahreszeit: resolveSeason(settings, new Date(now)),
+    tageszeit: resolveTime(settings, new Date(now)),
+    progress: Math.min(1, Math.max(0, progress)),
+    pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
+    layout: settings.layout,
+    musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),
     modules: { blume: settings.moduleBlume, kerze: settings.moduleKerze, buecher: settings.moduleBuecher },
-    sprintsToday: await sprintsToday(settings, now),
+    sprintsToday: done,
     timer: { phase: timer.phase, round: timer.round, startedAt: timer.startedAt, endsAt: timer.endsAt, minutes: timer.minutes ?? null, wordsAtStart: timer.wordsAtStart ?? 0 },
     words: { today: words.today, goal: words.goal, chat: await viewerWordsToday(settings) },
     streamerTasks,

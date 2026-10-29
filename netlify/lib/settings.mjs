@@ -1,7 +1,20 @@
 import { db } from './store.mjs';
 import { MAX_PLAETZE, SZENEN } from '../../public/js/katalog.mjs';
+import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
 
 export const DEFAULTS = {
+  // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'zimmer' = Szene mit den Figuren der Zuschauer (pausiert)
+  szeneModus: 'wachstum',
+  jahreszeit: 'auto', // auto | fruehling | sommer | herbst | winter
+  tageszeit: 'auto', // auto | morgen | mittag | abend
+  wachstumQuelle: 'woerter', // was die Landschaft wachsen lässt: woerter | pomodoro
+  pomodoroGoal: 6, // so viele Pomodoros sollen es heute werden (0 = ohne Ziel)
+  longBreakMinutes: 15,
+  longBreakEvery: 4, // nach so vielen Pomodoros kommt die lange Pause (0 = nie)
+  // Musik-Anzeige: aus | lokal (das Overlay liest die Adresse selbst, z. B. Tuna) | server (Titel kommt per Schnittstelle, Chat oder Admin)
+  musikQuelle: 'aus',
+  musikUrl: 'http://localhost:1608/',
+  layout: DEFAULT_LAYOUT,
   // Wann erscheint die Figur: 'sit' = Chatbefehl !sitzen, 'checkin' = Kanalpunkte-Reward "Check-in", 'both' = beides
   appearOn: 'sit',
   scene: 'cafe',
@@ -38,18 +51,19 @@ export const DEFAULTS = {
   leaveTemplate: '👋 {user} steht auf. Heute {minutes} mitgearbeitet, insgesamt {total}.',
   notSeatedTemplate: '{user}, du sitzt gerade nicht. Mit {sit} setzt du dich dazu.',
   checkinTemplate: '✅ {user} ist eingecheckt – Besuch #{count}! Schön, dass du da bist.',
-  sprintStartTemplate: '⏱️ Sprint startet: {minutes} Minuten Fokus. Stifte bereit!',
+  sprintStartTemplate: '🍅 Pomodoro startet: {minutes} Minuten Fokus. Stifte bereit!',
   breakTemplate: '☕ Pause! {minutes} Minuten durchatmen.',
-  sprintEndTemplate: '🎉 Sprint geschafft! {writers} Mitschreibende{streamer}. Danke fürs Dabeisein!',
+  longBreakTemplate: '🌿 Lange Pause! {minutes} Minuten Luft holen, du hast {n} Pomodoros geschafft.',
+  sprintEndTemplate: '🎉 Pomodoro {n}{ziel} geschafft{streamer}!',
   rankUpTemplate: '⭐ {user} ist jetzt „{rank}“ ({hours} Arbeitszeit)!',
   unlockTemplate: '🎁 {user} hat „{item}“ freigeschaltet! Mit {figur} kannst du es anziehen.',
   decoTemplate: '🌿 Das Zimmer wächst: „{deko}“ ist freigeschaltet – danke an alle Mitschreibenden!',
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
+const INT = { pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
 const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
-const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN) };
+const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['woerter', 'pomodoro'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';
@@ -63,6 +77,13 @@ export function normalize(input, base = DEFAULTS) {
   const out = { ...base };
   for (const [key, value] of Object.entries(input ?? {})) {
     if (!(key in DEFAULTS)) continue;
+    if (key === 'layout') { out.layout = normalizeLayout(value, out.layout); continue; }
+    if (key === 'musikUrl') {
+      const u = String(value ?? '').trim();
+      if (u && !/^https?:\/\/[^\s]+$/i.test(u)) return { error: 'Die Musik-Adresse muss mit http:// oder https:// beginnen' };
+      out.musikUrl = u.slice(0, 300);
+      continue;
+    }
     if (INT[key]) {
       const n = Number(value);
       if (!Number.isFinite(n)) return { error: `${key}: bitte eine Zahl eingeben` };
@@ -88,7 +109,8 @@ export function normalize(input, base = DEFAULTS) {
 }
 
 export async function getSettings() {
-  return { ...DEFAULTS, ...((await db.get('config/settings')) ?? {}) };
+  const stored = (await db.get('config/settings')) ?? {};
+  return { ...DEFAULTS, ...stored, layout: normalizeLayout(stored.layout) };
 }
 
 export async function saveSettings(input) {
