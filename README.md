@@ -92,6 +92,10 @@ Papyrus Autor hat nach meiner Recherche keine Schnittstelle, die ein Overlay aus
 
 Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt sich nachtragen, was vorher schon geschrieben wurde. Der Tag wechselt zur eingestellten Stunde (Standard 5 Uhr).
 
+## Vorschau ohne Twitch
+
+Die Datei `docs/vorschau.html` per Doppelklick im Browser öffnen: das echte Overlay mit Beispieldaten, dazu Schalter für Szene, Timer, Figuren und Ereignisse. Neu erzeugen nach Änderungen am Overlay: `node scripts/build-vorschau.mjs`.
+
 ## Entwicklung
 
 ```
