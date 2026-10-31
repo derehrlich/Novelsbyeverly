@@ -11,7 +11,7 @@ const SEITEN = [
 
 export function baueRahmen() {
   const main = document.querySelector('main');
-  if (!main || document.querySelector('.rahmen')) return;
+  if (!main || !document.body.dataset.seite || document.querySelector('.rahmen')) return; // das Stream-Panel hat bewusst keinen Rahmen
   const aktiv = document.body.dataset.seite;
   const rahmen = document.createElement('div');
   rahmen.className = 'rahmen';

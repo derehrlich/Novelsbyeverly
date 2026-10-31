@@ -19,6 +19,14 @@
   .gross { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin: 10px 0; } .gross button { padding: 14px 6px; font-size: 18px; }
   .zaehler { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 2px; } .zaehler button { padding: 6px 16px; font-size: 20px; }
   .werte { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; } .werte label { font-weight: 600; font-size: 14px; display: block; } .werte input { width: 100%; font-size: 20px; }
+  .umschalter { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 8px; background: rgba(139, 94, 60, .14); border-radius: 14px; padding: 5px; }
+  .umschalter button { background: transparent; color: var(--text); padding: 11px 6px; font-size: 17px; border-radius: 10px; }
+  .umschalter button.aktiv { background: var(--akzent); color: #fff; }
+  .umschalter .zahl { display: inline-block; min-width: 22px; padding: 0 6px; border-radius: 12px; background: var(--gruen); color: #fff; font-size: 14px; line-height: 22px; margin-left: 4px; }
+  .neu { flex-wrap: nowrap; margin-top: 0; } .neu input { flex: 1; min-width: 0; font-size: 18px; padding: 10px 12px; } .neu button { padding: 10px 18px; font-size: 22px; }
+  .aufgabe { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(139, 94, 60, .2); } .aufgabe:last-child { border-bottom: 0; }
+  .aufgabe .text { flex: 1; font-size: 18px; word-break: break-word; } .aufgabe.fertig .text { text-decoration: line-through; color: var(--leise); }
+  .aufgabe button { padding: 9px 14px; font-size: 18px; } .aufgabe .haken { min-width: 48px; }
   .gespeichert { color: var(--gruen); font-size: 14px; min-height: 20px; }
 </style>
 </head>
@@ -33,6 +41,12 @@
   <div id="app" hidden>
     <div class="panel-kopf"><h1>⏱️ Stream-Panel</h1><span><a href="/admin/">Admin</a> · <a href="#" id="abmelden">Abmelden</a></span></div>
 
+    <div class="umschalter" id="umschalter" role="tablist">
+      <button class="aktiv" data-tab="pomodoro" role="tab">⏱️ Pomodoro</button>
+      <button data-tab="aufgaben" role="tab">✅ Aufgaben <span class="zahl" id="aufgabenZahl" hidden></span></button>
+    </div>
+
+    <div id="tab-pomodoro">
     <section class="karte">
       <div class="anzeige">
         <div class="zeit" id="zeit">–</div>
@@ -68,6 +82,16 @@
       <div class="reihe"><button class="hell" id="tonStart">🔔 Beginn testen</button><button class="hell" id="tonEnde">🔔 Ende testen</button></div>
       <p class="leise" style="margin:4px 0 0">Es gibt nur diese zwei Töne, Pausen und alles andere bleiben still. Eigene Tondateien lädst du im Admin hoch. Die Töne kommen aus dem Overlay (in OBS „Audio über OBS steuern“ aktivieren).</p>
     </section>
+    </div>
+
+    <div id="tab-aufgaben" hidden>
+      <section class="karte">
+        <div class="reihe neu"><input id="neueAufgabe" placeholder="Neue Aufgabe …" maxlength="70" autocomplete="off" enterkeyhint="done"><button class="gruen" id="aufgabeAdd">＋</button></div>
+        <div id="aufgaben"></div>
+        <p class="leise" id="aufgabenLeer" hidden>Noch nichts auf der Liste. Schreib oben eine Aufgabe auf.</p>
+      </section>
+      <p class="leise" style="text-align:center"><a href="#" id="aufgabenAlle">Ganze Liste leeren</a></p>
+    </div>
   </div>
 </main>
 <div class="meldung" id="meldung" hidden></div>

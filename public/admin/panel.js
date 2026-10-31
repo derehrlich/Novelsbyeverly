@@ -1,6 +1,6 @@
-// Stream-Panel: schlanke Seite für den Stream (Pomodoro-Ablauf starten, anhalten, Längen, Wiederholungen und Töne einstellen).
-// Kann auch als OBS-Dock eingebunden werden.
-import { $, api, initSeite, meldung, run, show } from './common.js';
+// Stream-Panel: schlanke Seite für den Stream mit zwei Reitern: Pomodoro (Ablauf starten, anhalten, Längen, Wiederholungen, Töne)
+// und Aufgaben (schnell hinzufügen und abhaken). Kann auch als OBS-Dock eingebunden werden.
+import { $, api, esc, initSeite, meldung, run, show } from './common.js';
 
 const FELDER = ['focusMinutes', 'breakMinutes', 'repeats', 'pomodoroGoal', 'soundLautstaerke'];
 const KISTEN = ['soundAn', 'soundStart', 'soundEnde'];
@@ -54,12 +54,43 @@ for (const [id, delta] of [['minus', -1], ['plus', 1]]) $(id).onclick = run(asyn
 $('tonStart').onclick = run(async () => { await api('POST', 'test/event', { kind: 'tonstart' }); meldung('Gesendet – du hörst es im Overlay'); });
 $('tonEnde').onclick = run(async () => { await api('POST', 'test/event', { kind: 'tonende' }); meldung('Gesendet – du hörst es im Overlay'); });
 
+// ---- Aufgaben: hinzufügen, abhaken, löschen
+async function ladeAufgaben() {
+  const { items } = await api('GET', 'tasks');
+  const offen = items.filter((i) => !i.done).length;
+  $('aufgabenZahl').hidden = !offen; $('aufgabenZahl').textContent = offen;
+  $('aufgabenLeer').hidden = items.length > 0;
+  $('aufgaben').innerHTML = items.map((i) => `<div class="aufgabe ${i.done ? 'fertig' : ''}">${i.done ? '<span class="leise haken">✓</span>' : `<button class="gruen haken" data-fertig="${i.id}" title="Erledigt">✓</button>`}<span class="text">${esc(i.text)}</span><button class="hell" data-weg="${i.id}" title="Löschen">🗑</button></div>`).join('');
+  for (const b of $('aufgaben').querySelectorAll('[data-fertig]')) b.onclick = run(async () => { await api('POST', 'tasks/done', { id: b.dataset.fertig }); await ladeAufgaben(); });
+  for (const b of $('aufgaben').querySelectorAll('[data-weg]')) b.onclick = run(async () => { await api('DELETE', `tasks/${b.dataset.weg}`); await ladeAufgaben(); });
+}
+const neueAufgabe = run(async () => {
+  const text = $('neueAufgabe').value.trim();
+  if (!text) return;
+  await api('POST', 'tasks', { text }); $('neueAufgabe').value = ''; await ladeAufgaben(); $('neueAufgabe').focus();
+});
+$('aufgabeAdd').onclick = neueAufgabe;
+$('neueAufgabe').onkeydown = (e) => { if (e.key === 'Enter') neueAufgabe(); };
+$('neueAufgabe').onfocus = () => { tippt = true; }; $('neueAufgabe').onblur = () => { tippt = false; };
+$('aufgabenAlle').onclick = run(async (e) => { e.preventDefault(); if (confirm('Die ganze Aufgabenliste leeren?')) { await api('DELETE', 'tasks/all'); await ladeAufgaben(); } });
+
+// ---- Reiter (der zuletzt benutzte wird gemerkt)
+function reiter(name) {
+  for (const b of $('umschalter').querySelectorAll('button')) b.classList.toggle('aktiv', b.dataset.tab === name);
+  $('tab-pomodoro').hidden = name !== 'pomodoro'; $('tab-aufgaben').hidden = name !== 'aufgaben';
+  try { localStorage.setItem('panelReiter', name); } catch { /* ohne Merken */ }
+  if (name === 'aufgaben') ladeAufgaben().catch(() => {});
+}
+for (const b of $('umschalter').querySelectorAll('button')) b.onclick = () => reiter(b.dataset.tab);
+
 setInterval(zeige, 500);
-setInterval(() => { if (!$('app').hidden && !tippt) laden().catch(() => {}); }, 3000);
+setInterval(() => { if (!$('app').hidden && !tippt) { laden().catch(() => {}); ladeAufgaben().catch(() => {}); } }, 3000);
 
 async function start() {
   await api('GET', 'state'); show(true);
   const { settings } = await api('GET', 'settings');
-  fuellen(settings); await laden();
+  fuellen(settings); await laden(); await ladeAufgaben();
+  let r = 'pomodoro'; try { r = localStorage.getItem('panelReiter') ?? 'pomodoro'; } catch { /* Standard */ }
+  reiter(r === 'aufgaben' ? 'aufgaben' : 'pomodoro');
 }
 initSeite(start);
