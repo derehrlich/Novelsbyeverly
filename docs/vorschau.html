@@ -885,7 +885,7 @@ const SKY = {
 const PAL = {
   fruehling: { hills: ['#bad4aa', '#a5c896', '#90b983'], far: ['#9dc08f', '#8db37f'], ground: ['#abcd94', '#86ad72'], blades: ['#6f9a5a', '#86b06f', '#5c8a52'], tree: ['#9cc17a', '#b2d08a', '#88b06a', '#a6c885'] },
   sommer: { hills: ['#b7cb8c', '#a1bd76', '#8cab62'], far: ['#86a866', '#789b5b'], ground: ['#aac671', '#869f56'], blades: ['#6f9448', '#8cb15c', '#5b8040'], tree: ['#5f8a48', '#6f9a58', '#4e7a3e', '#7ba462'] },
-  herbst: { hills: ['#d3b47c', '#bc9862', '#a47d4e'], far: ['#b88a58', '#a97848'], ground: ['#c2a56a', '#9e8250'], blades: ['#a98a4a', '#c0a25c', '#8a6e3e'], tree: ['#d8a850', '#c98a3e', '#b8692f', '#a2552b'] },
+  herbst: { hills: ['#dbbb7c', '#c79d5e', '#b0824a'], far: ['#c28a4e', '#b3793e'], ground: ['#d4b05a', '#b08c46'], blades: ['#a98a3c', '#c8a64e', '#8a6a34'], tree: ['#b0501a', '#d06a1e', '#e98b26', '#f4ab38', '#f9cf6c'] },
   winter: { hills: ['#c9d2c8', '#b9c3bb', '#a8b3ac'], far: ['#8a9a90', '#7b8c84'], ground: ['#a3a891', '#8c917b'], blades: ['#9aa07f', '#8a9070', '#a8ad90'], tree: ['#e8eef2', '#dde5ea', '#f2f5f7', '#cfd9df'] },
 };
 
@@ -1100,18 +1100,17 @@ function treeModel(seed) {
   };
   // fünf Hauptäste aus der Stammgabel: breit ausladend wie bei einer Solitär-Eiche
   for (const [ang, len, w, dx, y0] of [[-1.1, 120, 36, -34, -128], [-0.5, 148, 38, -14, -165], [0.04, 128, 34, 0, -185], [0.5, 148, 38, 16, -150], [1.1, 120, 36, 34, -122]]) grow(dx, y0, ang, len, w, 1);
-  const leaves = [], inner = [];
+  const leaves = [];
   // Krone von innen füllen: Die Spitzen allein lassen die Mitte hohl. Deshalb sitzt auch Laub im ganzen Inneren der Krone
   // (eine Ellipse über den Astspitzen, nicht ganz unten am Stamm), dazu dunkle Laubmassen als Tiefe.
   const xs = tips.map((q) => q[0]), ys = tips.map((q) => q[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const ccx = (minX + maxX) / 2, ccy = minY + (maxY - minY) * 0.36, crx = (maxX - minX) * 0.43, cry = (maxY - minY) * 0.4;
-  for (let i = 0; i < 900; i += 1) {
+  for (let i = 0; i < 1300; i += 1) {
     const a = r() * TAU, rad = Math.sqrt(r()), x = ccx + Math.cos(a) * crx * rad, y = ccy + Math.sin(a) * cry * rad;
     if (y > -190) continue; // der Stammansatz und die untersten Äste bleiben sichtbar
     leaves.push({ x, y, size: 17 + r() * 11, rot: r() * TAU, tone: r(), th: r(), lobed: r() < 0.75, acorn: false, katze: false });
   }
-  for (let i = 0; i < 46; i += 1) { const a = r() * TAU, rad = Math.sqrt(r()) * 0.78, y = ccy + Math.sin(a) * cry * rad; if (y > -200) continue; inner.push([ccx + Math.cos(a) * crx * rad, y]); }
   for (const [tx, ty, ang] of tips) {
     for (let i = 0; i < 15; i += 1) {
       const rad = 10 + r() * 50, a = r() * TAU;
@@ -1119,7 +1118,7 @@ function treeModel(seed) {
     }
   }
   leaves.sort((a, b) => a.y - b.y);
-  const model = { segs, tips, leaves, inner };
+  const model = { segs, tips, leaves, crown: { x: ccx, y: ccy, rx: crx * 1.25, ry: cry * 1.35 } };
   treeModels.set(seed, model);
   return model;
 }
@@ -1137,40 +1136,63 @@ function eichenblatt(c, x, y, size, rot, col) {
   c.restore();
 }
 function drawTree(c, x, y, s, { leafAmt, tones, season, p, snow = 0 }) {
-  const { segs, tips, leaves, inner } = treeModel(9);
+  const { segs, tips, leaves, crown } = treeModel(9);
   c.save(); c.translate(x, y); c.scale(s, s);
-  ell(c, 0, 10, 210, 26, alpha('#2b2118', 0.22));
+  // weicher Schatten am Boden: breit nach rechts, wie von der Sonne links oben
+  ell(c, 110, 12, 380, 34, alpha('#4a3018', 0.14)); ell(c, 60, 10, 260, 26, alpha('#3a2410', 0.16)); ell(c, 0, 10, 190, 22, alpha('#2b2118', 0.22));
   c.lineCap = 'round'; c.lineJoin = 'round';
   // Wurzelanläufe
   for (const [dx, wx, wy, w] of [[-44, -118, 12, 34], [-14, -60, 22, 26], [30, 70, 20, 28], [50, 128, 10, 34], [4, 8, 24, 22]]) { c.strokeStyle = '#6a5038'; c.lineWidth = w; c.beginPath(); c.moveTo(dx * 0.6, -60); c.quadraticCurveTo(dx, -8, wx, wy); c.stroke(); }
-  // mächtiger Stamm
-  path(c, (k) => { k.moveTo(-64, 12); k.bezierCurveTo(-46, -50, -42, -110, -40, -176); k.lineTo(40, -176); k.bezierCurveTo(44, -110, 50, -50, 66, 12); k.closePath(); }, lg(c, -66, 0, 66, 0, [[0, '#9a7b5c'], [0.38, '#806246'], [0.75, '#664c36'], [1, '#52402e']]));
+  // mächtiger Stamm: breiter Fuß, links hell (Sonne), rechts dunkel
+  path(c, (k) => { k.moveTo(-70, 14); k.bezierCurveTo(-48, -40, -44, -110, -41, -178); k.lineTo(41, -178); k.bezierCurveTo(45, -110, 52, -40, 72, 14); k.closePath(); }, lg(c, -70, 0, 72, 0, [[0, '#7d6552'], [0.3, '#63503f'], [0.62, '#4a3a2f'], [1, '#31271f']]));
   const rb = rng(3);
-  c.strokeStyle = alpha('#33261a', 0.6); c.lineWidth = 2.6;
-  for (let i = 0; i < 26; i += 1) { const t = rb(), px = -52 + t * 104, y0 = -4 - rb() * 50, len = 70 + rb() * 90, sway = (rb() - 0.5) * 12; c.beginPath(); c.moveTo(px * 0.95, y0); c.bezierCurveTo(px * 0.88 + sway, y0 - len * 0.35, px * 0.8 - sway, y0 - len * 0.7, px * 0.74, y0 - len); c.stroke(); }
-  c.strokeStyle = alpha('#c9ad8c', 0.35); c.lineWidth = 2;
-  for (let i = 0; i < 14; i += 1) { const px = -48 + rb() * 70, y0 = -10 - rb() * 60, len = 50 + rb() * 70; c.beginPath(); c.moveTo(px, y0); c.bezierCurveTo(px - 2, y0 - len * 0.4, px + 3, y0 - len * 0.8, px, y0 - len); c.stroke(); }
-  for (let i = 0; i < 5; i += 1) { c.strokeStyle = alpha('#33261a', 0.4); c.lineWidth = 2; c.beginPath(); const yy = -30 - i * 30, xl = -44 + i * 2; c.moveTo(xl, yy); c.quadraticCurveTo(0, yy + 6 + (i % 2) * 4, -xl + 4, yy - 2); c.stroke(); }
+  // Rindenfurchen: lange, leicht geschwungene Linien entlang des Stammes (dunkel) und Lichtkanten (hell, links)
+  for (let i = 0; i < 15; i += 1) {
+    const u = (i + rb() * 0.6) / 15, px = -56 + u * 112, y0 = -2 - rb() * 24, len = 90 + rb() * 70, sway = (rb() - 0.5) * 14, w = 1.8 + rb() * 2.2;
+    c.strokeStyle = alpha('#2a1f18', 0.32 + rb() * 0.22); c.lineWidth = w; c.beginPath(); c.moveTo(px * 0.96, y0); c.bezierCurveTo(px * 0.9 + sway, y0 - len * 0.35, px * 0.84 - sway, y0 - len * 0.7, px * 0.78 + sway * 0.4, y0 - len); c.stroke();
+    if (u < 0.55) { c.strokeStyle = alpha('#d9c0a2', 0.22); c.lineWidth = 1.6; c.beginPath(); c.moveTo(px * 0.96 + 3, y0); c.bezierCurveTo(px * 0.9 + sway + 3, y0 - len * 0.35, px * 0.84 - sway + 3, y0 - len * 0.7, px * 0.78 + sway * 0.4 + 3, y0 - len); c.stroke(); }
+  }
+  // Astloch: klein und senkrecht, mit hellem Rand oben links
+  ell(c, -4, -92, 9.5, 17, '#241a14'); ell(c, -4, -88, 6, 12, '#120c09'); c.strokeStyle = alpha('#c9ad8c', 0.5); c.lineWidth = 2; c.beginPath(); c.ellipse(-4, -92, 10.5, 18, 0, Math.PI * 0.55, Math.PI * 1.3); c.stroke();
   if (season !== 'winter') { ell(c, -48, -26, 16, 30, alpha('#6f8f55', 0.5), null, 0, 0.1); ell(c, -40, -60, 10, 20, alpha('#7f9d62', 0.4)); } // Moos auf der Wetterseite
   if (snow > 0.05) for (const [dx, dy, w] of [[-38, 8, 40], [42, 10, 44]]) ell(c, dx, dy, w, 8 * snow + 2, alpha('#ffffff', 0.9 * snow));
-  // Äste: gebogen und nach oben dünner
+  // Äste: weich verjüngt (jedes Stück ist ein Band, das von w0 zu w1 schmaler wird), links hell
   for (const [x0, y0, cx, cy, x1, y1, w0, w1, d] of segs) {
-    c.strokeStyle = d > 4 ? '#6b5440' : '#725843'; c.lineWidth = (w0 + w1) / 2; c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1); c.stroke();
-    if (w0 > 6) { c.strokeStyle = alpha('#b79c7c', 0.38); c.lineWidth = Math.max(1, w0 * 0.2); c.beginPath(); c.moveTo(x0 - w0 * 0.22, y0); c.quadraticCurveTo(cx - w0 * 0.22, cy, x1 - w1 * 0.22, y1); c.stroke(); }
+    const L = [], R = [], N = 9;
+    for (let i = 0; i <= N; i += 1) {
+      const u = i / N, bx = (1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * cx + u * u * x1, by = (1 - u) * (1 - u) * y0 + 2 * (1 - u) * u * cy + u * u * y1;
+      let tx = 2 * (1 - u) * (cx - x0) + 2 * u * (x1 - cx), ty = 2 * (1 - u) * (cy - y0) + 2 * u * (y1 - cy); const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      const hw = (w0 + (w1 - w0) * u) / 2;
+      L.push([bx - ty * hw, by + tx * hw]); R.push([bx + ty * hw, by - tx * hw]);
+    }
+    path(c, (k) => { k.moveTo(L[0][0], L[0][1]); for (const q of L) k.lineTo(q[0], q[1]); for (const q of [...R].reverse()) k.lineTo(q[0], q[1]); k.closePath(); }, d > 4 ? '#5d4a3b' : d > 2 ? '#654f40' : '#6d5645');
+    if (w0 > 6) { c.strokeStyle = alpha('#c9ad8c', 0.3); c.lineWidth = Math.max(1, w0 * 0.16); c.beginPath(); L.forEach((q, i) => (i ? c.lineTo(q[0] + 1, q[1]) : c.moveTo(q[0] + 1, q[1]))); c.stroke(); }
     if (snow > 0.05 && w0 > 3) { c.strokeStyle = alpha('#ffffff', 0.92 * snow); c.lineWidth = Math.max(2, w0 * 0.34); c.beginPath(); c.moveTo(x0 - w0 * 0.28, y0 - w0 * 0.14); c.quadraticCurveTo(cx - w0 * 0.28, cy - w0 * 0.14, x1 - w1 * 0.28, y1 - w1 * 0.14); c.stroke(); }
   }
   if (leafAmt > 0.02) {
+    // Licht kommt von links oben: Laub links/oben ist hell, rechts/unten und tief im Inneren dunkel.
+    const helligkeit = (lf) => {
+      const nx = (lf.x - crown.x) / crown.rx, ny = (lf.y - crown.y) / crown.ry, tiefe = clamp01(1 - Math.hypot(nx, ny));
+      return { lit: clamp01(0.5 - nx * 0.38 - ny * 0.34), tiefe };
+    };
+    const farbe = (lf) => {
+      const { lit, tiefe } = helligkeit(lf);
+      const ti = season === 'herbst' ? Math.min(tones.length - 1, Math.floor(clamp01(lf.tone * 0.5 + lit * 0.38 + 0.08 + (p - 0.4) * 0.2) * tones.length)) : Math.floor(lf.tone * tones.length) % tones.length;
+      return shade(tones[ti], -0.3 + lit * 0.5 - tiefe * 0.12 + (lf.tone - 0.5) * 0.1);
+    };
     const kk = smooth(clamp01((leafAmt - 0.06) / 0.5));
-    if (kk > 0.02) { // dunkle, dichte Masse im Inneren der Krone und weicher Schatten an den Spitzen
-      for (const [ix, iy] of inner) ell(c, ix, iy - 6, 42 * kk, 34 * kk, shade(tones[2], -0.14)); // deckend, damit der Himmel nicht durch die Krone scheint
-      for (const [tx, ty] of tips) ell(c, tx, ty - 8, 54 * kk, 44 * kk, alpha(shade(tones[2], -0.28), 0.2 * kk));
+    // 1. Ebene: dunkle, größere Blätter im Inneren geben Tiefe, ohne dass der Himmel durchscheint
+    for (const lf of leaves) {
+      const k = smooth(clamp01((leafAmt - lf.th * 0.92) / 0.14));
+      if (k <= 0.02 || helligkeit(lf).tiefe < 0.25) continue;
+      eichenblatt(c, lf.x, lf.y, lf.size * 1.35 * k, lf.rot, shade(tones[0], -0.42));
     }
+    for (const [tx, ty] of tips) if (kk > 0.02) ell(c, tx, ty - 8, 54 * kk, 44 * kk, alpha(shade(tones[2], -0.28), 0.18 * kk));
+    // 2. Ebene: die Blätter selbst
     for (const lf of leaves) {
       const k = smooth(clamp01((leafAmt - lf.th * 0.92) / 0.14));
       if (k <= 0.02) continue;
-      const ti = season === 'herbst' ? Math.min(tones.length - 1, Math.floor(lf.tone * (tones.length - 1) + p * 1.6)) : Math.floor(lf.tone * tones.length) % tones.length;
-      const lift = clamp01((lf.y + 420) / 460);
-      const col = shade(tones[ti], -0.2 + lift * 0.32 + (lf.tone - 0.5) * 0.1);
+      const col = farbe(lf);
       if (lf.lobed) eichenblatt(c, lf.x, lf.y, lf.size * k, lf.rot, col); else leaf(c, lf.x, lf.y, lf.size * 1.3 * k, lf.size * 0.5 * k, lf.rot, col, { veins: false });
       if (season === 'fruehling' && lf.katze && k > 0.5) { c.strokeStyle = '#c9cf7e'; c.lineWidth = 3.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(lf.x, lf.y); c.quadraticCurveTo(lf.x + 3, lf.y + 10, lf.x + 1, lf.y + 20); c.stroke(); }
       if (lf.acorn && season === 'sommer' && p > 0.25 + lf.th * 0.5) { ell(c, lf.x + 3, lf.y + 14, 4.4, 6.4, '#9a7a4a', alpha('#4a3520', 0.5), 1); path(c, (kk) => { kk.moveTo(lf.x - 2, lf.y + 11); kk.quadraticCurveTo(lf.x + 3, lf.y + 6, lf.x + 8, lf.y + 11); kk.closePath(); }, '#6a5238'); }
