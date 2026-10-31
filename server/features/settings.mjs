@@ -1,4 +1,5 @@
 import { db } from '../core/store.mjs';
+import { notify } from '../core/live.mjs';
 import { MAX_PLAETZE, SZENEN } from '../../public/js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
 import { DEFAULT_DESIGN, normalizeDesign } from '../../public/js/design.mjs';
@@ -130,5 +131,6 @@ export async function saveSettings(input) {
   const { settings, error } = normalize(input, await getSettings());
   if (error) return { error };
   await db.set('config/settings', settings);
+  notify('settings'); // das Overlay übernimmt die Änderung sofort
   return { settings };
 }

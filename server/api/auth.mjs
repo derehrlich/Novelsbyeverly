@@ -1,13 +1,14 @@
 // POST /api/auth/device/start und /poll: Kanal (role=broadcaster) oder Bot-Account (role=bot) mit Twitch verbinden. Nur mit Admin-Login.
 import { hasSession, json } from '../core/http.mjs';
 import { geraetPruefen, geraetStart } from '../twitch/anmeldung.mjs';
+import { twitchApp } from '../twitch/zugang.mjs';
 
 export const config = { path: ['/api/auth/device/start', '/api/auth/device/poll'] };
 
 export default async (req) => {
   if (!hasSession(req)) return json({ error: 'Bitte zuerst im Admin-Bereich anmelden' }, 401);
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-  if (!process.env.TWITCH_CLIENT_ID) return json({ error: 'TWITCH_CLIENT_ID fehlt' }, 500);
+  if (!twitchApp().clientId) return json({ error: 'Die Twitch-Client-ID fehlt – bitte oben unter „Twitch-App“ eintragen' }, 400);
   const body = await req.json().catch(() => ({}));
   const role = body.role === 'bot' ? 'bot' : 'broadcaster';
   try {

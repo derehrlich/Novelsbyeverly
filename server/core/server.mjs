@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { APP_DIR } from './config.mjs';
+import { attach } from './live.mjs';
 
 const PUBLIC = path.join(APP_DIR, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json' };
@@ -25,6 +26,7 @@ export function createServer(routes) {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
     try {
       if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
+      if (url.pathname === '/api/overlay/live') return attach(req, res);
       const route = match(url.pathname);
       if (route) {
         const max = route.maxBody ?? STANDARD_MAX;

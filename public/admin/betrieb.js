@@ -9,7 +9,7 @@ async function loadState() {
   const e = state.env;
   const envOk = e.TWITCH_CLIENT_ID;
   const rows = [
-    envOk ? punkt('ok', 'Umgebungsvariablen gesetzt') : punkt('fehler', 'TWITCH_CLIENT_ID fehlt (in docker-compose.yml bzw. in der CasaOS-App unter Umgebungsvariablen eintragen)'),
+    envOk ? punkt('ok', 'Twitch-App eingetragen') : punkt('fehler', 'Twitch-Client-ID fehlt – oben unter „Twitch-App“ eintragen'),
     state.connectedAs ? punkt(state.missingScopes.length ? 'warn' : 'ok', `Kanal verbunden als <b>${esc(state.connectedAs)}</b>${state.missingScopes.length ? ` – Berechtigungen fehlen (${esc(state.missingScopes.join(', '))}), bitte neu verbinden` : ''}`) : punkt('fehler', 'Kanal nicht verbunden'),
     state.botAs ? punkt(state.botMissingScopes.length ? 'warn' : 'ok', `Bot-Account verbunden als <b>${esc(state.botAs)}</b>${state.botMissingScopes.length ? ' – Berechtigungen fehlen, bitte neu verbinden' : ''}`) : punkt('warn', 'Kein Bot-Account verbunden – der Bot schreibt dann unter dem Kanalnamen'),
     (() => { const v = state.eventsub; if (!v) return ''; if (v.state === 'verbunden') return punkt(v.warnings.length ? 'warn' : 'ok', `Verbindung zu Twitch steht${v.warnings.length ? ` – ${esc(v.warnings.join(' · '))}` : ''}`); return punkt(v.state === 'nicht verbunden' ? 'warn' : 'fehler', `Verbindung zu Twitch: ${esc(v.state)}${v.error ? ` (${esc(v.error)})` : ''}`); })(),
@@ -27,6 +27,30 @@ async function loadState() {
   $('plaetze').hidden = state.modus !== 'zimmer'; $('zimmerKnoepfe').hidden = state.modus !== 'zimmer';
   $('pomoHeute').textContent = state.pomodoro.done; $('pomoZiel').textContent = state.pomodoro.goal || '–';
 }
+// ---- Twitch-App (Client-ID und Secret)
+async function loadApp() {
+  const a = await api('GET', 'twitch-app');
+  $('appId').value = a.clientId;
+  $('appSecret').value = '';
+  $('appSecret').placeholder = a.hasSecret ? '•••••••••• (gespeichert)' : 'leer lassen bei „Public“';
+  $('appSecretHinweis').textContent = a.hasSecret ? `Ein Secret ist gespeichert${a.secretQuelle === 'env' ? ' (aus novelsbyeverly.env)' : ''}. Leer lassen, um es zu behalten.` : 'Kein Secret gesetzt.';
+  $('appSecretWeg').hidden = a.secretQuelle !== 'admin';
+  $('appStatus').textContent = a.idQuelle === 'env' ? 'Die Client-ID kommt aus novelsbyeverly.env. Was du hier speicherst, hat Vorrang.' : '';
+}
+$('appSpeichern').onclick = run(async () => {
+  const body = { clientId: $('appId').value };
+  if ($('appSecret').value.trim()) body.clientSecret = $('appSecret').value;
+  const r = await api('PUT', 'twitch-app', body);
+  await loadApp(); await loadState();
+  meldung(r.disconnected ? 'Gespeichert. Die Client-ID hat sich geändert – bitte Kanal und Bot neu verbinden.' : 'Gespeichert');
+});
+$('appSecretWeg').onclick = run(async () => { if (!confirm('Gespeichertes Secret entfernen?')) return; await api('PUT', 'twitch-app', { clearSecret: true }); await loadApp(); meldung('Secret entfernt'); });
+$('appPruefen').onclick = run(async () => {
+  $('appStatus').textContent = 'Prüfe …';
+  const r = await api('POST', 'twitch-app/test');
+  $('appStatus').textContent = r.message; $('appStatus').style.color = r.ok ? 'var(--gruen)' : 'var(--rot)';
+});
+
 // ---- Mit Twitch verbinden (Code auf twitch.tv/activate bestätigen)
 let geraet = null;
 async function verbinden(role) {
@@ -209,6 +233,6 @@ function renderZielArt(settings) {
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
-  await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
+  await Promise.all([loadSettings(), loadTasks(), loadUsers(), loadApp()]);
 }
 initSeite(start);

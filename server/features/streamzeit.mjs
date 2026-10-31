@@ -1,5 +1,6 @@
 // Wie lange der Stream heute schon läuft. Quellen: von Hand gestartet (Admin, Chat) oder von Twitch erkannt (Stream ist live).
 import { db } from '../core/store.mjs';
+import { twitchApp } from '../twitch/zugang.mjs';
 import { helix, storedTokens } from '../twitch/api.mjs';
 
 const KEY = 'state/stream';
@@ -18,7 +19,7 @@ async function twitchStart(now) {
   let startedAt = null;
   try {
     const tokens = await storedTokens('broadcaster');
-    if (tokens && process.env.TWITCH_CLIENT_ID) {
+    if (tokens && twitchApp().clientId) {
       const r = await helix('GET', 'streams', { query: { user_id: tokens.user_id } });
       const live = r.data?.[0];
       startedAt = live?.started_at ? Date.parse(live.started_at) : null;

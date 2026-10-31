@@ -1,4 +1,5 @@
 import { db } from './store.mjs';
+import { notify } from './live.mjs';
 
 const pad = (n) => String(n).padStart(15, '0');
 
@@ -26,6 +27,7 @@ export const once = (key) => db.setIfNew(`done/${key}`, Date.now());
 export async function pushEvent(event) {
   const now = Date.now();
   await db.set(`event/${pad(now)}-${Math.random().toString(36).slice(2, 7)}`, { ...event, at: now });
+  notify('event');
   for (const key of await db.list('event/')) {
     if (now - Number(key.slice(6, 21)) > 600_000) await db.delete(key);
   }

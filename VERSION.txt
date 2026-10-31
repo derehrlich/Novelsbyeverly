@@ -1,1 +1,1 @@
-1.1.1 – Admin-Seite Overlay-Studio heißt studio.html (kein doppelter Dateiname mehr)
+1.2.0 – Twitch-App (Client-ID und Secret) im Admin eintragbar, Live-Kanal: Änderungen erscheinen sofort im Overlay

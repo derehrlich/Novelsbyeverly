@@ -20,6 +20,22 @@
     <nav class="menue"><a href="/admin/" class="aktiv">Betrieb</a><a href="/admin/studio.html">Overlay</a><a href="/admin/system.html">System</a></nav>
 
     <section class="karte">
+      <h2>Twitch-App</h2>
+      <p class="leise">Lege auf <a href="https://dev.twitch.tv/console/apps" target="_blank" rel="noopener">dev.twitch.tv/console/apps</a> eine Anwendung an (Client Type: <b>Public</b>, OAuth Redirect URL: <code>http://localhost</code>) und trage ihre Daten hier ein.</p>
+      <div class="felder">
+        <div class="feld"><label for="appId">Client-ID</label><input id="appId" autocomplete="off" spellcheck="false" style="width:100%"></div>
+        <div class="feld"><label for="appSecret">Client-Secret <span class="leise">(nur bei „Confidential“ nötig)</span></label><input id="appSecret" type="password" autocomplete="new-password" spellcheck="false" style="width:100%"><div class="hinweis" id="appSecretHinweis"></div></div>
+      </div>
+      <div class="reihe">
+        <button class="gruen" id="appSpeichern">Speichern</button>
+        <button class="hell" id="appPruefen">Verbindung prüfen</button>
+        <button class="hell" id="appSecretWeg" hidden>Secret entfernen</button>
+      </div>
+      <p class="leise" id="appStatus"></p>
+      <p class="leise">Die Daten liegen im Datenordner des Servers (nicht in Git, nicht in Sicherungen). Das Secret wird nie wieder angezeigt. Wechselst du die Client-ID, musst du Kanal und Bot neu verbinden.</p>
+    </section>
+
+    <section class="karte">
       <h2>Einrichtung</h2>
       <ul class="status" id="status"></ul>
       <div class="reihe">

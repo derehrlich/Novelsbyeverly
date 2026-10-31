@@ -6,7 +6,7 @@
 - Verwandtes Projekt mit demselben Betriebsmodell: `derehrlich/verwirrbot` (Discord-Bot). Update-Mechanismus und Ordnerstruktur sind dort abgeschaut.
 
 ## Feste Regeln (nie brechen)
-- **Geheimnisse** (Admin-Passwort, Twitch-Client-ID/Secret, Tokens) stehen nur in `<Datenordner>/novelsbyeverly.env` bzw. `data/cowork/config…` auf dem Server. Nie in Code, Chat, Screenshots, Git, docker-compose.yml.
+- **Geheimnisse** (Admin-Passwort, Twitch-Client-ID/Secret, Tokens) stehen nur in `<Datenordner>/novelsbyeverly.env` bzw. `data/cowork/config…` auf dem Server. Nie in Code, Chat, Screenshots, Git, docker-compose.yml. Client-ID und Secret trägt Marcel im Admin ein (Betrieb → Twitch-App, gespeichert als `config/twitch-app`, hat Vorrang vor der env-Datei); sie und die Tokens stehen bewusst **nicht** in Sicherungen. Das Secret wird nie an den Admin zurückgegeben.
 - **Der Datenordner (`/data`) wird nie überschrieben.** Programm-Updates tauschen nur `server/`, `public/`, `package.json`, `VERSION.txt` aus.
 - **Keine Zusatzpakete:** `package.json` hat keine Abhängigkeiten (Node 22 reicht). Auch ZIP lesen/schreiben (`server/core/zip.mjs`) ist selbst gebaut. Neue Pakete nur nach Rücksprache, weil das Programm als reiner Ordner per ZIP aktualisiert wird.
 - **Nur Heimnetz:** Der Admin ist nur durch ein Passwort geschützt. Nie ins Internet stellen.
@@ -24,8 +24,8 @@
 index.mjs          Start: update.mjs anwenden → Server → Twitch-Verbindung → Hintergrundjobs
 update.mjs         Update/Wiederherstellung beim Start (nur Node-Bordmittel)
 core/              config, server (HTTP + statische Dateien), http (Session, JSON), store (JSON-Dateien), util,
-                   zip, sicherung, jobs (Timer-Takt alle 5 s, Nachtsicherung)
-twitch/            api (Tokens, Helix, Chat senden, Reward), eventsub (WebSocket, verteilt Nachrichten), anmeldung (Device-Code-Login)
+                   zip, sicherung, jobs (Timer-Takt alle 5 s, Nachtsicherung), live (Server-Sent Events `/api/overlay/live`: `notify()` nach Einstellungen und Ereignissen, das Overlay fragt dann sofort neu ab; der Abruf alle 3 s bleibt Rückfall)
+twitch/            api (Tokens, Helix, Chat senden, Reward), eventsub (WebSocket, verteilt Nachrichten), anmeldung (Device-Code-Login), zugang (Client-ID/Secret: `twitchApp()` statt `process.env.TWITCH_CLIENT_ID` benutzen!)
 features/          settings, view (Stand fürs Overlay), chat (Befehle), timer, words, tasks, pages, streamzeit, musik, people, checkin, zeiten
 api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/Sicherung), ingest-words, ingest-musik; index.mjs = Routentabelle
 ```

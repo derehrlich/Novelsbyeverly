@@ -717,4 +717,59 @@ await test('System-API: nur mit Login, Update-Upload wird geprüft und vorgemerk
   assert.equal((await call('GET', `sicherung/${neu.name}`, { cookie, type: null })).status, 404);
 });
 
+console.log('Twitch-App im Admin und Live-Kanal');
+const zugang = await mod('twitch/zugang.mjs');
+const live = await mod('core/live.mjs');
+const einlogg = async () => (await adminCall('POST', 'login', { password: 'geheim' })).headers.get('set-cookie').split(';')[0];
+const eigeneId = 'cid' + 'a'.repeat(20);
+
+await test('Twitch-App: Client-ID und Secret im Admin, Secret bleibt geheim und aus Sicherungen', async () => {
+  const cookie = await einlogg();
+  assert.equal((await adminCall('GET', 'twitch-app')).status, 401);
+  const a = (await adminCall('GET', 'twitch-app', null, cookie)).body;
+  assert.equal(a.clientId, 'cid'); assert.equal(a.idQuelle, 'env'); assert.equal(a.hasSecret, false);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientId: 'zu kurz!' }, cookie)).status, 400);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientSecret: 'x' }, cookie)).status, 400);
+  const neu = await adminCall('PUT', 'twitch-app', { clientId: eigeneId }, cookie);
+  assert.equal(neu.status, 200); assert.equal(neu.body.disconnected, true); // andere ID: alte Anmeldungen gelten nicht mehr
+  assert.equal(await db.get('config/tokens'), null); assert.equal(await db.get('config/bot-tokens'), null);
+  const mitSecret = await adminCall('PUT', 'twitch-app', { clientSecret: 's'.repeat(30) }, cookie);
+  assert.equal(mitSecret.body.hasSecret, true); assert.equal(mitSecret.body.disconnected, false);
+  assert.ok(!JSON.stringify(mitSecret.body).includes('ssssss')); // das Secret verlässt den Server nie
+  assert.ok(!JSON.stringify((await adminCall('GET', 'state', null, cookie)).body).includes('ssssss'));
+  // Twitch-Aufrufe nehmen die gespeicherten Angaben
+  const { tokenRequest } = await mod('twitch/api.mjs');
+  await tokenRequest({ grant_type: 'client_credentials' });
+  const gesendet = new URLSearchParams(calls.at(-1).raw);
+  assert.equal(gesendet.get('client_id'), eigeneId); assert.equal(gesendet.get('client_secret'), 's'.repeat(30));
+  assert.equal((await adminCall('POST', 'twitch-app/test', {}, cookie)).body.ok, true);
+  const start = await auth(new Request('https://x/api/auth/device/start', { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: '{}' }));
+  assert.equal(start.status, 200); assert.equal(new URLSearchParams(calls.at(-1).raw).get('client_id'), eigeneId);
+  // Sicherungen enthalten weder Client-ID noch Secret
+  const name = sicherung.sichereDaten('app');
+  assert.ok(!readZip(fs.readFileSync(path.join(backupDir, name))).some((e) => e.name.includes('twitch-app')));
+  sicherung.stelleDatenWiederHer(path.join(backupDir, name));
+  await zugang.ladeTwitchApp();
+  assert.equal(zugang.twitchApp().clientId, eigeneId); // die Wiederherstellung lässt die Zugangsdaten stehen
+  assert.equal((await adminCall('PUT', 'twitch-app', { clearSecret: true }, cookie)).body.hasSecret, false);
+  await adminCall('PUT', 'twitch-app', { clientId: '' }, cookie); // zurück auf den Ersatzwert aus der Umgebung
+  assert.equal(zugang.twitchApp().clientId, 'cid');
+});
+
+// Anmeldungen für die folgenden Tests wiederherstellen
+await db.set('config/tokens', { access_token: 'tokB', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '999', login: 'streamerin', scopes: ['channel:read:redemptions', 'channel:manage:redemptions', 'user:write:chat', 'user:read:chat', 'user:bot', 'channel:bot'] });
+
+await test('Live-Kanal: Änderungen gehen sofort ans Overlay', async () => {
+  const gesehen = [];
+  const listeners = [];
+  live.attach({ on: (e, f) => listeners.push([e, f]) }, { writeHead() {}, write: (t) => gesehen.push(t) });
+  await saveSettings({ jahreszeit: 'herbst' });
+  await adminCall('POST', 'test/event', { kind: 'goal' }, await einlogg());
+  assert.ok(gesehen.some((t) => t.startsWith('event: settings')) && gesehen.some((t) => t.startsWith('event: event')));
+  assert.equal(live.listeners(), 1);
+  listeners.find(([e]) => e === 'close')[1]();
+  assert.equal(live.listeners(), 0);
+  await saveSettings({ jahreszeit: 'auto' });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

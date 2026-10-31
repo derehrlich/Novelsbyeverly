@@ -3,13 +3,14 @@
 import { db } from '../core/store.mjs';
 import { ROLES, toStored } from './api.mjs';
 import { startEventSub } from './eventsub.mjs';
+import { twitchApp } from './zugang.mjs';
 
 const form = (o) => new URLSearchParams(o);
 const POST = { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
 
 // Fordert einen Code an. Antwort: { device_code, user_code, verification_uri, interval, expires_in }
 export async function geraetStart(role) {
-  const res = await fetch('https://id.twitch.tv/oauth2/device', { ...POST, body: form({ client_id: process.env.TWITCH_CLIENT_ID, scopes: ROLES[role].scopes.join(' ') }) });
+  const res = await fetch('https://id.twitch.tv/oauth2/device', { ...POST, body: form({ client_id: twitchApp().clientId, scopes: ROLES[role].scopes.join(' ') }) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Twitch: ${data.message ?? res.status}`);
   return data;
@@ -18,7 +19,7 @@ export async function geraetStart(role) {
 // Fragt, ob der Code bestätigt wurde. { pending: true } oder { ok: true, login } (dann sind die Tokens gespeichert).
 export async function geraetPruefen(role, deviceCode) {
   const res = await fetch('https://id.twitch.tv/oauth2/token', {
-    ...POST, body: form({ client_id: process.env.TWITCH_CLIENT_ID, scopes: ROLES[role].scopes.join(' '), device_code: deviceCode, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }),
+    ...POST, body: form({ client_id: twitchApp().clientId, scopes: ROLES[role].scopes.join(' '), device_code: deviceCode, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }),
   });
   const t = await res.json().catch(() => ({}));
   if (!res.ok) {

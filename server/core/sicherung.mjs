@@ -1,5 +1,6 @@
 // Sicherungen des Datenordners (Einstellungen, Zählerstände, Aufgaben, Mitschreibende) und des Programms.
-// Die Twitch-Zugänge (config/tokens, config/bot-tokens) sind bewusst nicht dabei: Sie lassen sich per Code neu verbinden.
+// Die Twitch-Zugänge (config/tokens, config/bot-tokens) und die Twitch-App (Client-ID, Secret) sind bewusst nicht dabei:
+// Tokens lassen sich per Code neu verbinden, Client-ID und Secret neu eintragen.
 // Nur Node-Bordmittel, weil auch die Update-Einspielung (update.mjs) das nutzt.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import { APP_DIR, BACKUP_DIR, DATA_DIR, PROGRAMM_TEILE, version } from './config
 import { readZip, writeZip } from './zip.mjs';
 
 const STORE = path.join(DATA_DIR, 'cowork');
-const AUSGENOMMEN = [/^config%2Ftokens$/, /^config%2Fbot-tokens$/, /^event%2F/, /^seen%2F/];
+const AUSGENOMMEN = [/^config%2Ftokens$/, /^config%2Fbot-tokens$/, /^config%2Ftwitch-app$/, /^event%2F/, /^seen%2F/];
 const jetzt = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '_'); // 20261031_154500
 const sicher = (s) => String(s).replace(/[^a-z0-9_]/gi, '').slice(0, 30) || 'manuell';
 export const NAME_DATEN = /^sicherung_\d{8}_\d{6}_[a-z0-9_]+\.zip$/i;
