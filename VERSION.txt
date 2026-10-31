@@ -1,1 +1,1 @@
-1.1.0 – Umbau für CasaOS: Update per ZIP, aufgeräumtes Backend, Overlay-Seite im Admin
+1.1.1 – Admin-Seite Overlay-Studio heißt studio.html (kein doppelter Dateiname mehr)

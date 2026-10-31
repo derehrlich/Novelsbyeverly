@@ -36,7 +36,7 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 
 ## Oberfläche (`public/`)
 - `overlay.html` + `js/`: das Overlay (OBS-Browserquelle 1920×1080). `js/wachstum.mjs` (Landschaft), `js/fenster.mjs` (Fenster-Ansicht), `js/szene.mjs` (Module, Kamerarahmen, pausierter Zimmer-Modus), `js/design.mjs` (Farben/Schrift der Karten als CSS-Variablen, gemeinsam mit Server und Admin), `js/malerei.mjs` (Malwerkzeuge), `js/layout.mjs` (Positionen).
-- `admin/`: `index.html`+`betrieb.js` (Einrichtung, Pomodoro, Ziele, Aufgaben, Musik, Einstellungen), `overlay.html`+`overlay.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `common.js` (API, Meldungen, Login).
+- `admin/`: `index.html`+`betrieb.js` (Einrichtung, Pomodoro, Ziele, Aufgaben, Musik, Einstellungen), `studio.html`+`studio.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `common.js` (API, Meldungen, Login).
 - Die Vorschau im Admin ist das echte Overlay im iframe (`?editor=1`); der Admin schickt per `postMessage({type:'vorschau', patch})` ungespeicherte Änderungen hinein.
 - `docs/vorschau.html` (eigenständige Beispielseite) wird mit `node scripts/build-vorschau.mjs` neu erzeugt. Neue JS-Module des Overlays dort in die Liste `modules` eintragen; Namen dürfen sich zwischen Modulen nicht doppeln.
 
@@ -45,6 +45,7 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 - Optische Prüfung: `ADMIN_PASSWORD=geheim DATA_DIR=/tmp/x PORT=8899 node server/index.mjs` und mit Playwright Screenshots machen; Overlay-Vorschau ohne Server: `/overlay.html?demo=1&modus=fenster&blick=see&tageszeit=abend`.
 
 ## Stolperfallen (schon erlebt)
+- **Dateinamen im Projekt nicht doppeln** (z. B. `public/overlay.html` und eine Admin-Seite gleichen Namens): CasaOS flacht hochgeladene ZIPs/Ordner ab, dann überschreibt eine Datei die andere. Deshalb heißt die Admin-Seite `studio.html`.
 - `pkill -f <name>` in der Shell kann die eigene Shell beenden; Prozesse gezielt per PID beenden.
 - Twitch erlaubt im Heimnetz keine Weiterleitung auf `http://192.168…`: deshalb Device-Code-Login.
 - Die Fenster-Ansicht und Landschaft zeichnen alles per Canvas; Änderungen immer in allen Jahres-/Tageszeiten ansehen (Screenshots).
