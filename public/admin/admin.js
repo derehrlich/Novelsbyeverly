@@ -1,4 +1,4 @@
-import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
+import { SZENEN } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -81,7 +81,10 @@ const AUSWAHL = {
   tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']]],
   quellen: ['wachstumQuelle', [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter'], ['pomodoro', 'Pomodoros'], ['kombi', 'Zeit + Ziel']]],
   zielArten: ['zielArt', [['woerter', 'Wörter schreiben'], ['seiten', 'Seiten lesen'], ['zeit', 'Streamzeit'], ['pomodoros', 'Pomodoros']]],
-  tat: ['stefanieTaetigkeit', [['auto', 'Automatisch'], ['laptop', 'Am Laptop'], ['buch', 'Mit Buch']]],
+  modi: ['szeneModus', [['wachstum', 'Wachsende Landschaft'], ['fenster', 'Fenster-Ansicht'], ['zimmer', 'Zimmer mit Figuren (pausiert)']]],
+  fensterOrte: ['fensterOrt', [['lese', 'Gemütliche Leseecke'], ['arbeit', 'Arbeitsplatz']]],
+  fensterBlicke: ['fensterBlick', [['stadt', 'Stadt'], ['landschaft', 'Landschaft'], ['wald', 'Wald'], ['see', 'See']]],
+  fensterWetter: ['fensterWetter', [['auto', 'Auto (Winter: Schnee)'], ['klar', 'Klar'], ['regen', 'Regen'], ['schnee', 'Schnee']]],
 };
 function renderScenes(settings) {
   for (const [boxId, [key, opts]] of Object.entries(AUSWAHL)) {
@@ -114,20 +117,6 @@ async function loadStream() {
 $('streamStart').onclick = run(async () => { await api('POST', 'stream/start'); await loadStream(); });
 $('streamStop').onclick = run(async () => { await api('POST', 'stream/stop'); await loadStream(); });
 
-// ---- Stefanie im Pavillon
-const STEFANIE_SLOTS = ['haut', 'haare', 'frisur', 'oberteil', 'kopf', 'gesicht', 'hals', 'tier', 'tisch', 'getraenk'];
-const SLOT_NAMEN = { tisch: 'Schreibgerät (am Laptop)' };
-const optionText = (slot, v) => ITEMS.find((i) => i.id === v && i.slot === slot)?.label ?? v;
-function fillStefanie(settings) {
-  const f = settings.stefanieFigur;
-  $('stefanieFelder').innerHTML = STEFANIE_SLOTS.map((slot) => `<div class="feld"><label>${esc(SLOT_NAMEN[slot] ?? SLOTS[slot].label)}</label><select data-slot="${slot}">${slotValues(slot).map((v) => `<option value="${v}" ${f[slot] === v ? 'selected' : ''}>${esc(optionText(slot, v))}</option>`).join('')}</select></div>`).join('');
-}
-$('stefanieSpeichern').onclick = run(async () => {
-  const figur = {};
-  for (const el of $('stefanieFelder').querySelectorAll('[data-slot]')) figur[el.dataset.slot] = el.value;
-  const r = await api('PUT', 'settings', { stefanieFigur: figur }); current = r.settings; fillStefanie(r.settings); meldung('Gespeichert – schau ins Overlay');
-});
-
 // ---- Aufgaben
 async function loadTasks() {
   const { items } = await api('GET', 'tasks');
@@ -142,9 +131,11 @@ $('alleAufstehen').onclick = run(async () => { await api('DELETE', 'seats'); awa
 
 // ---- Einstellungen
 const OPT = {
-  szeneModus: [['wachstum', 'Landschaft (wächst mit dem Fortschritt)'], ['zimmer', 'Zimmer mit Tischen und Figuren der Zuschauer (pausiert)']],
+  szeneModus: [['wachstum', 'Landschaft (wächst mit dem Fortschritt)'], ['fenster', 'Fenster-Ansicht (Leseecke oder Arbeitsplatz mit Ausblick)'], ['zimmer', 'Zimmer mit Tischen und Figuren der Zuschauer (pausiert)']],
   jahreszeit: [['auto', 'Automatisch (nach Datum)'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']],
-  stefanieTaetigkeit: [['auto', 'Automatisch (Laptop beim Fokus, Buch in der Pause)'], ['laptop', 'Immer am Laptop'], ['buch', 'Immer mit Buch']],
+  fensterOrt: [['lese', 'Gemütliche Leseecke'], ['arbeit', 'Arbeitsplatz']],
+  fensterBlick: [['stadt', 'Stadt'], ['landschaft', 'Landschaft'], ['wald', 'Wald'], ['see', 'See']],
+  fensterWetter: [['auto', 'Automatisch (Winter: Schnee, sonst klar)'], ['klar', 'Klar'], ['regen', 'Regen'], ['schnee', 'Schnee']],
   tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
@@ -153,7 +144,8 @@ const OPT = {
 const SCHEMA = [
   ['Darstellung', [
     ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
-    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
+    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'],
+    ['fensterOrt', 'Fenster-Ansicht: Ort', 'select'], ['fensterBlick', 'Fenster-Ansicht: Blick nach draußen', 'select'], ['fensterWetter', 'Fenster-Ansicht: Wetter', 'select'],
   ]],
   ['Pomodoro', [
     ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
@@ -203,7 +195,7 @@ async function loadSettings() {
     return `<div class="feld ${type === 'area' ? 'breit' : ''}"><label>${esc(label)}</label>${input}${hint ? `<div class="hinweis">${type === 'area' ? 'Platzhalter: ' : ''}${esc(hint)}</div>` : ''}</div>`;
   }).join('')}</div>`).join('');
   renderScenes(settings);
-  fillMusik(settings); fillZiele(settings); fillStefanie(settings);
+  fillMusik(settings); fillZiele(settings);
   loadPages().catch(() => {}); loadStream().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
 }

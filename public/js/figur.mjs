@@ -1,4 +1,4 @@
-// Chibi-Figur mit Stuhl, Tisch und Schreibgerät: gemeinsam genutzt vom Zimmer-Modus und von Stefanie im Pavillon.
+// Chibi-Figur mit Stuhl, Tisch und Schreibgerät: genutzt vom Zimmer-Modus (pausiert).
 import { FARBEN, HAUT } from './katalog.mjs';
 import { TAU, alpha, ell, glow, leaf, lg, path, rr, shade } from './malerei.mjs';
 

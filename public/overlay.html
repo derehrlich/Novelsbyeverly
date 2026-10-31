@@ -253,7 +253,7 @@ function renderModules() {
   for (const m of layout) {
     let el = box.querySelector(`[data-m="${m.id}"]`);
     if (!el) { el = document.createElement('div'); el.className = 'modul'; el.dataset.m = m.id; box.append(el); }
-    el.style.left = `${m.x}px`; el.style.top = `${view.modus === 'wachstum' ? m.y + 30 * m.s : m.y - 1}px`; el.style.transform = `translateX(-50%) scale(${Math.max(0.8, m.s)})`; el.style.transformOrigin = 'top center';
+    el.style.left = `${m.x}px`; el.style.top = `${view.modus !== 'zimmer' ? m.y + 30 * m.s : m.y - 1}px`; el.style.transform = `translateX(-50%) scale(${Math.max(0.8, m.s)})`; el.style.transformOrigin = 'top center';
   }
   for (const el of [...box.children]) if (!keep.has(el.dataset.m)) el.remove();
   updateModuleLabels();
@@ -396,9 +396,9 @@ if (demo) {
   // Vorschau ohne Bot: Beispieldaten
   const { DEFAULT_LAYOUT } = await import('./js/layout.mjs');
   const mk = () => ({
-    now: Date.now(), modus: 'wachstum', jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
-    scene: 'cafe', deco: [], modules: { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
-    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 }, stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
+    now: Date.now(), modus: q.get('modus') ?? 'wachstum', fenster: { ort: q.get('ort') ?? 'lese', blick: q.get('blick') ?? 'stadt', wetter: q.get('wetter') ?? 'klar' }, jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
+    scene: 'cafe', deco: [], modules: q.get('module') === 'aus' ? {} : { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
+    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
     timer: { phase: q.get('phase') ?? 'focus', round: 4, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
     words: { today: 1234, goal: 2000, chat: 0 }, communityHours: 0,
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],

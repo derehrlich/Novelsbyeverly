@@ -2,6 +2,7 @@
 // Stil: weiche, gemalte Flächen in gedeckten Tönen, runde Chibi-Figuren, viele Zimmerpflanzen.
 import { FARBEN, HAUT } from './katalog.mjs';
 import { Wachstum } from './wachstum.mjs';
+import { Fenster } from './fenster.mjs';
 import { STYLE, drawChair, drawDesk, drawFigure, drawTable } from './figur.mjs';
 import { H, TAU, W, alpha, blossoms, clamp01, cloud, ell, fern, glow, grassStrokes, lg, leaf, monstera, monsteraLeaf, palm, path, pot, rg, rng, rr, shade, snakePlant, tree, vine } from './malerei.mjs';
 
@@ -18,10 +19,11 @@ export function seatPos(slot) {
 
 // Regalbrett für die Module im Zimmer-Modus (Oberkante) und Verteilung der Module darauf
 export const REGAL = { x0: 560, x1: 1360, y: 404 };
-// Wo die Module stehen: im Wachstums-Modus frei nach Anordnung (layout), im Zimmer auf dem Regalbrett.
+// Wo die Module stehen: in Landschaft und Fenster-Ansicht frei nach Anordnung (layout), im Zimmer auf dem Regalbrett.
 export function moduleLayout(modules = {}, layout = null, modus = 'zimmer') {
-  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id] && (modus !== 'wachstum' || layout?.[id]?.on !== false));
-  if (modus === 'wachstum' && layout) return ids.map((id) => ({ id, x: layout[id].x, y: layout[id].y, s: layout[id].s ?? 1 }));
+  const frei = modus !== 'zimmer';
+  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id] && (!frei || layout?.[id]?.on !== false));
+  if (frei && layout) return ids.map((id) => ({ id, x: layout[id].x, y: layout[id].y, s: layout[id].s ?? 1 }));
   const xs = ids.length === 1 ? [960] : ids.length === 2 ? [860, 1060] : [760, 960, 1160];
   return ids.map((id, i) => ({ id, x: xs[i], y: REGAL.y, s: 1 }));
 }
@@ -304,6 +306,7 @@ export class Szene {
     this.cacheKey = '';
     this.finish = finishLayer();
     this.wachstum = new Wachstum();
+    this.fenster = new Fenster();
     this.view = { scene: 'cafe', deco: [], seats: [], timer: { phase: 'idle' }, modules: {} };
     this.seen = new Map();
     this.effects = [];
@@ -341,9 +344,11 @@ export class Szene {
   draw(t = performance.now()) {
     const { c } = this;
     const { scene, deco, seats, timer, modules, modus, layout } = this.view;
-    const wachs = modus === 'wachstum';
+    const wachs = modus !== 'zimmer';
     c.clearRect(0, 0, W, H);
-    if (wachs) {
+    if (modus === 'fenster') {
+      this.fenster.draw(c, this.view, t);
+    } else if (wachs) {
       this.wachstum.draw(c, this.view, t);
     } else {
       this.background();
@@ -435,7 +440,7 @@ export class Szene {
 
   drawModules(c, t, modules, timer) {
     const view = this.view;
-    const wachs = view.modus === 'wachstum';
+    const wachs = view.modus !== 'zimmer';
     for (const m of moduleLayout(modules, view.layout, view.modus)) {
       c.save(); c.translate(m.x, m.y); c.scale(m.s, m.s);
       if (wachs) plank(c, m.id === 'buecher' ? 230 : 210);

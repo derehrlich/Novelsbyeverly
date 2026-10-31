@@ -8,10 +8,9 @@ import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
 import { getMusik } from './musik.mjs';
-import { resolveSeason, resolveTime } from './zeiten.mjs';
+import { resolveSeason, resolveTime, resolveWeather } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
-import { cleanFigur } from '../../public/js/katalog.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -64,7 +63,6 @@ export async function buildView(settings, since, now = Date.now()) {
       : q === 'pomodoro' ? done / (settings.pomodoroGoal || 6)
         : q === 'kombi' ? (zeit.fraction + ziel.fraction) / 2
           : ziel.fraction;
-  const taetigkeit = settings.stefanieTaetigkeit === 'auto' ? (timer.phase === 'break' ? 'buch' : 'laptop') : settings.stefanieTaetigkeit;
   const musik = settings.musikQuelle === 'aus' ? null : settings.musikQuelle === 'lokal'
     ? { mode: 'lokal', url: settings.musikUrl }
     : { mode: 'server', now: await getMusik(now) };
@@ -78,7 +76,7 @@ export async function buildView(settings, since, now = Date.now()) {
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
     ziel,
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
-    stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
+    fenster: { ort: settings.fensterOrt, blick: settings.fensterBlick, wetter: resolveWeather(settings, resolveSeason(settings, new Date(now))) },
     layout: settings.layout,
     musik,
     scene: settings.scene,

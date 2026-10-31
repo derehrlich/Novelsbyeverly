@@ -1,9 +1,10 @@
 import { db } from './store.mjs';
-import { DEFAULT_FIGUR, MAX_PLAETZE, SZENEN, cleanFigur } from '../../public/js/katalog.mjs';
+import { MAX_PLAETZE, SZENEN } from '../../public/js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
 
 export const DEFAULTS = {
-  // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'zimmer' = Szene mit den Figuren der Zuschauer (pausiert)
+  // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'fenster' = gemütliche Leseecke oder Arbeitsplatz mit großem Fenster;
+  // 'zimmer' = Szene mit den Figuren der Zuschauer (pausiert)
   szeneModus: 'wachstum',
   jahreszeit: 'auto', // auto | fruehling | sommer | herbst | winter
   tageszeit: 'auto', // auto | morgen | mittag | abend
@@ -13,9 +14,10 @@ export const DEFAULTS = {
   streamGoalMinutes: 180, // geplante Streamdauer für das Ziel "Streamzeit"
   // Was die Landschaft wachsen lässt: ziel (wie die Ziel-Karte) | zeit (Streamzeit, auch ohne eine Eingabe) | woerter | pomodoro | kombi (Mittel aus Zeit und Ziel)
   wachstumQuelle: 'ziel',
-  // Stefanie im Pavillon: auto (Laptop beim Fokus, Buch in der Pause) | laptop | buch
-  stefanieTaetigkeit: 'auto',
-  stefanieFigur: { ...DEFAULT_FIGUR, haare: 'braun', frisur: 'lang', oberteil: 'gruen' },
+  // Fenster-Ansicht: Ort im Zimmer, Blick nach draußen und Wetter (Jahres- und Tageszeit gelten wie bei der Landschaft)
+  fensterOrt: 'lese', // lese | arbeit
+  fensterBlick: 'stadt', // stadt | landschaft | wald | see
+  fensterWetter: 'auto', // auto (Winter: Schnee, sonst klar) | klar | regen | schnee
   pomodoroGoal: 6, // so viele Pomodoros sollen es heute werden (0 = ohne Ziel)
   longBreakMinutes: 15,
   longBreakEvery: 4, // nach so vielen Pomodoros kommt die lange Pause (0 = nie)
@@ -71,7 +73,7 @@ export const DEFAULTS = {
 
 const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
 const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
-const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'] };
+const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';
@@ -85,7 +87,6 @@ export function normalize(input, base = DEFAULTS) {
   const out = { ...base };
   for (const [key, value] of Object.entries(input ?? {})) {
     if (!(key in DEFAULTS)) continue;
-    if (key === 'stefanieFigur') { out.stefanieFigur = cleanFigur(value); continue; }
     if (key === 'layout') { out.layout = normalizeLayout(value, out.layout); continue; }
     if (key === 'musikUrl') {
       const u = String(value ?? '').trim();

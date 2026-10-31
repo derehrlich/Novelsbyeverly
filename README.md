@@ -1,27 +1,39 @@
 # Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
 
-Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem runden Gartenpavillon unter einer mächtigen Eiche. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, eine mächtige Eiche, Pilze. Alternativ gibt es eine gemütliche **Fenster-Ansicht** (Leseecke oder Arbeitsplatz mit großem Fenster und wechselndem Ausblick). Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
 
 ![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
 ![Frühling am Morgen](docs/vorschau-2-fruehling.png)
 ![Sommer](docs/vorschau-3-sommer.png)
 ![Herbst](docs/vorschau-4-herbst.png)
-![Winter am Abend, Pause (Stefanie liest)](docs/vorschau-5-winter.png)
+![Winter am Abend, Pause](docs/vorschau-5-winter.png)
+
+Fenster-Ansicht (Leseecke und Arbeitsplatz, Stadt, Wald, See und Landschaft, Jahres- und Tageszeit frei wählbar):
+
+![Fenster-Ansicht: Leseecke mit Blick auf die Stadt am Abend](docs/vorschau-6-fenster-stadt.png)
+![Fenster-Ansicht: Arbeitsplatz mit Blick in den Sommerwald](docs/vorschau-7-fenster-wald.png)
+![Fenster-Ansicht: Leseecke mit Blick auf den See am Morgen](docs/vorschau-8-fenster-see.png)
+![Fenster-Ansicht: Arbeitsplatz im Schneefall](docs/vorschau-9-fenster-schnee.png)
 
 ## Was es kann
 
-**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu. Im Mittelpunkt stehen eine große **Eiche** und ein **runder Gartenpavillon** mit Kegeldach, in dem Stefanie als kleine Figur sitzt und am Laptop schreibt oder ein Buch liest. Auch die fernen Hügel bewachsen mit kleinen Blumen und Flecken, die mit dem Fortschritt erscheinen.
+**Wachsende Landschaft.** Die Wiese beginnt leer und wächst mit dem Fortschritt des Tages zu. Im Mittelpunkt steht eine große **Eiche**, dazu ein kleiner **Teich** in der Ecke. Es gibt keine Gebäude und keine Figuren, die Wiese bleibt offen. Auch die fernen Hügel bewachsen mit kleinen Blumen und Flecken, die mit dem Fortschritt erscheinen.
 
 | Jahreszeit | Was passiert |
 |---|---|
-| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen. Die Eiche treibt hellgrünes Laub mit Kätzchen aus, am Pavillon ranken Rosen, Blütenstaub schwebt aus der Krone |
-| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, eine dichte Eiche mit Eicheln, Blumenampeln am Pavillon, Schmetterlinge und Bienen |
-| Herbst | Die Eiche färbt sich bronze und verliert Blatt für Blatt, die Blätter fallen aus der Krone und sammeln sich auf Boden und Pavillondach. Viele Pilze, Kürbisse und Astern wachsen |
-| Winter | Es schneit, am Ende liegt alles unter Schnee: Wiese, Äste, Tannen und Pavillondach (mit Schnee auf dem Kegeldach). Ein Schneemann baut sich auf, das Papierfenster des Pavillons leuchtet warm |
+| Frühling | Blumenwiese mit Gänseblümchen, Tulpen und Glockenblumen. Die Eiche treibt hellgrünes Laub mit Kätzchen aus, Blütenstaub schwebt aus der Krone, im Teich schwimmen Seerosenblätter |
+| Sommer | Sonnenblumen, Lavendel, Mohn und Kornblumen, eine dichte Eiche mit Eicheln, Seerosen im Teich, Schmetterlinge und Bienen |
+| Herbst | Die Eiche färbt sich bronze und verliert Blatt für Blatt, die Blätter fallen aus der Krone und sammeln sich auf dem Boden. Viele Pilze, Kürbisse und Astern wachsen |
+| Winter | Es schneit, am Ende liegt alles unter Schnee: Wiese, Äste und Tannen, der Teich friert zu. Ein Schneemann baut sich auf |
 
 Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmchen) und die **Jahreszeit** stellst du im Admin fest ein oder lässt sie nach Datum und Uhrzeit wählen („Auto“).
 
-**Stefanie im Pavillon.** Haare, Frisur, Hautton, Kleidung, Brille, Mütze, Haustier und Getränk stellst du im Admin ein. Beim Fokus tippt sie am Laptop, in der Pause liest sie ein Buch (Blättern, Tee, Dampf). Oder du legst fest, dass sie immer am Laptop sitzt oder immer liest.
+**Fenster-Ansicht.** Unter *Szene → Darstellung* schaltest du von der wachsenden Landschaft auf ein gemütliches Zimmer mit großem Fenster um. Dort wählst du (Admin → *Fenster-Ansicht*):
+- **Ort:** *Gemütliche Leseecke* (Sessel mit Decke und Kissen, Beistelltisch mit dampfendem Tee, Stehlampe, schlafende Katze) oder *Arbeitsplatz* (Schreibtisch mit Laptop, Notizbuch, Tee und Schreibtischlampe)
+- **Blick nach draußen:** *Stadt* (Hochhäuser mit erleuchteten Fenstern, nachts blinken rote Lichter), *Landschaft* (Hügel, Eiche, Teich), *Wald* (Nadel- und Laubbäume, Nebel, Lichtstrahlen, abends Glühwürmchen) oder *See* (Berge, Steg, Schilf, Spiegelung von Sonne und Mond)
+- **Wetter:** *Auto* (im Winter Schnee, sonst klar), *Klar*, *Regen* (Regen, Tropfen am Glas, Ringe auf dem See) oder *Schnee*
+
+**Jahreszeit** und **Tageszeit** gelten wie bei der Landschaft (fest oder automatisch). Der Ausblick, die Pflanzen und die Farben ändern sich entsprechend: Herbstlaub, Schnee auf den Dächern, zugefrorener See, abends Sterne, Mond und warm leuchtende Lampen. Die Pflanze auf dem Fenstersims wächst mit demselben Fortschritt wie die Landschaft. Uhr, Karten, Module und das Kamerafenster lassen sich auch hier frei anordnen.
 
 **Ziel-Karte.** Sie zeigt, worauf du heute hinarbeitest. Im Admin wählst du die Art:
 - **Wörter schreiben** (Stand aus Papyrus, siehe unten)
@@ -120,7 +132,7 @@ Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt si
 
 ## Vorschau ohne Twitch
 
-`docs/vorschau.html` per Doppelklick im Browser öffnen: das echte Overlay mit Beispieldaten und Schaltern für Jahreszeit, Tageszeit, Wachstum, Pomodoro, Module und Ereignisse. Neu erzeugen nach Änderungen am Overlay: `node scripts/build-vorschau.mjs`.
+`docs/vorschau.html` per Doppelklick im Browser öffnen: das echte Overlay mit Beispieldaten und Schaltern für Darstellung (Landschaft oder Fenster-Ansicht mit Ort, Blick und Wetter), Jahreszeit, Tageszeit, Wachstum, Pomodoro, Module und Ereignisse. Neu erzeugen nach Änderungen am Overlay: `node scripts/build-vorschau.mjs`.
 
 ## Entwicklung
 
@@ -133,7 +145,7 @@ ADMIN_PASSWORD=geheim EVENTSUB_SECRET=zufallstext123 node scripts/dev-server.mjs
 Der lokale Server braucht kein Netlify und legt Daten in `./data` ab. Twitch-Funktionen (Chat, Reward) laufen nur auf der veröffentlichten Seite.
 
 Aufbau:
-- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Pavillon, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/figur.mjs`: Chibi-Figur (Stefanie und Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
+- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Teich, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/fenster.mjs`: Fenster-Ansicht (Leseecke, Arbeitsplatz, Ausblicke, Wetter) · `public/js/figur.mjs`: Chibi-Figuren (Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
 - `public/admin/`: Verwaltung mit Anordnungs-Editor
 - `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`, `musik-ingest`
 - `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)

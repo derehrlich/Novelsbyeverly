@@ -1,20 +1,20 @@
 // Die wachsende Landschaft: Eine leere Wiese, die mit dem Fortschritt (Wörter oder Pomodoros) zuwächst.
 // Jahreszeit bestimmt, was wächst (Frühling: Blüten und Rosen, Sommer: Sonnenblumen und Lavendel,
 // Herbst: ein Baum verliert seine Blätter, Winter: es schneit zu), die Tageszeit bestimmt Himmel und Licht.
+// Die Wiese bleibt frei und offen: eine große Eiche, Blumen, Pilze und ferne Hügel, keine Gebäude und keine Figuren.
 import { H, TAU, W, alpha, clamp01, ell, glow, grassStrokes, leaf, lg, mixc, path, rng, rr, shade, smooth } from './malerei.mjs';
-import { STYLE, drawChair, drawDesk, drawFigure, drawTable } from './figur.mjs';
 
 export const JAHRESZEITEN = { fruehling: 'Frühling', sommer: 'Sommer', herbst: 'Herbst', winter: 'Winter' };
 export const TAGESZEITEN = { morgen: 'Morgengrauen', mittag: 'Mittag', abend: 'Abend' };
 
 const canvas = () => { const cv = document.createElement('canvas'); cv.width = W; cv.height = H; return cv; };
 
-const SKY = {
+export const SKY = {
   morgen: { top: '#b7a8d2', mid: '#efbdb1', hor: '#f9e3bb', sun: [1360, 650, '#ffd9a0'], r: 460, disc: [1360, 660, 64, '#ffe4b4'], cloud: '#f8d8cf', tint: ['#ffc4a4', 0.1] },
   mittag: { top: '#9bc2d9', mid: '#cde3e1', hor: '#f4eed4', sun: [1500, 170, '#fff4cc'], r: 600, disc: [1500, 170, 48, '#fff9de'], cloud: '#fbf6ea', tint: null },
   abend: { top: '#403f6c', mid: '#a76f8d', hor: '#f1b184', sun: [470, 660, '#ffb878'], r: 560, disc: [470, 672, 78, '#ffd5a2'], cloud: '#cf93a6', tint: ['#3e2f6c', 0.2] },
 };
-const PAL = {
+export const PAL = {
   fruehling: { hills: ['#bad4aa', '#a5c896', '#90b983'], far: ['#9dc08f', '#8db37f'], ground: ['#abcd94', '#86ad72'], blades: ['#6f9a5a', '#86b06f', '#5c8a52'], tree: ['#9cc17a', '#b2d08a', '#88b06a', '#a6c885'] },
   sommer: { hills: ['#b7cb8c', '#a1bd76', '#8cab62'], far: ['#86a866', '#789b5b'], ground: ['#aac671', '#869f56'], blades: ['#6f9448', '#8cb15c', '#5b8040'], tree: ['#5f8a48', '#6f9a58', '#4e7a3e', '#7ba462'] },
   herbst: { hills: ['#d3b47c', '#bc9862', '#a47d4e'], far: ['#b88a58', '#a97848'], ground: ['#c2a56a', '#9e8250'], blades: ['#a98a4a', '#c0a25c', '#8a6e3e'], tree: ['#d8a850', '#c98a3e', '#b8692f', '#a2552b'] },
@@ -22,7 +22,7 @@ const PAL = {
 };
 
 // ---- Himmel, Hügel, Boden (ändern sich nur mit Jahreszeit, Tageszeit und Schnee)
-function paintBackground(c, season, zeit, snow) {
+export function paintBackground(c, season, zeit, snow) {
   const S = SKY[zeit], P = PAL[season];
   const sc = (h) => (season === 'winter' ? mixc(h, '#dfe4e8', 0.38) : season === 'herbst' ? mixc(h, '#f0d4a8', 0.14) : h);
   c.fillStyle = lg(c, 0, 0, 0, 700, [[0, sc(S.top)], [0.55, sc(S.mid)], [1, sc(S.hor)]]); c.fillRect(0, 0, W, H);
@@ -48,6 +48,32 @@ function paintBackground(c, season, zeit, snow) {
   if (strokes > 0) grassStrokes(c, 0, 700, W, H, strokes, 17, P.blades);
   const r3 = rng(41);
   for (let i = 0; i < 18; i += 1) ell(c, r3() * W, 720 + r3() * 340, 90 + r3() * 120, 14 + r3() * 18, alpha(season === 'winter' ? '#ffffff' : '#fff3c8', 0.1));
+  paintTeich(c, season, zeit, S, snow);
+}
+
+// Teich mit Spiegelung von Himmel und Sonne; im Winter zugefroren und beschneit
+function paintTeich(c, season, zeit, S, snow) {
+  const { x, y, rx, ry } = TEICH;
+  const frozen = season === 'winter';
+  ell(c, x, y + 8, rx + 22, ry + 12, alpha(frozen ? '#8a96a2' : '#6b7d52', 0.55)); // Uferrand
+  const top = frozen ? mixc(S.mid, '#dfeaf1', 0.55) : mixc(S.mid, '#7fb0b8', 0.35), bot = frozen ? mixc(S.hor, '#c9dbe6', 0.5) : mixc(S.top, '#5f9aa2', 0.45);
+  ell(c, x, y, rx, ry, lg(c, 0, y - ry, 0, y + ry, [[0, top], [1, bot]]), alpha('#2b2118', 0.18), 2);
+  c.save(); c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.clip();
+  glow(c, x + (S.disc[0] - 960) * 0.2, y - 6, 120, S.sun[2], 0.55);
+  c.strokeStyle = alpha('#ffffff', frozen ? 0.5 : 0.28); c.lineWidth = 2;
+  const r = rng(61);
+  for (let i = 0; i < 12; i += 1) { const yy = y - ry + 8 + r() * (ry * 2 - 16), xx = x - rx * 0.8 + r() * rx * 1.6, w = 30 + r() * 70; c.beginPath(); c.moveTo(xx, yy); c.quadraticCurveTo(xx + w / 2, yy - (frozen ? 1 : 4), xx + w, yy); c.stroke(); }
+  if (frozen) { c.strokeStyle = alpha('#9db4c4', 0.5); for (let i = 0; i < 5; i += 1) { c.beginPath(); c.moveTo(x - rx + r() * rx * 2, y - ry); c.lineTo(x - rx + r() * rx * 2, y + ry); c.stroke(); } }
+  c.restore();
+  if (frozen && snow > 0.05) ell(c, x - 30, y + 8, rx * 0.86 * snow, ry * 0.7 * snow, alpha('#ffffff', 0.9));
+  if (season === 'sommer' || season === 'fruehling') for (const [dx, dy] of [[-120, 6], [-60, 18], [90, -6], [150, 14]]) { ell(c, x + dx, y + dy, 24, 8, season === 'sommer' ? '#6f9a58' : '#86ad72', alpha('#2b2118', 0.2), 1.4); if (season === 'sommer' && dx > 0) { ell(c, x + dx + 4, y + dy - 6, 8, 6, '#f2cfd4'); ell(c, x + dx + 4, y + dy - 7, 3, 3, '#e9c867'); } }
+  // Schilf am Ufer
+  for (const [dx, dy, h] of [[-rx + 14, 14, 80], [-rx + 34, 22, 100], [-rx + 4, 4, 66], [rx - 20, 14, 90], [rx - 40, 24, 70], [rx - 4, 2, 104]]) {
+    const hh = frozen ? h * 0.8 : h;
+    c.strokeStyle = frozen ? '#b8a982' : season === 'herbst' ? '#a98a4a' : '#6f9448'; c.lineWidth = 3.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + dx, y + dy); c.quadraticCurveTo(x + dx + 6, y + dy - hh * 0.6, x + dx + (dx > 0 ? 12 : -12), y + dy - hh); c.stroke();
+    ell(c, x + dx + (dx > 0 ? 12 : -12), y + dy - hh - 8, 4, 12, frozen ? '#9a8660' : '#7a5a3a');
+    if (frozen) ell(c, x + dx + (dx > 0 ? 12 : -12), y + dy - hh - 18, 6, 3, alpha('#ffffff', 0.9));
+  }
 }
 
 // ---- Pflanzen auf der Wiese
@@ -186,6 +212,9 @@ function slotsFor(season) {
 
 // ---- Die große Eiche: mächtiger Stamm mit Wurzelanläufen, schwere Äste, ausladende Krone aus vielen einzelnen Blättern
 export const BAUM = { x: 600, y: 716, s: 0.9 };
+// Kleiner Teich in der rechten Wiesenecke (unter dem Kamerafenster)
+export const TEICH = { x: 1650, y: 940, rx: 215, ry: 48 };
+const imTeich = (x, y, m = 1.15) => ((x - TEICH.x) / (TEICH.rx * m)) ** 2 + ((y - TEICH.y) / (TEICH.ry * m)) ** 2 < 1;
 const treeModels = new Map();
 function treeModel(seed) {
   if (treeModels.has(seed)) return treeModels.get(seed);
@@ -268,104 +297,6 @@ export function drawTree(c, x, y, s, { leafAmt, tones, season, p, snow = 0 }) {
   c.restore();
 }
 
-// ---- Runder Gartenpavillon mit Kegeldach; Stefanie sitzt darin
-export const PAVILLON = { x: 1150, y: 836 };
-const PAV = { R: 215, ry: 46, post: 262 };
-function pfosten(c, px, py, h, dark) {
-  rr(c, px - 11, py - h, 22, h, 6, lg(c, px - 11, 0, px + 11, 0, [[0, dark ? '#d9cfb8' : '#f6efde'], [1, dark ? '#bdb199' : '#d8cdb2']]), alpha('#2b2118', 0.28), 2);
-  rr(c, px - 16, py - 10, 32, 14, 5, dark ? '#bdb199' : '#d2c7ac', alpha('#2b2118', 0.25), 1.6);
-  rr(c, px - 17, py - h - 4, 34, 12, 5, dark ? '#c9bea4' : '#e9dfc6', alpha('#2b2118', 0.25), 1.6);
-}
-function kegeldach(c, x, top, snow, season, p) {
-  const rx = 270, rye = PAV.ry + 16, ey = top - 8, apex = top - 196;
-  const outline = (k) => { k.moveTo(x - rx, ey); k.bezierCurveTo(x - 190, top - 40, x - 60, top - 120, x, apex); k.bezierCurveTo(x + 60, top - 120, x + 190, top - 40, x + rx, ey); k.ellipse(x, ey, rx, rye, 0, 0, Math.PI, false); k.closePath(); };
-  path(c, outline, lg(c, x - rx, 0, x + rx, 0, [[0, '#a3bfae'], [0.5, '#86a592'], [1, '#69887a']]), alpha('#2b2118', 0.4), 3);
-  c.save(); c.beginPath(); outline(c); c.clip();
-  // Schindelreihen und Rippen
-  for (let i = 1; i < 10; i += 1) { const u = i / 10, yy = apex + (ey - apex) * u, half = 12 + (rx - 12) * Math.pow(u, 0.9); c.strokeStyle = alpha('#2f4a3c', 0.22); c.lineWidth = 2; c.beginPath(); c.moveTo(x - half, yy); c.quadraticCurveTo(x, yy + rye * u * 1.15, x + half, yy); c.stroke(); }
-  for (let i = -4; i <= 4; i += 1) { const ex = x + (i / 4) * rx, ey2 = ey + rye * Math.sqrt(Math.max(0, 1 - ((ex - x) / rx) ** 2)); c.strokeStyle = alpha('#2f4a3c', 0.18); c.lineWidth = 2; c.beginPath(); c.moveTo(x, apex); c.lineTo(ex, ey2); c.stroke(); }
-  const r = rng(31);
-  if (season === 'herbst') for (let i = 0, n = Math.round(p * 80); i < n; i += 1) leaf(c, x + (r() - 0.5) * rx * 1.8, apex + 30 + r() * (ey - apex + rye), 22, 9, r() * TAU, ['#c98a3e', '#b8692f', '#d8a850', '#a2552b'][i % 4], { veins: false });
-  if (season === 'fruehling') for (let i = 0, n = Math.round(p * 60); i < n; i += 1) ell(c, x + (r() - 0.5) * rx * 1.8, apex + 30 + r() * (ey - apex + rye), 5, 3, ['#f0cdd0', '#f6efe0'][i % 2], null, 0, r() * 3);
-  if (season === 'sommer') { for (let i = 0; i < 18; i += 1) ell(c, x + (r() - 0.5) * rx * 1.6, ey + rye * 0.1 + r() * rye * 0.9, 24, 6, alpha('#6f9a58', 0.3)); }
-  if (snow > 0.04) { // Schnee liegt auf dem Kegel und hängt an der Traufe
-    const depth = (ey - apex) * (0.15 + 0.85 * snow);
-    path(c, (k) => { k.moveTo(x - rx - 10, apex - 10); k.lineTo(x + rx + 10, apex - 10); k.lineTo(x + rx + 10, apex + depth); for (let xx = x + rx + 10; xx >= x - rx - 10; xx -= 22) k.lineTo(xx, apex + depth + Math.sin(xx * 0.06) * 8 + (Math.abs(xx - x) / rx) * depth * 0.35); k.closePath(); }, '#fbfcfe');
-    if (snow > 0.5) { c.strokeStyle = alpha('#ffffff', 0.95); c.lineWidth = 12 * snow; c.beginPath(); c.ellipse(x, ey, rx - 4, rye - 2, 0, 0.05, Math.PI - 0.05); c.stroke(); }
-  }
-  c.restore();
-  // Traufe mit Zierbogen
-  c.strokeStyle = '#557062'; c.lineWidth = 7; c.beginPath(); c.ellipse(x, ey, rx, rye, 0, 0, Math.PI, false); c.stroke();
-  for (let i = 0; i <= 22; i += 1) { const th = (i / 22) * Math.PI, px = x + Math.cos(th) * rx, py = ey + Math.sin(th) * rye; ell(c, px, py + 7, 11, 9, '#7a9a89', alpha('#2f4a3c', 0.45), 1.6); }
-  path(c, (k) => { k.moveTo(x - 7, apex + 12); k.lineTo(x + 7, apex + 12); k.lineTo(x + 3, apex - 20); k.lineTo(x - 3, apex - 20); k.closePath(); }, '#8a7a56');
-  ell(c, x, apex - 24, 11, 11, lg(c, x - 11, apex - 35, x + 11, apex - 13, [[0, '#f0dfa0'], [1, '#b99a4a']]), alpha('#5a4520', 0.5), 1.6);
-  path(c, (k) => { k.moveTo(x - 2.5, apex - 34); k.lineTo(x + 2.5, apex - 34); k.lineTo(x, apex - 58); k.closePath(); }, '#b99a4a');
-  if (snow > 0.04) ell(c, x, apex - 12, 12, 5 * snow + 1, alpha('#ffffff', 0.95));
-}
-function kletter(c, x, yBase, yTop, grow, bloom, leafAmt, season, seed) {
-  const pts = [];
-  for (let i = 0; i <= 50; i += 1) { const t = i / 50; pts.push([x + Math.sin(t * 11 + seed) * 9, yBase - t * (yBase - yTop)]); }
-  const n = Math.floor(clamp01(grow) * pts.length);
-  c.strokeStyle = leafAmt < 0.3 && (season === 'herbst' || season === 'winter') ? '#6a5a40' : '#5f7d4a'; c.lineWidth = 4.5; c.lineCap = 'round'; c.beginPath();
-  pts.slice(0, n).forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.stroke();
-  const lc = season === 'herbst' ? ['#c9654a', '#d98a4a', '#b8553f'] : ['#6f9a58', '#82ac66', '#5f8a4c'];
-  for (let i = 2; i < n; i += 2) { if (((i * 37 + seed * 7) % 100) / 100 > leafAmt) continue; leaf(c, pts[i][0], pts[i][1], 26, 10, (i % 4 === 0 ? 1 : -1) * 1.2 + (i % 3) * 0.3, lc[i % 3], { veins: false }); }
-  const roses = ['#d98a94', '#e8b0b0', '#c76f7e', '#f0d0c8'];
-  for (let i = 6; i < n; i += 8) { const k = smooth(clamp01((bloom - ((i * 13) % 50) / 100) / 0.3)); if (k <= 0.05 || season === 'winter') continue; const col = roses[(i / 8) % 4 | 0]; ell(c, pts[i][0], pts[i][1], 14 * k, 12 * k, col, alpha('#7a3a44', 0.35), 1.4); ell(c, pts[i][0], pts[i][1], 8 * k, 7 * k, shade(col, 0.12)); }
-}
-function drawPavillon(c, season, zeit, p, snow) {
-  const { x, y } = PAVILLON, { R, ry, post } = PAV;
-  const deck = y - 40, top = deck - post;
-  ell(c, x, y + 8, R + 70, 36, alpha('#2b2118', 0.2));
-  // Steinsockel und Holzboden (Ellipse = Grundriss von schräg oben)
-  ell(c, x, y + 2, R + 38, ry + 16, '#9a917d'); ell(c, x, y - 12, R + 38, ry + 16, lg(c, 0, y - 60, 0, y + 20, [[0, '#d9d0ba'], [1, '#bdb39d']]), alpha('#2b2118', 0.25), 2);
-  ell(c, x, deck + 2, R + 14, ry + 6, lg(c, 0, deck - 50, 0, deck + 50, [[0, '#d6b88c'], [1, '#b08e62']]), alpha('#2b2118', 0.3), 2);
-  c.strokeStyle = alpha('#6a4c2e', 0.25); c.lineWidth = 2;
-  for (let i = -5; i <= 5; i += 1) { c.beginPath(); c.ellipse(x, deck + 2, (R + 14) * (1 - Math.abs(i) / 7.5), (ry + 6), 0, 0, TAU); c.stroke(); }
-  // Treppe vorne
-  for (let i = 0; i < 3; i += 1) rr(c, x - 78 - i * 8, deck + ry - 2 + i * 12, 156 + i * 16, 14, 5, ['#c9ab7e', '#b99a6e', '#a98a60'][i], alpha('#2b2118', 0.28), 1.8);
-  // hintere Pfosten und Gitterwand (luftig, Diamantmuster)
-  const bx = R * 0.866, by = deck - ry * 0.5 + 2, fy = deck + ry * 0.5 + 2;
-  rr(c, x - bx, by - 128, bx * 2, 128, 4, alpha('#f6efde', 0.3), alpha('#d8cdb2', 0.9), 3);
-  c.save(); c.beginPath(); c.rect(x - bx, by - 128, bx * 2, 128); c.clip(); c.strokeStyle = alpha('#e9dfc6', 0.95); c.lineWidth = 3.4;
-  for (let i = -14; i <= 14; i += 1) { c.beginPath(); c.moveTo(x + i * 24, by); c.lineTo(x + i * 24 + 128, by - 128); c.moveTo(x + i * 24, by - 128); c.lineTo(x + i * 24 + 128, by); c.stroke(); }
-  c.restore();
-  rr(c, x - bx, by - 134, bx * 2, 12, 5, '#efe6d2', alpha('#2b2118', 0.25), 1.6);
-  pfosten(c, x - bx, by, post - 8, true); pfosten(c, x + bx, by, post - 8, true); pfosten(c, x, by - 4, post - 12, true);
-  // Ringbalken (der Boden der Dachkonstruktion), dann das Dach
-  c.strokeStyle = '#e9dfc6'; c.lineWidth = 12; c.beginPath(); c.ellipse(x, top + 4, R * 0.866 + 10, ry * 0.92, 0, 0, Math.PI, false); c.stroke();
-  c.strokeStyle = alpha('#2b2118', 0.25); c.lineWidth = 2; c.beginPath(); c.ellipse(x, top + 11, R * 0.866 + 10, ry * 0.92, 0, 0.02, Math.PI - 0.02, false); c.stroke();
-  // Lichterkette und Laternen am vorderen Ringbalken
-  const glowK = zeit === 'abend' ? 1 : zeit === 'morgen' ? 0.55 : season === 'winter' ? 0.4 : 0;
-  for (let i = 1; i < 14; i += 1) { const th = (i / 14) * Math.PI, px = x + Math.cos(th) * (R * 0.866 + 10), py = top + 14 + Math.sin(th) * ry * 0.92 + Math.sin(i * 1.7) * 3; ell(c, px, py + 5, 4, 5.5, mixc('#f2d9a0', '#fff2c4', glowK)); if (glowK) glow(c, px, py + 5, 22, '#ffd98a', 0.5 * glowK); }
-  for (const sx of [-1, 1]) { const lx = x + sx * 120, ly = top + 4 + ry * 0.92 * Math.sqrt(1 - (120 / (R * 0.866 + 10)) ** 2); if (glowK || zeit === 'morgen') glow(c, lx, ly + 54, 120, '#ffd08a', 0.5); c.strokeStyle = '#6a5a40'; c.lineWidth = 2.4; c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx, ly + 20); c.stroke(); rr(c, lx - 13, ly + 20, 26, 34, 11, mixc('#e8a45a', '#ffe0a0', glowK), alpha('#7a4a22', 0.5), 2); }
-  if (season === 'sommer') for (const sx of [-1, 1]) { const hx = x + sx * 60, hy = top + 14 + ry * 0.92 * Math.sqrt(1 - (60 / (R * 0.866 + 10)) ** 2); c.strokeStyle = '#6a5a40'; c.lineWidth = 2; c.beginPath(); c.moveTo(hx - 14, hy); c.lineTo(hx, hy + 30); c.lineTo(hx + 14, hy); c.stroke(); rr(c, hx - 21, hy + 28, 42, 24, 9, '#c58f70'); for (let i = 0; i < 5; i += 1) ell(c, hx - 17 + i * 8.5, hy + 27 + (i % 2) * 4, 6, 6, ['#e8a0a8', '#f2d98a', '#c9b0e0'][i % 3]); }
-  kegeldach(c, x, top, snow, season, p);
-  // vordere Pfosten mit Geländer zur Seite (Eingang bleibt frei)
-  for (const sx of [-1, 1]) {
-    const px = x + sx * bx;
-    rr(c, Math.min(px, px - sx * 70) , fy - 66, 70, 8, 4, '#efe6d2', alpha('#2b2118', 0.25), 1.4); rr(c, Math.min(px, px - sx * 70), fy - 14, 70, 8, 4, '#efe6d2', alpha('#2b2118', 0.25), 1.4);
-    for (let i = 1; i < 5; i += 1) rr(c, px - sx * i * 14 - 3, fy - 60, 6, 48, 3, '#f6efde', alpha('#2b2118', 0.22), 1.2);
-    pfosten(c, px, fy, post, false);
-  }
-  const grow = season === 'fruehling' ? clamp01(0.1 + p) : 1;
-  const bloom = season === 'fruehling' ? clamp01((p - 0.3) / 0.7) : season === 'sommer' ? clamp01(0.3 + p) : season === 'herbst' ? clamp01(0.5 - p) : 0;
-  const lAmt = season === 'winter' ? 0 : season === 'herbst' ? clamp01(1 - p * 1.1) : season === 'fruehling' ? clamp01(p * 1.2) : 1;
-  kletter(c, x - bx, fy, top + 20, grow, bloom, lAmt, season, 1); kletter(c, x + bx, fy, top + 20, grow, bloom, lAmt, season, 2);
-  if (snow > 0.05) for (const sx of [-1, 1]) ell(c, x + sx * bx, fy - 66, 20, 6 * snow + 2, alpha('#ffffff', 0.9));
-}
-export function drawStefanie(c, view, t) {
-  const st = view.stefanie;
-  if (!st) return;
-  const phase = view.timer?.phase;
-  const f = { ...st.figur, tisch: st.taetigkeit === 'buch' ? 'buch' : (st.figur.tisch === 'buch' ? 'laptop' : st.figur.tisch) };
-  const a = { t, seed: 0.37, working: phase === 'focus' && st.taetigkeit !== 'buch', reading: st.taetigkeit === 'buch', sip: phase === 'break' && Math.floor(t / 2600) % 3 === 0, happy: phase === 'break' && Math.floor(t / 3000) % 2 === 0, blink: Math.floor(t / 120 + 14) % 34 === 0, bob: Math.sin(t / 900) * 2 };
-  const sc = 0.92, ty = PAVILLON.y - 36 - 106 * sc;
-  c.save(); c.translate(PAVILLON.x, ty); c.scale(sc, sc);
-  drawChair(c, 0, 0, STYLE.pavillon); drawFigure(c, f, 0, 0, a, STYLE.pavillon); drawTable(c, 0, 0, STYLE.pavillon); drawDesk(c, f, 0, 0, a);
-  c.restore();
-}
-
 // ---- Bewuchs auf den fernen Hügeln: kleine Pflanzen und bunte Flecken, die mit dem Fortschritt erscheinen
 const HILLS = [{ y: 560, seed: 2, wave: 250, amp: 44 }, { y: 612, seed: 5, wave: 210, amp: 38 }];
 const hillPh = HILLS.map((h) => { const r = rng(h.seed); return [r() * 6, r() * 6]; });
@@ -395,7 +326,7 @@ function hillLife(c, season, p) {
   });
 }
 
-function fir(c, x, y, s, snow) {
+export function fir(c, x, y, s, snow) {
   ell(c, x, y + 4, 62 * s, 10 * s, alpha('#2b2118', 0.16));
   rr(c, x - 8 * s, y - 40 * s, 16 * s, 44 * s, 4, '#6b523c');
   for (let i = 0; i < 4; i += 1) {
@@ -434,25 +365,24 @@ function paintGrowth(c, season, zeit, p) {
   hillLife(c, season, p);
   const things = [];
   things.push({ y: BAUM.y, draw: () => drawTree(c, BAUM.x, BAUM.y, BAUM.s, { leafAmt, tones: P.tree, season, p, snow }) });
-  things.push({ y: PAVILLON.y, draw: () => drawPavillon(c, season, zeit, p, snow) });
   if (season === 'winter') {
     things.push({ y: 712, draw: () => { fir(c, 90, 712, 1.1, snow); fir(c, 1530, 704, 0.9, snow); fir(c, 1850, 716, 1.15, snow); } });
-    things.push({ y: 900, draw: () => snowman(c, 1480, 910, p) });
+    things.push({ y: 880, draw: () => snowman(c, 1330, 884, p) });
   }
-  if (season === 'herbst') { // zusätzliche Pilzgruppen am Baum, am Pavillon und im Gras
+  if (season === 'herbst') { // zusätzliche Pilzgruppen am Baum, an der Wiese und im Gras
     const r = rng(404);
     for (let i = 0; i < 22; i += 1) {
-      const nearTree = i < 8, nearPav = i >= 8 && i < 16;
-      const x = nearTree ? BAUM.x - 170 + r() * 340 : nearPav ? PAVILLON.x - 230 + r() * 460 : 40 + r() * (W - 80);
-      const y = nearTree ? 730 + r() * 40 : nearPav ? 850 + r() * 50 : 720 + r() * 330;
+      const nearTree = i < 8, nearPav = i >= 8 && i < 16; // nearPav: Pilzring auf der freien Wiese rechts vom Baum
+      const x = nearTree ? BAUM.x - 170 + r() * 340 : nearPav ? 1250 - 230 + r() * 460 : 40 + r() * (W - 80);
+      const y = nearTree ? 730 + r() * 40 : nearPav ? 960 + r() * 90 : 720 + r() * 330;
       const th = 0.06 + r() * 0.6, g = clamp01((p - th) / 0.16);
-      if (g > 0.02) things.push({ y, draw: () => pilze(c, x, y, 0.7 + (y - 700) / 360 * 0.9, g, r() * 0 + ((i * 0.37) % 1)) });
+      if (g > 0.02 && !imTeich(x, y)) things.push({ y, draw: () => pilze(c, x, y, 0.7 + (y - 700) / 360 * 0.9, g, r() * 0 + ((i * 0.37) % 1)) });
     }
   }
   for (const s of slotsFor(season)) {
+    if (imTeich(s.x, s.y)) continue;
     if (season === 'winter') things.push({ y: s.y, draw: () => (s.type === 'shrub' ? shrubWinter(c, s.x, s.y, s.s, snow, s.r) : tuft(c, s.x, s.y, s.s, 1, s.r, P.blades, snow)) });
     else {
-      if (s.x > PAVILLON.x - 290 && s.x < PAVILLON.x + 290 && s.y < PAVILLON.y + 140 && s.y > PAVILLON.y - 80) continue; // nichts vor oder im Pavillon (Stefanie soll zu sehen sein)
       const g = clamp01((p - s.thr) / 0.16);
       if (g <= 0.01) continue;
       things.push({ y: s.y, draw: () => (s.type === 'tuft' ? tuft(c, s.x, s.y, s.s, g, s.r, P.blades) : DRAW[s.type](c, s.x, s.y, s.s, g, s.r)) });
@@ -499,7 +429,6 @@ export class Wachstum {
     c.drawImage(this.bg, 0, 0);
     if (zeit === 'morgen') for (let i = 0; i < 4; i += 1) ell(c, 300 + i * 480 + Math.sin(t / 5000 + i) * 60, 700 + (i % 2) * 24, 380, 36, alpha('#fff4ee', 0.2));
     c.drawImage(this.gl, 0, 0);
-    drawStefanie(c, view, t);
     this.living(c, season, zeit, pq, t);
     const tint = SKY[zeit].tint;
     if (tint) { c.fillStyle = alpha(tint[0], tint[1]); c.fillRect(0, 0, W, H); }

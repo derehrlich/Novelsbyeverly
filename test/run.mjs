@@ -507,7 +507,7 @@ await test('Musik: Schnittstelle mit Schlüssel, Chatbefehl, Veralten und Quelle
   await saveSettings({ musikQuelle: 'aus' }); assert.equal((await viewNow()).musik, null);
 });
 
-console.log('Ziel-Karte, Streamzeit, Stefanie');
+console.log('Ziel-Karte, Streamzeit, Fenster-Ansicht');
 await test('Kamerafenster ist immer quadratisch', async () => {
   assert.equal(layoutLib.DEFAULT_LAYOUT.kamera.w, layoutLib.DEFAULT_LAYOUT.kamera.h);
   const l = layoutLib.normalizeLayout({ kamera: { w: 500, h: 200 } });
@@ -573,21 +573,20 @@ await test('Ziel-Karte und Wachstum: Wörter, Seiten, Streamzeit, Pomodoros', as
   await saveSettings({ zielArt: 'woerter', wachstumQuelle: 'ziel', pomodoroGoal: 6, streamGoalMinutes: 180 });
   await streamLib.stopStream();
 });
-await test('Stefanie im Pavillon: Figur und Tätigkeit (automatisch nach Phase)', async () => {
+await test('Fenster-Ansicht: Ort, Blick und Wetter (Einstellungen und Ansicht)', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const saved = await adminCall('PUT', 'settings', { stefanieFigur: { haare: 'rot', frisur: 'zopf', gesicht: 'brille', tisch: 'buch', haut: '9' }, stefanieTaetigkeit: 'auto' }, cookie);
-  assert.equal(saved.body.settings.stefanieFigur.haare, 'rot'); assert.equal(saved.body.settings.stefanieFigur.tisch, 'laptop'); assert.equal(saved.body.settings.stefanieFigur.haut, '2');
-  await timerLib.stopTimer(await getSettings());
+  const saved = await adminCall('PUT', 'settings', { szeneModus: 'fenster', fensterOrt: 'arbeit', fensterBlick: 'see', fensterWetter: 'auto', jahreszeit: 'winter' }, cookie);
+  assert.equal(saved.body.settings.szeneModus, 'fenster'); assert.equal(saved.body.settings.fensterBlick, 'see');
   let v = await viewNow();
-  assert.equal(v.stefanie.taetigkeit, 'laptop'); assert.equal(v.stefanie.figur.frisur, 'zopf');
-  await timerLib.startBreak(await getSettings(), 5);
-  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'buch');
-  await saveSettings({ stefanieTaetigkeit: 'laptop' });
-  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'laptop');
-  await saveSettings({ stefanieTaetigkeit: 'auto' });
-  await timerLib.stopTimer(await getSettings());
-  assert.ok((await adminCall('PUT', 'settings', { stefanieTaetigkeit: 'fliegen' }, cookie)).status === 400);
+  assert.equal(v.modus, 'fenster'); assert.deepEqual(v.fenster, { ort: 'arbeit', blick: 'see', wetter: 'schnee' }); assert.deepEqual(v.seats, []);
+  assert.equal(v.stefanie, undefined);
+  await saveSettings({ jahreszeit: 'sommer', fensterWetter: 'auto', fensterOrt: 'lese', fensterBlick: 'wald' });
+  v = await viewNow(); assert.deepEqual(v.fenster, { ort: 'lese', blick: 'wald', wetter: 'klar' });
+  await saveSettings({ fensterWetter: 'regen' });
+  v = await viewNow(); assert.equal(v.fenster.wetter, 'regen');
+  for (const bad of [{ fensterBlick: 'mond' }, { fensterOrt: 'keller' }, { fensterWetter: 'hagel' }, { szeneModus: 'kino' }]) assert.ok((await adminCall('PUT', 'settings', bad, cookie)).status === 400, JSON.stringify(bad));
+  await saveSettings({ szeneModus: 'wachstum', jahreszeit: 'auto', fensterWetter: 'auto' });
 });
 await test('Admin: Seiten und Streamzeit', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });

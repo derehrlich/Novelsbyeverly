@@ -7,6 +7,12 @@ export function resolveSeason(settings, date = new Date()) {
   return m >= 3 && m <= 5 ? 'fruehling' : m >= 6 && m <= 8 ? 'sommer' : m >= 9 && m <= 11 ? 'herbst' : 'winter';
 }
 
+// Wetter hinter dem Fenster: 'auto' = im Winter Schnee, sonst klar
+export function resolveWeather(settings, season) {
+  if (settings.fensterWetter !== 'auto') return settings.fensterWetter;
+  return season === 'winter' ? 'schnee' : 'klar';
+}
+
 export function resolveTime(settings, date = new Date()) {
   if (settings.tageszeit !== 'auto') return settings.tageszeit;
   const h = part(settings, date, { hour: 'numeric', hourCycle: 'h23' });
