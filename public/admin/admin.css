@@ -1,11 +1,11 @@
 @font-face { font-family: Fredoka; font-weight: 400; src: url(../fonts/fredoka-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 600; src: url(../fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 700; src: url(../fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
-:root { --bg: #f6ecda; --karte: #fffaf0; --rand: #8b5e3c; --text: #4a3320; --leise: #8c7358; --gruen: #4f9a5b; --orange: #d98b2b; --rot: #c0453a; --akzent: #c0704a; }
-@media (prefers-color-scheme: dark) { :root { --bg: #2a2018; --karte: #382b20; --rand: #c49a70; --text: #f1e4d0; --leise: #bda583; } }
+:root { --nav: #3b2a1c; --nav-text: #f1e4d0; --bg: #f6ecda; --karte: #fffaf0; --rand: #8b5e3c; --text: #4a3320; --leise: #8c7358; --gruen: #4f9a5b; --orange: #d98b2b; --rot: #c0453a; --akzent: #c0704a; }
+@media (prefers-color-scheme: dark) { :root { --nav: #1f1610; --bg: #2a2018; --karte: #382b20; --rand: #c49a70; --text: #f1e4d0; --leise: #bda583; } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.45 Fredoka, system-ui, sans-serif; }
-main { max-width: 980px; margin: 0 auto; padding: 24px 16px 80px; }
+main { max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; }
 h1 { font-size: 30px; margin: 0 0 4px; } h2 { font-size: 21px; margin: 0 0 12px; } h3 { font-size: 17px; margin: 18px 0 8px; color: var(--leise); }
 .leise { color: var(--leise); font-size: 15px; }
 section.karte { background: var(--karte); border: 3px solid var(--rand); border-radius: 16px; padding: 18px 20px; margin: 18px 0; box-shadow: 0 5px 0 rgba(60, 35, 15, .18); }
@@ -43,3 +43,40 @@ code { background: rgba(139, 94, 60, .15); padding: 1px 6px; border-radius: 6px;
 .ebox:active { cursor: grabbing; }
 details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
 .code { font-size: 1.3em; letter-spacing: .15em; font-weight: 700; }
+
+/* ---- Aufbau: Seitenleiste + Bereiche */
+#app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.nav { position: sticky; top: 0; height: 100vh; background: var(--nav); color: var(--nav-text); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+.nav .marke { font-size: 22px; font-weight: 700; line-height: 1.1; display: flex; gap: 10px; align-items: center; padding: 4px 8px 16px; }
+.nav button { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; background: transparent; color: var(--nav-text); border-radius: 10px; padding: 10px 12px; font-weight: 500; }
+.nav button i { font-style: normal; width: 24px; text-align: center; }
+.nav button:hover { background: rgba(255, 255, 255, .08); }
+.nav button.aktiv { background: var(--akzent); color: #fff; font-weight: 600; }
+.nav .abmelden { margin-top: auto; opacity: .8; }
+.seite > h1 { margin: 4px 0 14px; }
+.raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0 18px; align-items: start; }
+.raster > .karte.breit { grid-column: 1 / -1; }
+.login { max-width: 420px; margin: 12vh auto 0; }
+.banner { background: #fbe3c0; color: #5a3410; border: 3px solid var(--orange); border-radius: 12px; padding: 10px 14px; margin: 10px 0; }
+.banner a { color: inherit; font-weight: 700; }
+.feld.schalter label { display: flex; gap: 10px; align-items: center; font-weight: 600; cursor: pointer; }
+label.zeile { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+.tabelle { overflow-x: auto; }
+button.klein, .knopf.klein { padding: 3px 10px; font-size: 14px; }
+td.aktionen { white-space: nowrap; text-align: right; }
+.leise.ok { color: var(--gruen); font-weight: 600; } .leise.fehler { color: var(--rot); font-weight: 600; }
+.status a { color: inherit; font-weight: 700; }
+input[type=file] { max-width: 100%; }
+a { color: var(--akzent); }
+
+@media (max-width: 760px) {
+  #app { display: block; }
+  .nav { position: sticky; z-index: 5; height: auto; flex-direction: row; overflow-x: auto; padding: 8px; gap: 4px; }
+  .nav .marke { display: none; }
+  .nav button { width: auto; flex: none; padding: 8px 12px; }
+  .nav button span { display: none; }
+  .nav button.aktiv span { display: inline; }
+  .nav .abmelden { margin-top: 0; }
+  main { padding: 14px 12px 60px; }
+  .raster { grid-template-columns: 1fr; }
+}

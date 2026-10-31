@@ -95,28 +95,38 @@ Nur im Zimmer-Modus: `!sitzen`, `!aufstehen`, `!figur`, `!rang`, `!szene`.
 
 Der Server ist ein kleiner Node-Container ohne weitere Abhängigkeiten. Er liefert Overlay und Admin aus, speichert alles in `/data` und hält selbst die Verbindung zu Twitch (EventSub per WebSocket). Dafür ruft er Twitch an, es muss also **nichts aus dem Internet auf den Server zugreifen**: keine Portfreigabe, keine Domain, kein Tunnel.
 
-1. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen: Client Type **Public**, OAuth Redirect URL `http://localhost` (wird nicht benutzt, Twitch verlangt aber eine). Die *Client-ID* kopieren, ein Secret braucht es bei „Public“ nicht.
+1. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen: Client Type **Public**, OAuth Redirect URL `http://localhost` (wird nicht benutzt, Twitch verlangt aber eine). Die *Client-ID* kopieren, ein Secret braucht es bei „Public“ nicht. Beides trägst du später im Admin unter **Twitch & Chat** ein, nicht in der Compose-Datei.
 2. **Container starten.**
    - *CasaOS:* im App Store oben rechts **„Eigene App installieren“** und den Inhalt von `docker-compose.yml` einfügen. Vorher `build: .` durch das fertige Image ersetzen oder das Repository auf dem Server auschecken und dort bauen (siehe unten).
-   - *Terminal:* Repository auschecken, in `docker-compose.yml` `ADMIN_PASSWORD` und `TWITCH_CLIENT_ID` eintragen, dann `docker compose up -d --build`.
+   - *Terminal:* Repository auschecken, in einer Datei `.env` neben der Compose-Datei `ADMIN_PASSWORD=...` eintragen, dann `docker compose up -d --build`.
    - Der Ordner für das Volume (`./data` bzw. in CasaOS z. B. `/DATA/AppData/novelsbyeverly/data`) enthält Einstellungen, Verbindungen und Zählerstände. Das ist alles, was du sichern musst.
 
    | Variable | Inhalt |
    |---|---|
    | `ADMIN_PASSWORD` | Passwort für `/admin/`, lang wählen |
-   | `TWITCH_CLIENT_ID` | aus der Twitch-App |
-   | `TWITCH_CLIENT_SECRET` | nur bei Client Type „Confidential“ |
+   | `TWITCH_CLIENT_ID` | optional: Ersatzwert, falls im Admin nichts eingetragen ist (Eingabe im Admin hat Vorrang) |
+   | `TWITCH_CLIENT_SECRET` | optional, wie oben; nur bei Client Type „Confidential“ |
    | `INGEST_TOKEN` | optional: Schlüssel für `/api/words` und `/api/musik` (Hilfsprogramme) |
    | `PORT` | optional, Standard 8888 |
 
-3. **Admin öffnen:** `http://CASAOS-IP:8888/admin/`, anmelden.
+3. **Admin öffnen:** `http://CASAOS-IP:8888/admin/`, anmelden, unter **Twitch & Chat** Client-ID (und ggf. Secret) eintragen und „Verbindung prüfen“ klicken.
 4. **Kanal mit Twitch verbinden:** Der Admin zeigt einen Code. Auf `twitch.tv/activate` eingeben und bestätigen (am Handy geht auch). Das läuft über den „Device Code“-Ablauf, deshalb braucht der Heimserver keine Weiterleitungs-Adresse.
 5. **Bot-Account verbinden:** eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen und über die Schaltfläche verbinden (den Code dabei in einem privaten Fenster mit dem Bot-Konto bestätigen). Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
 6. **Reward & Verbindung abgleichen** klicken. Die Statusanzeige oben sollte grün sein („Verbindung zu Twitch steht“). Reißt die Verbindung ab, baut der Server sie selbst wieder auf.
 7. **OBS:** Browser-Quelle mit `http://CASAOS-IP:8888/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
-8. Im Admin unter *Anordnung* alles an die gewünschte Stelle ziehen und speichern, unter *Szene* Darstellung sowie Jahres- und Tageszeit wählen.
+8. Im Admin unter **Overlay** alles an die gewünschte Stelle ziehen sowie Darstellung und Jahres- und Tageszeit wählen. Änderungen werden sofort gespeichert und sind ohne Neuladen im Overlay zu sehen.
 
 Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist (Phasenwechsel und Chat-Ansagen kommen vom Server). Es gibt `GET /healthz` für Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
+
+### Verwaltung: Aufbau, Sicherung und Update
+
+Der Admin ist in Bereiche gegliedert: *Übersicht* (Pomodoro, Tageswerte, Status), *Overlay* (Anordnung und Szene), *Ziele & Listen*, *Twitch & Chat* (Client-ID und Secret, Verbindungen, Chat), *Einstellungen*, *Community & Test* und *System*. Das Overlay erfährt von Änderungen über einen Live-Kanal (`/api/overlay/live`) sofort; der Abruf alle 3 Sekunden bleibt als Rückfall.
+
+Unter **System** gibt es:
+
+- **Sicherung:** lädt alle Daten als ZIP herunter, wahlweise mit oder ohne Twitch-Zugänge und Secret.
+- **Wiederherstellen:** spielt eine Sicherungs-ZIP ein. Vorher legt der Server eine automatische Sicherung des jetzigen Stands an (die letzten 8 bleiben unter `data/backups/`). Fehlen der Sicherung die Zugänge, bleiben die jetzigen erhalten.
+- **Update:** nimmt eine ZIP der neuen Version (Ordner `server`, `public` und `package.json`, auch „Download ZIP“ von GitHub mit Oberordner). Der Server prüft die Dateien, sichert die Daten, legt das Update unter `data/app/` ab und startet neu; `restart: unless-stopped` im Compose sorgt dafür, dass er wieder hochkommt. Lässt sich ein Update nicht laden, startet automatisch die eingebaute Version. Notausgang: den Ordner `data/app` löschen oder `COWORK_SAFE=1` setzen. Änderungen am `Dockerfile` oder an `docker-compose.yml` sind so nicht möglich, dafür weiter `docker compose up -d --build`.
 
 ## Wortzähler und Papyrus Autor
 
@@ -143,10 +153,10 @@ Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt si
 
 ```
 npm test                                  # Ende-zu-Ende-Tests mit simulierter Twitch-API und simuliertem WebSocket
-ADMIN_PASSWORD=geheim TWITCH_CLIENT_ID=deine-id npm start   # http://localhost:8888/admin/
+ADMIN_PASSWORD=geheim npm start   # http://localhost:8888/admin/
 ```
 
-Es gibt keine Abhängigkeiten (Node 22 genügt). Daten landen in `./data`. Ohne `TWITCH_CLIENT_ID` laufen Overlay und Admin trotzdem, nur die Verbindung zu Twitch bleibt aus.
+Es gibt keine Abhängigkeiten (Node 22 genügt). Daten landen in `./data`. Ohne Client-ID laufen Overlay und Admin trotzdem, nur die Verbindung zu Twitch bleibt aus.
 
 Aufbau:
 - `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Teich, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/fenster.mjs`: Fenster-Ansicht (Leseecke, Arbeitsplatz, Ausblicke, Wetter) · `public/js/figur.mjs`: Chibi-Figuren (Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände

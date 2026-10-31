@@ -608,4 +608,160 @@ await test('Admin: Seiten und Streamzeit', async () => {
   assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
 });
 
+console.log('Zugangsdaten, Sicherung und Update');
+const zipLib = await mod('lib/zip.mjs');
+const sys = await mod('lib/admin/system.mjs');
+const appLib = await mod('lib/twitch-app.mjs');
+const live = await mod('lib/live.mjs');
+let restarts = 0;
+sys.setRestart(() => { restarts += 1; });
+const adminLogin = async () => (await adminCall('POST', 'login', { password: 'geheim' })).headers.get('set-cookie').split(';')[0];
+const rawCall = (method, p, cookie, body, type = 'application/zip') => admin(new Request(`https://x/api/admin/${p}`, { method, headers: { 'content-type': type, cookie }, body }));
+
+await test('ZIP: Rundlauf, Beschädigung und unsichere Pfade', async () => {
+  const zip = zipLib.writeZip([{ name: 'a/b.txt', data: Buffer.from('hallo '.repeat(100)) }, { name: 'leer.json', data: Buffer.alloc(0) }, { name: 'umläut.json', data: Buffer.from('{"ü":1}') }]);
+  const back = zipLib.readZip(zip);
+  assert.deepEqual(back.map((e) => e.name), ['a/b.txt', 'leer.json', 'umläut.json']);
+  assert.equal(back[0].data.toString(), 'hallo '.repeat(100));
+  assert.throws(() => zipLib.readZip(Buffer.from('kein zip')), /keine gültige ZIP/);
+  const bad = Buffer.from(zip); bad[40] ^= 0xff; // Inhalt verändern
+  assert.throws(() => zipLib.readZip(bad));
+  assert.throws(() => zipLib.readZip(zipLib.writeZip([{ name: '../draussen.txt', data: Buffer.from('x') }])), /Unsicher/);
+  assert.throws(() => zipLib.readZip(zipLib.writeZip([{ name: '/etc/passwd', data: Buffer.from('x') }])), /Unsicher/);
+  assert.throws(() => zipLib.readZip(zip, { maxBytes: 10 }), /zu groß/);
+});
+
+await test('Twitch-App: Client-ID und Secret im Admin, Secret bleibt geheim', async () => {
+  const cookie = await adminLogin();
+  assert.equal((await adminCall('GET', 'twitch-app')).status, 401);
+  let a = (await adminCall('GET', 'twitch-app', null, cookie)).body;
+  assert.equal(a.clientId, 'cid'); assert.equal(a.idSource, 'env'); assert.equal(a.hasSecret, false);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientId: 'zu kurz!' }, cookie)).status, 400);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientSecret: 'x' }, cookie)).status, 400);
+  // gleiche ID neu eintragen: Anmeldungen bleiben
+  const same = await adminCall('PUT', 'twitch-app', { clientId: 'cid' + 'a'.repeat(20) }, cookie);
+  assert.equal(same.status, 200); assert.equal(same.body.disconnected, true); // andere ID als die Umgebungsvariable -> alte Anmeldungen verworfen
+  assert.equal(await db.get('config/tokens'), null);
+  const put = await adminCall('PUT', 'twitch-app', { clientSecret: 's'.repeat(30) }, cookie);
+  assert.equal(put.body.hasSecret, true); assert.equal(put.body.disconnected, false);
+  assert.ok(!JSON.stringify(put.body).includes('ssssss')); // das Secret verlässt den Server nie
+  assert.ok(!JSON.stringify((await adminCall('GET', 'state', null, cookie)).body).includes('ssssss'));
+  // Twitch-Aufrufe nehmen die gespeicherten Angaben
+  const { tokenRequest } = await mod('lib/twitch.mjs');
+  await tokenRequest({ grant_type: 'client_credentials' });
+  const sent = new URLSearchParams(calls.at(-1).raw);
+  assert.equal(sent.get('client_id'), 'cid' + 'a'.repeat(20)); assert.equal(sent.get('client_secret'), 's'.repeat(30));
+  const test = (await adminCall('POST', 'twitch-app/test', {}, cookie)).body;
+  assert.equal(test.ok, true);
+  // Geräte-Code-Anmeldung nutzt die gespeicherte ID
+  const start = await auth(new Request('https://x/api/auth/device/start', { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: '{}' }));
+  assert.equal(start.status, 200); assert.equal(new URLSearchParams(calls.at(-1).raw).get('client_id'), 'cid' + 'a'.repeat(20));
+  assert.equal((await adminCall('PUT', 'twitch-app', { clearSecret: true }, cookie)).body.hasSecret, false);
+  // zurück auf die Umgebungsvariable
+  await adminCall('PUT', 'twitch-app', { clientId: '' }, cookie);
+  assert.equal(appLib.twitchApp().clientId, 'cid');
+});
+
+// Anmeldungen für die folgenden Tests wiederherstellen
+await db.set('config/tokens', { access_token: 'tokB', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '999', login: 'streamerin', scopes: ['channel:read:redemptions', 'channel:manage:redemptions', 'user:write:chat', 'user:read:chat', 'user:bot', 'channel:bot'] });
+
+await test('Sicherung und Wiederherstellung', async () => {
+  const cookie = await adminLogin();
+  await adminCall('PUT', 'settings', { wordGoal: 777 }, cookie);
+  await adminCall('POST', 'pages', { mode: 'set', value: 11 }, cookie);
+  const res = await rawCall('GET', 'system/backup', cookie);
+  assert.equal(res.headers.get('content-type'), 'application/zip');
+  assert.match(res.headers.get('content-disposition'), /novelsbyeverly-sicherung-.*\.zip/);
+  const backup = Buffer.from(await res.arrayBuffer());
+  const names = zipLib.readZip(backup).map((e) => e.name);
+  assert.ok(names.includes('cowork-backup.json') && names.includes('daten/config%2Fsettings') && names.includes('daten/config%2Ftokens'));
+  assert.ok(!names.some((n) => n.includes('event%2F')));
+  const slim = Buffer.from(await (await rawCall('GET', 'system/backup?zugang=0', cookie)).arrayBuffer());
+  assert.ok(!zipLib.readZip(slim).some((e) => e.name.includes('tokens'))); // ohne Zugänge
+
+  // Stand verändern, dann zurückspielen
+  await adminCall('PUT', 'settings', { wordGoal: 5 }, cookie);
+  await adminCall('POST', 'pages', { mode: 'set', value: 99 }, cookie);
+  await db.set('extra/nur-jetzt', { a: 1 });
+  let r = await rawCall('POST', 'system/restore', cookie, backup);
+  assert.equal(r.status, 200);
+  const done = await r.json();
+  assert.ok(done.files > 3 && /^auto-vor-wiederherstellung-/.test(done.before));
+  assert.equal((await getSettings()).wordGoal, 777);
+  assert.equal((await adminCall('GET', 'pages', null, cookie)).body.today, 11);
+  assert.equal(await db.get('extra/nur-jetzt'), null); // was nicht in der Sicherung war, ist weg
+  assert.equal((await db.get('config/tokens')).login, 'streamerin');
+
+  // Sicherung ohne Zugänge: die jetzigen Anmeldungen bleiben erhalten
+  await db.set('config/tokens', { ...(await db.get('config/tokens')), login: 'neuer-login' });
+  assert.equal((await rawCall('POST', 'system/restore', cookie, slim)).status, 200);
+  assert.equal((await db.get('config/tokens')).login, 'neuer-login');
+
+  // Automatische Sicherung aus der Liste zurückspielen
+  const info = (await adminCall('GET', 'system/info', null, cookie)).body;
+  assert.ok(info.sicherungen.length >= 2 && info.version);
+  assert.equal((await adminCall('POST', 'system/restore', { name: info.sicherungen[0].name }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'system/restore', { name: '../../etc/passwd' }, cookie)).status, 400);
+  const dl = await rawCall('GET', `system/backups/${info.sicherungen[0].name}`, cookie);
+  assert.equal(dl.status, 200);
+  assert.equal((await adminCall('DELETE', `system/backups/${info.sicherungen[0].name}`, null, cookie)).status, 200);
+
+  // Ungeeignete Dateien werden abgelehnt, die Daten bleiben unberührt
+  const keep = (await getSettings()).wordGoal;
+  for (const bad of [Buffer.from('kein zip'), zipLib.writeZip([{ name: 'irgendwas.txt', data: Buffer.from('x') }]),
+    zipLib.writeZip([{ name: 'cowork-backup.json', data: Buffer.from('{"app":"novelsbyeverly"}') }, { name: 'daten/../x', data: Buffer.from('{}') }]),
+    zipLib.writeZip([{ name: 'cowork-backup.json', data: Buffer.from('{"app":"novelsbyeverly"}') }, { name: 'daten/config%2Fsettings', data: Buffer.from('kaputt') }])]) {
+    assert.equal((await rawCall('POST', 'system/restore', cookie, bad)).status, 400);
+  }
+  assert.equal((await getSettings()).wordGoal, keep);
+  assert.equal((await rawCall('POST', 'system/restore', undefined, backup)).status, 401); // nur angemeldet
+  assert.equal((await rawCall('POST', 'system/restore', cookie, backup, 'text/plain')).status, 415);
+});
+
+await test('Update per ZIP: prüfen, einspielen, entfernen', async () => {
+  const cookie = await adminLogin();
+  const { dataRoot } = await mod('lib/store.mjs');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const repo = path.resolve(import.meta.dirname, '..');
+  const files = [...walk(path.join(repo, 'server')), ...walk(path.join(repo, 'public')), path.join(repo, 'package.json')];
+  const make = (prefix, edit = (x) => x) => zipLib.writeZip(files.map((f) => ({ name: prefix + path.relative(repo, f).replaceAll('\\', '/'), data: edit(fs.readFileSync(f), path.relative(repo, f)) })));
+  const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'));
+
+  assert.equal((await rawCall('POST', 'system/update', cookie, Buffer.from('kein zip'))).status, 400);
+  assert.equal((await rawCall('POST', 'system/update', cookie, zipLib.writeZip([{ name: 'x.txt', data: Buffer.from('x') }]))).status, 400);
+  const foreign = make('', (d, rel) => (rel === 'package.json' ? Buffer.from(JSON.stringify({ name: 'fremd' })) : d));
+  assert.match((await (await rawCall('POST', 'system/update', cookie, foreign)).json()).error, /fremd/);
+  const broken = make('', (d, rel) => (rel === 'server/lib/zip.mjs' ? Buffer.from('export const kaputt = ;') : d));
+  const rejected = await rawCall('POST', 'system/update', cookie, broken);
+  assert.equal(rejected.status, 400); assert.match((await rejected.json()).error, /zip\.mjs/);
+  assert.equal(fs.existsSync(path.join(dataRoot(), 'app')), false); assert.equal(fs.existsSync(path.join(dataRoot(), 'app.next')), false);
+  assert.equal(restarts, 0);
+
+  const newer = make('Novelsbyeverly-main/', (d, rel) => (rel === 'package.json' ? Buffer.from(JSON.stringify({ ...pkg, version: '9.9.9' })) : d)); // wie bei „Download ZIP“ von GitHub: ein Oberordner
+  const ok = await rawCall('POST', 'system/update', cookie, newer);
+  assert.equal(ok.status, 200);
+  const res = await ok.json();
+  assert.equal(res.version, '9.9.9'); assert.equal(res.restart, true); assert.equal(restarts, 1);
+  assert.ok(fs.existsSync(path.join(dataRoot(), 'app/server/main.mjs')) && fs.existsSync(path.join(dataRoot(), 'app/public/admin/index.html')));
+  assert.ok(fs.readdirSync(path.join(dataRoot(), 'backups')).some((n) => n.startsWith('auto-vor-update-')));
+  const info = (await adminCall('GET', 'system/info', null, cookie)).body;
+  assert.equal(info.updateDa, true); assert.equal(info.updateVersion, '9.9.9');
+  assert.equal((await adminCall('POST', 'system/update-remove', {}, cookie)).status, 200);
+  assert.equal(fs.existsSync(path.join(dataRoot(), 'app')), false); assert.equal(restarts, 2);
+});
+
+await test('Live-Kanal: Änderungen gehen sofort ans Overlay', async () => {
+  const seen = [];
+  const fake = { writeHead() {}, write: (t) => seen.push(t) };
+  const listeners = [];
+  live.attach({ on: (e, f) => listeners.push([e, f]) }, fake);
+  await saveSettings({ jahreszeit: 'herbst' });
+  await adminCall('POST', 'test/event', { kind: 'goal' }, await adminLogin());
+  assert.ok(seen.some((t) => t.startsWith('event: settings')) && seen.some((t) => t.startsWith('event: event')));
+  assert.equal(live.listeners(), 1);
+  listeners.find(([e]) => e === 'close')[1]();
+  assert.equal(live.listeners(), 0);
+  await saveSettings({ jahreszeit: 'auto' });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

@@ -1,4 +1,5 @@
 import { db } from './store.mjs';
+import { twitchApp } from './twitch-app.mjs';
 
 // Zwei Verbindungen: der Kanal (Rewards, Chat mitlesen) und ein eigener Bot-Account (schreibt im Chat).
 export const ROLES = {
@@ -13,10 +14,11 @@ export const siteUrl = (req) =>
   (process.env.SITE_URL || (req ? new URL(req.url).origin : '')).replace(/\/$/, '');
 
 export async function tokenRequest(params) {
+  const app = twitchApp();
   const res = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: process.env.TWITCH_CLIENT_ID, ...(process.env.TWITCH_CLIENT_SECRET ? { client_secret: process.env.TWITCH_CLIENT_SECRET } : {}), ...params }),
+    body: new URLSearchParams({ client_id: app.clientId, ...(app.clientSecret ? { client_secret: app.clientSecret } : {}), ...params }),
   });
   if (!res.ok) throw new Error(`Twitch-Token: ${res.status} ${await res.text()}`);
   return res.json();
@@ -50,7 +52,7 @@ export async function helix(method, endpoint, { query, body, as = 'broadcaster' 
   const token = (await userToken(as)).access_token;
   const res = await fetch(url, {
     method,
-    headers: { Authorization: `Bearer ${token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { Authorization: `Bearer ${token}`, 'Client-Id': twitchApp().clientId, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const raw = await res.text();

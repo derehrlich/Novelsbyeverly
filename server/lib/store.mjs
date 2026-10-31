@@ -15,8 +15,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Wurzel aller Daten (Einstellungen, Sicherungen, eingespieltes Update)
+export const dataRoot = () => path.resolve(process.env.LOCAL_STORE_DIR || process.env.DATA_DIR || './data');
+
 function fileStore(name) {
-  const dir = path.join(process.env.LOCAL_STORE_DIR || process.env.DATA_DIR || './data', name);
+  const dir = path.join(dataRoot(), name);
   fs.mkdirSync(dir, { recursive: true });
   const f = (k) => path.join(dir, encodeURIComponent(k));
   return {

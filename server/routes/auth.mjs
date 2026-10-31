@@ -5,6 +5,7 @@ import { db } from '../lib/store.mjs';
 import { hasSession, json } from '../lib/http.mjs';
 import { ROLES, toStored } from '../lib/twitch.mjs';
 import { startEventSub } from '../lib/eventsub.mjs';
+import { twitchApp } from '../lib/twitch-app.mjs';
 
 export const config = { path: ['/api/auth/device/start', '/api/auth/device/poll'] };
 
@@ -14,14 +15,15 @@ const roleOf = (body) => (body.role === 'bot' ? 'bot' : 'broadcaster');
 export default async (req) => {
   if (!hasSession(req)) return json({ error: 'Bitte zuerst im Admin-Bereich anmelden' }, 401);
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-  if (!process.env.TWITCH_CLIENT_ID) return json({ error: 'TWITCH_CLIENT_ID fehlt' }, 500);
+  const clientId = twitchApp().clientId;
+  if (!clientId) return json({ error: 'Die Twitch-Client-ID fehlt – bitte unter „Twitch“ eintragen' }, 400);
   const body = await req.json().catch(() => ({}));
   const role = roleOf(body);
   const scopes = ROLES[role].scopes.join(' ');
   const path = new URL(req.url).pathname;
 
   if (path.endsWith('/start')) {
-    const res = await fetch('https://id.twitch.tv/oauth2/device', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form({ client_id: process.env.TWITCH_CLIENT_ID, scopes }) });
+    const res = await fetch('https://id.twitch.tv/oauth2/device', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form({ client_id: clientId, scopes }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return json({ error: `Twitch: ${data.message ?? res.status}` }, 502);
     return json({ role, device_code: data.device_code, user_code: data.user_code, verification_uri: data.verification_uri, interval: data.interval ?? 5, expires_in: data.expires_in });
@@ -30,7 +32,7 @@ export default async (req) => {
   if (!body.device_code) return json({ error: 'device_code fehlt' }, 400);
   const res = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form({ client_id: process.env.TWITCH_CLIENT_ID, scopes, device_code: body.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }),
+    body: form({ client_id: clientId, scopes, device_code: body.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }),
   });
   const t = await res.json().catch(() => ({}));
   if (!res.ok) {

@@ -1,68 +1,24 @@
-// Der Server: liefert Overlay und Admin aus, stellt die API bereit und hält die Verbindung zu Twitch (EventSub-WebSocket).
-// Läuft im Heimnetz, z. B. als Docker-Container auf CasaOS (siehe Dockerfile und docker-compose.yml). Daten liegen in DATA_DIR.
-//   ADMIN_PASSWORD=geheim TWITCH_CLIENT_ID=... node server/index.mjs   →  http://localhost:8888/admin/
-import http from 'node:http';
+// Startpunkt. Ist im Datenordner ein Update eingespielt (<Datenordner>/app, siehe Admin → System), startet der Server daraus;
+// scheitert das Laden, läuft die eingebaute Version weiter. Notausgang: den Ordner „app“ im Datenordner löschen
+// oder COWORK_SAFE=1 setzen.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '..');
 process.env.DATA_DIR ??= fs.existsSync('/data') ? '/data' : path.join(root, 'data');
-const port = Number(process.env.PORT ?? 8888);
+const dataRoot = path.resolve(process.env.LOCAL_STORE_DIR || process.env.DATA_DIR);
+const update = path.join(dataRoot, 'app', 'server', 'main.mjs');
 
-// Erst jetzt laden: Die Module legen den Speicher beim Import an und brauchen DATA_DIR.
-const routes = [];
-for (const file of fs.readdirSync(path.join(root, 'server/routes'))) {
-  const mod = await import(pathToFileURL(path.join(root, 'server/routes', file)).href);
-  for (const p of [mod.config.path].flat()) routes.push({ p, handler: mod.default });
-}
-const { startEventSub } = await import('./lib/eventsub.mjs');
-const { getSettings } = await import('./lib/settings.mjs');
-const { tick } = await import('./lib/timer.mjs');
-
-const match = (pathname) => routes.find(({ p }) => (p.endsWith('/*') ? pathname.startsWith(p.slice(0, -1)) : pathname === p));
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.txt': 'text/plain', '.json': 'application/json' };
-const redirects = { '/': '/admin/', '/overlay': '/overlay.html' };
-const publicDir = path.join(root, 'public');
-const MAX_BODY = 1_000_000;
-
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+let started = false;
+if (!process.env.COWORK_SAFE && fs.existsSync(update)) {
   try {
-    if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
-    const route = match(url.pathname);
-    if (route) {
-      const chunks = []; let size = 0;
-      for await (const c of req) { size += c.length; if (size > MAX_BODY) { res.writeHead(413); return res.end('Zu groß'); } chunks.push(c); }
-      const body = ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks);
-      const out = await route.handler(new Request(url, { method: req.method, headers: req.headers, body }));
-      const headers = {}; // mehrere Set-Cookie-Zeilen bleiben getrennt
-      for (const [k, v] of out.headers) if (k !== 'set-cookie') headers[k] = v;
-      const cookies = out.headers.getSetCookie?.() ?? [];
-      res.writeHead(out.status, cookies.length ? { ...headers, 'set-cookie': cookies } : headers);
-      return res.end(Buffer.from(await out.arrayBuffer()));
-    }
-    let file = redirects[url.pathname] ?? url.pathname;
-    if (file.endsWith('/')) file += 'index.html';
-    const target = path.join(publicDir, path.normalize(file));
-    if (!target.startsWith(publicDir + path.sep) || !fs.existsSync(target) || fs.statSync(target).isDirectory()) { res.writeHead(404); return res.end('Nicht gefunden'); }
-    res.writeHead(200, { 'content-type': TYPES[path.extname(target)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
-    res.end(fs.readFileSync(target));
+    await import(pathToFileURL(update).href);
+    started = true;
+    console.log('Update aus dem Datenordner geladen.');
   } catch (e) {
-    console.error(e);
-    if (!res.headersSent) res.writeHead(500);
-    res.end('Fehler');
+    console.error('Das eingespielte Update lässt sich nicht laden, starte die eingebaute Version:', e.message);
   }
-});
-
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Läuft auf Port ${port}: Admin /admin/ · Overlay /overlay · Daten in ${process.env.DATA_DIR}`);
-  if (!process.env.ADMIN_PASSWORD) console.warn('Achtung: ADMIN_PASSWORD ist nicht gesetzt, der Admin-Bereich bleibt gesperrt.');
-  if (!process.env.TWITCH_CLIENT_ID) console.warn('Hinweis: TWITCH_CLIENT_ID fehlt, die Verbindung zu Twitch ist aus.');
-  else startEventSub().then(() => console.log('Twitch: Verbindung ok')).catch((e) => console.warn('Twitch:', e.message));
-});
-
-// Ohne Overlay und Chat läuft der Timer trotzdem weiter: Phasenwechsel und Ansagen kommen von hier.
-setInterval(async () => { try { await tick(await getSettings()); } catch (e) { console.warn('Timer:', e.message); } }, 5000).unref();
-
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log('Beende …'); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 3000).unref(); });
+}
+if (!started) await import('./main.mjs');

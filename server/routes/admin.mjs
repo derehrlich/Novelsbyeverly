@@ -5,11 +5,13 @@ import { config as settingsRoute } from '../lib/admin/config.mjs';
 import { setup } from '../lib/admin/setup.mjs';
 import { musik, pages, seats, stream, tasks, tests, timer, words } from '../lib/admin/control.mjs';
 import { exportCsv, users } from '../lib/admin/users.mjs';
+import { twitchAppRoute } from '../lib/admin/twitch-app.mjs';
+import { system } from '../lib/admin/system.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv };
+const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, 'twitch-app': twitchAppRoute, system };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);
@@ -30,8 +32,9 @@ export default async (req) => {
   if (route[0] === 'logout' && method === 'POST') return json({ ok: true }, 200, { 'set-cookie': cookie(req, 'session', '', 0) });
 
   if (!hasSession(req)) return json({ error: 'Nicht angemeldet', adminEnabled: adminEnabled() }, 401);
-  // Schreibende Aufrufe nur als JSON, das schützt zusätzlich vor Formular-Angriffen von fremden Seiten
-  if (writes && !isJson) return json({ error: 'Content-Type muss application/json sein' }, 415);
+  // Schreibende Aufrufe nur als JSON (oder ZIP beim Hochladen), das schützt zusätzlich vor Formular-Angriffen von fremden Seiten
+  const isZip = route[0] === 'system' && req.headers.get('content-type')?.includes('application/zip');
+  if (writes && !isJson && !isZip) return json({ error: 'Content-Type muss application/json sein' }, 415);
 
   try {
     const handler = ROUTES[route[0]];

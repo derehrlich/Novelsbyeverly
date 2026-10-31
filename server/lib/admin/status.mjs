@@ -7,6 +7,7 @@ import { getWords } from '../words.mjs';
 import { json } from '../http.mjs';
 import { ROLES, siteUrl, storedTokens } from '../twitch.mjs';
 import { info as eventsub } from '../eventsub.mjs';
+import { twitchApp } from '../twitch-app.mjs';
 
 const missing = (tokens, role) => (tokens ? ROLES[role].scopes.filter((sc) => Array.isArray(tokens.scopes) && !tokens.scopes.includes(sc)) : []);
 
@@ -18,8 +19,8 @@ export async function status({ req, route, method }) {
   const state = (await db.get('config/state')) ?? {};
   return json({
     env: {
-      TWITCH_CLIENT_ID: Boolean(process.env.TWITCH_CLIENT_ID),
-      TWITCH_CLIENT_SECRET: Boolean(process.env.TWITCH_CLIENT_SECRET),
+      TWITCH_CLIENT_ID: Boolean(twitchApp().clientId),
+      TWITCH_CLIENT_SECRET: Boolean(twitchApp().clientSecret),
       INGEST_TOKEN: Boolean(process.env.INGEST_TOKEN),
     },
     connectedAs: channel?.login ?? null,

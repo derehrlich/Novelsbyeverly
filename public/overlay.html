@@ -372,6 +372,7 @@ function renderMusik() {
 
 function apply(data) {
   const first = view === null;
+  if (q.has('editor') && view) data.layout = view.layout; // die Vorschau im Admin bestimmt die Anordnung selbst
   offset = data.now - Date.now();
   view = data;
   for (const ev of data.events ?? []) handleEvent(ev);
@@ -409,6 +410,8 @@ if (demo) {
 } else {
   await poll();
   setInterval(poll, 3000);
+  // Der Server meldet Änderungen aus dem Admin sofort; der Abruf alle 3 Sekunden bleibt als Rückfall.
+  try { const live = new EventSource('/api/overlay/live'); for (const k of ['settings', 'event']) live.addEventListener(k, poll); } catch { /* dann eben nur der Abruf */ }
 }
 
 // ---- Schleifen
