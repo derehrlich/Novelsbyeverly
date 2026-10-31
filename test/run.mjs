@@ -693,10 +693,10 @@ await test('ZIP: schreiben und lesen, Umlaute und Unterordner', async () => {
   assert.throws(() => readZip(Buffer.from('kein zip')), /keine gültige ZIP/);
 });
 await test('Update-ZIP: umschließender Ordner wird abgestreift, Fremdes ignoriert, Pflichtdateien geprüft', async () => {
-  const gut = { 'server/index.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': 'x', 'README.md': 'egal', 'docker-compose.yml': 'egal' };
+  const gut = { 'server/index.mjs': '1', 'server/main.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': 'x', 'README.md': 'egal', 'docker-compose.yml': 'egal' };
   const e = updateMod.programmEintraege(readZip(zipOf(Object.fromEntries(Object.entries(gut).map(([k, v]) => [`novelsbyeverly/${k}`, v])))));
-  assert.deepEqual([...e.keys()].sort(), ['VERSION.txt', 'public/overlay.html', 'server/index.mjs', 'server/update.mjs']);
-  assert.equal(updateMod.programmEintraege(readZip(zipOf(gut))).size, 4);
+  assert.deepEqual([...e.keys()].sort(), ['VERSION.txt', 'public/overlay.html', 'server/index.mjs', 'server/main.mjs', 'server/update.mjs']);
+  assert.equal(updateMod.programmEintraege(readZip(zipOf(gut))).size, 5);
   assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ 'server/index.mjs': '1' }))), /kein Update für dieses Programm/);
   assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ ...gut, 'server/../../x.mjs': '1' }))), /Unzulässiger Pfad/);
 });
@@ -720,7 +720,7 @@ await test('Update einspielen: neues Programm, Sicherung des alten, fehlerhaftes
   fs.writeFileSync(path.join(app, 'VERSION.txt'), '1.0 alt'); fs.writeFileSync(path.join(app, 'package.json'), '{}');
   const { spawnSync } = await import('node:child_process');
   const lauf = () => spawnSync(process.execPath, ['-e', "import('./server/update.mjs').then((m) => console.log('NEUSTART=' + m.wendeAnstehendesAn()))"], { cwd: app, env: { ...process.env, DATA_DIR: data, LOCAL_STORE_DIR: '' }, encoding: 'utf8' });
-  const programm = { 'server/index.mjs': 'export {};', 'server/update.mjs': fs.readFileSync('server/update.mjs', 'utf8'), 'server/core/config.mjs': fs.readFileSync('server/core/config.mjs', 'utf8'), 'server/core/zip.mjs': fs.readFileSync('server/core/zip.mjs', 'utf8'), 'server/core/sicherung.mjs': fs.readFileSync('server/core/sicherung.mjs', 'utf8'), 'public/overlay.html': 'neu', 'VERSION.txt': '2.0 neu', 'package.json': '{}' };
+  const programm = { 'server/index.mjs': 'export {};', 'server/main.mjs': 'export {};', 'server/update.mjs': fs.readFileSync('server/update.mjs', 'utf8'), 'server/core/config.mjs': fs.readFileSync('server/core/config.mjs', 'utf8'), 'server/core/zip.mjs': fs.readFileSync('server/core/zip.mjs', 'utf8'), 'server/core/sicherung.mjs': fs.readFileSync('server/core/sicherung.mjs', 'utf8'), 'public/overlay.html': 'neu', 'VERSION.txt': '2.0 neu', 'package.json': '{}' };
   // 1) fehlerhaft: Syntaxfehler
   fs.writeFileSync(path.join(data, 'update.zip'), zipOf({ ...programm, 'server/kaputt.mjs': 'const = ;' }));
   let r = lauf(); assert.match(r.stdout, /NEUSTART=false/);
@@ -750,7 +750,7 @@ await test('System-API: nur mit Login, Update-Upload wird geprüft und vorgemerk
   assert.equal((await call('POST', 'update', { body: 'kein zip', type: 'application/zip', cookie })).status, 400);
   assert.equal((await call('POST', 'update', { body: zipOf({ 'foo.txt': 'x' }), type: 'application/zip', cookie })).status, 400); // kein Programm
   assert.equal(neustarts, 0);
-  const gut = zipOf({ 'server/index.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': '9.9 test' });
+  const gut = zipOf({ 'server/index.mjs': '1', 'server/main.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': '9.9 test' });
   assert.equal((await call('POST', 'update', { body: gut, type: 'application/zip', cookie })).status, 200);
   assert.ok(fs.existsSync(path.join(dataDir, 'update.zip'))); assert.equal(neustarts, 1);
   fs.rmSync(path.join(dataDir, 'update.zip'));

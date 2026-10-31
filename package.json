@@ -1,6 +1,6 @@
 {
   "name": "novelsbyeverly",
-  "version": "1.0.0",
+  "version": "1.4.1",
   "description": "Co-Working-Overlay und Twitch-Bot mit Admin-Oberfläche, läuft als Container im Heimnetz (CasaOS)",
   "type": "module",
   "private": true,

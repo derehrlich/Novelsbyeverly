@@ -1,1 +1,1 @@
-1.4.0 – Pomodoro mit festem Ablauf (Länge, Pause, Wiederholungen), Anhalten/Fortsetzen, Start- und Endton
+1.4.1 – Pomodoro mit festem Ablauf (Länge, Pause, Wiederholungen), Anhalten/Fortsetzen, Start- und Endton; Update-ZIP auch für ältere Installationen

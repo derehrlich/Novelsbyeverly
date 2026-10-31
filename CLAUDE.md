@@ -10,7 +10,7 @@
 - **Der Datenordner (`/data`) wird nie überschrieben.** Programm-Updates tauschen nur `server/`, `public/`, `package.json`, `VERSION.txt` aus.
 - **Keine Zusatzpakete:** `package.json` hat keine Abhängigkeiten (Node 22 reicht). Auch ZIP lesen/schreiben (`server/core/zip.mjs`) ist selbst gebaut. Neue Pakete nur nach Rücksprache, weil das Programm als reiner Ordner per ZIP aktualisiert wird.
 - **Nur Heimnetz:** Der Admin ist nur durch ein Passwort geschützt. Nie ins Internet stellen.
-- **Bei jedem Release `VERSION.txt` ändern** (Marcel prüft damit unter Admin → System, ob das Update angekommen ist).
+- **Bei jedem Release `VERSION.txt` und `version` in `package.json` auf dieselbe Nummer setzen** (`npm run zip` prüft das) (Marcel prüft damit unter Admin → System, ob das Update angekommen ist).
 
 ## Betrieb
 - `docker-compose.yml`: Image `node:22-alpine`, `/DATA/AppData/novelsbyeverly/app` → `/app` (Programm), `…/data` → `/data` (Daten), Port 8888. Startbefehl `node server/index.mjs`. `restart: unless-stopped`, deshalb reicht `process.exit(1)` für einen Neustart.

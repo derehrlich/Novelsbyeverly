@@ -29,7 +29,7 @@ export function programmEintraege(entries) {
     if (!rel || rel.startsWith('/') || rel.split('/').includes('..')) throw new Error(`Unzulässiger Pfad in der ZIP: ${e.name}`);
     if (PROGRAMM_TEILE.includes(rel.split('/')[0])) out.set(rel, e);
   }
-  for (const pflicht of ['server/index.mjs', 'server/update.mjs', 'public/overlay.html', 'VERSION.txt']) {
+  for (const pflicht of ['server/index.mjs', 'server/main.mjs', 'server/update.mjs', 'public/overlay.html', 'VERSION.txt']) {
     if (!out.has(pflicht)) throw new Error(`Das ist kein Update für dieses Programm (${pflicht} fehlt)`);
   }
   return out;

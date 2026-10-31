@@ -21,6 +21,8 @@ export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 // Teile des Programms, die ein Update austauscht (alles andere in der ZIP wird ignoriert)
 export const PROGRAMM_TEILE = ['server', 'public', 'package.json', 'VERSION.txt'];
 
+// Version: erste Zeile aus VERSION.txt; fehlt die Datei (ältere Installationen kopieren nur server, public und package.json), die aus package.json
 export function version() {
-  try { return fs.readFileSync(path.join(APP_DIR, 'VERSION.txt'), 'utf8').trim(); } catch { return 'unbekannt'; }
+  try { return fs.readFileSync(path.join(APP_DIR, 'VERSION.txt'), 'utf8').trim(); } catch { /* weiter */ }
+  try { return `${JSON.parse(fs.readFileSync(path.join(APP_DIR, 'package.json'), 'utf8')).version}`; } catch { return 'unbekannt'; }
 }

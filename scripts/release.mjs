@@ -14,7 +14,12 @@ const walk = (abs, rel) => {
   else if (!/\.DS_Store$/.test(abs)) entries.push({ name: rel, data: fs.readFileSync(abs) });
 };
 for (const teil of PROGRAMM_TEILE) walk(path.join(root, teil), teil);
+// Platzhalter für ältere Installationen: Deren eingebaute Update-Prüfung (Launcher-Version 1.1.0) verlangt diese beiden Dateien aus
+// der früheren Ordnerstruktur. Sie sind leer und werden nur in die ZIP gelegt, nicht ins Projekt.
+const BRUECKE = '// Platzhalter für die Update-Prüfung älterer Versionen, ohne Funktion.\nexport {};\n';
+for (const name of ['server/lib/store.mjs', 'server/routes/admin.mjs']) entries.push({ name, data: Buffer.from(BRUECKE) });
 const version = fs.readFileSync(path.join(root, 'VERSION.txt'), 'utf8').trim().split(/\s/)[0];
+if (JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version !== version) throw new Error(`Versionen passen nicht: VERSION.txt sagt ${version}, package.json etwas anderes. Bitte beide gleich setzen.`);
 const out = path.join(root, `novelsbyeverly-${version}.zip`);
 fs.writeFileSync(out, writeZip(entries));
 console.log(`${path.basename(out)}: ${entries.length} Dateien, ${(fs.statSync(out).size / 1048576).toFixed(1)} MB`);
