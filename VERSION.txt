@@ -1,1 +1,1 @@
-1.2.0 – Twitch-App (Client-ID und Secret) im Admin eintragbar, Live-Kanal: Änderungen erscheinen sofort im Overlay
+1.3.0 – Stream-Panel für die schnelle Bedienung (Pomodoro, Längen, Ziel)

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Stream-Panel</title>
+<link rel="stylesheet" href="admin.css">
+<style>
+  main { max-width: 440px; padding: 12px 12px 40px; }
+  .panel-kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .panel-kopf h1 { font-size: 22px; margin: 0; } .panel-kopf a { font-size: 14px; color: var(--leise); }
+  .anzeige { text-align: center; padding: 10px 0 4px; }
+  .anzeige .zeit { font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .anzeige .phase { display: inline-block; margin-top: 6px; padding: 2px 14px; border-radius: 20px; color: #fff; background: #a09280; font-weight: 600; }
+  .anzeige .phase.focus { background: var(--gruen); } .anzeige .phase.break { background: var(--orange); }
+  .anzeige .stand { margin-top: 6px; color: var(--leise); }
+  .balken { height: 12px; border-radius: 8px; background: rgba(139, 94, 60, .18); overflow: hidden; margin: 10px 0 2px; } .balken i { display: block; height: 100%; width: 0; background: var(--gruen); transition: width .5s; }
+  .gross { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin: 10px 0; } .gross button { padding: 14px 6px; font-size: 18px; }
+  .zaehler { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 2px; } .zaehler button { padding: 6px 16px; font-size: 20px; }
+  .werte { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; } .werte label { font-weight: 600; font-size: 14px; display: block; } .werte input { width: 100%; font-size: 20px; }
+  .gespeichert { color: var(--gruen); font-size: 14px; min-height: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>Stream-Panel</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="panel-kopf"><h1>⏱️ Stream-Panel</h1><span><a href="/admin/">Admin</a> · <a href="#" id="abmelden">Abmelden</a></span></div>
+
+    <section class="karte">
+      <div class="anzeige">
+        <div class="zeit" id="zeit">–</div>
+        <span class="phase" id="phase">Bereit</span>
+        <div class="stand" id="stand"></div>
+      </div>
+      <div class="balken"><i id="balken"></i></div>
+      <div class="gross">
+        <button class="gruen" id="fokus">▶ Pomodoro</button>
+        <button class="orange" id="pause">☕</button>
+        <button class="rot" id="stopp">■</button>
+      </div>
+      <div class="zaehler"><button class="hell" id="minus" title="Eins abziehen">−</button><span>Heute geschafft: <b id="geschafft">0</b> von <b id="ziel">0</b></span><button class="hell" id="plus" title="Eins dazuzählen">+</button></div>
+    </section>
+
+    <section class="karte">
+      <div class="werte">
+        <div><label for="focusMinutes">Pomodoro (Min)</label><input type="number" inputmode="numeric" id="focusMinutes" min="1" max="180"></div>
+        <div><label for="breakMinutes">Pause (Min)</label><input type="number" inputmode="numeric" id="breakMinutes" min="1" max="60"></div>
+        <div><label for="longBreakMinutes">Lange Pause (Min)</label><input type="number" inputmode="numeric" id="longBreakMinutes" min="1" max="90"></div>
+        <div><label for="longBreakEvery">Lange Pause nach … (0 = nie)</label><input type="number" inputmode="numeric" id="longBreakEvery" min="0" max="12"></div>
+        <div><label for="pomodoroGoal">Ziel heute (Anzahl)</label><input type="number" inputmode="numeric" id="pomodoroGoal" min="0" max="30"></div>
+        <div><label for="einmal">Nur dieses Mal (Min)</label><input type="number" inputmode="numeric" id="einmal" min="1" max="180" placeholder="Standard"></div>
+      </div>
+      <div class="gespeichert" id="gespeichert"></div>
+      <label class="zeile"><input type="checkbox" id="autoBreak"> Nach dem Pomodoro automatisch Pause</label>
+      <label class="zeile"><input type="checkbox" id="autoCycle"> Nach der Pause automatisch weiter</label>
+    </section>
+  </div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="panel.js"></script>
+</body>
+</html>

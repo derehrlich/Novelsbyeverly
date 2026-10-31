@@ -36,7 +36,7 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 
 ## Oberfläche (`public/`)
 - `overlay.html` + `js/`: das Overlay (OBS-Browserquelle 1920×1080). `js/wachstum.mjs` (Landschaft), `js/fenster.mjs` (Fenster-Ansicht), `js/szene.mjs` (Module, Kamerarahmen, pausierter Zimmer-Modus), `js/design.mjs` (Farben/Schrift der Karten als CSS-Variablen, gemeinsam mit Server und Admin), `js/malerei.mjs` (Malwerkzeuge), `js/layout.mjs` (Positionen).
-- `admin/`: `index.html`+`betrieb.js` (Einrichtung, Pomodoro, Ziele, Aufgaben, Musik, Einstellungen), `studio.html`+`studio.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `common.js` (API, Meldungen, Login).
+- `admin/`: `index.html`+`betrieb.js` (Einrichtung, Pomodoro, Ziele, Aufgaben, Musik, Einstellungen), `studio.html`+`studio.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“), `panel.html`+`panel.js` (Stream-Panel: schlanke Seite für den Stream mit Start/Pause/Stopp, Längen, Ziel; jedes Feld speichert sich einzeln), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `common.js` (API, Meldungen, Login).
 - Die Vorschau im Admin ist das echte Overlay im iframe (`?editor=1`); der Admin schickt per `postMessage({type:'vorschau', patch})` ungespeicherte Änderungen hinein.
 - `docs/vorschau.html` (eigenständige Beispielseite) wird mit `node scripts/build-vorschau.mjs` neu erzeugt. Neue JS-Module des Overlays dort in die Liste `modules` eintragen; Namen dürfen sich zwischen Modulen nicht doppeln.
 

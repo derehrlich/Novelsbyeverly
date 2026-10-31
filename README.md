@@ -106,7 +106,7 @@ Schritt für Schritt (Installation, Umzug, Update, Sicherung) steht in **[ANLEIT
 7. **OBS:** Browser-Quelle mit `http://CASAOS-IP:8888/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
 8. Im Admin unter **Overlay** Darstellung, Design und Anordnung einstellen (mit Live-Vorschau).
 
-Der Admin hat drei Seiten: **Betrieb** (Einrichtung, Pomodoro, Ziele, To-Do, Musik, Einstellungen), **Overlay** (Vorschau, Anordnung, Szene, Fenster-Ansicht, Design der Karten, Module) und **System** (Version, Update per ZIP, älterer Programmstand, Datensicherungen). Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist. `GET /healthz` dient der Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
+Der Admin hat drei Seiten: **Betrieb** (Einrichtung, Pomodoro, Ziele, To-Do, Musik, Einstellungen), **Overlay** (Vorschau, Anordnung, Szene, Fenster-Ansicht, Design der Karten, Module) und **System** (Version, Update per ZIP, älterer Programmstand, Datensicherungen). Dazu gibt es das **Stream-Panel** (`/admin/panel.html`): eine schmale Seite für den Stream mit Pomodoro starten/Pause/Stopp, Länge, Pausenlänge, langer Pause, Ziel für heute und Zähler. Eingaben werden sofort gespeichert. Es lässt sich in OBS als Dock einbinden (OBS → Docks → Eigene Browser-Docks → Adresse eintragen, einmal anmelden) oder am Handy öffnen. Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist. `GET /healthz` dient der Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
 
 ## Wortzähler und Papyrus Autor
 
