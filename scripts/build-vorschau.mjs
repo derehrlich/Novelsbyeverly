@@ -25,9 +25,10 @@ if (css.includes('url(fonts/')) throw new Error('Schrift nicht eingebettet');
 
 // Module einbinden (ohne import/export)
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const modules = ['katalog', 'layout', 'jetztlaeuft', 'malerei', 'figur', 'wachstum', 'fenster', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
+const modules = ['katalog', 'layout', 'jetztlaeuft', 'malerei', 'figur', 'design', 'wachstum', 'fenster', 'szene'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
 script = must(script, "import { Szene, seatPos, moduleLayout } from './js/szene.mjs';", modules);
 script = must(script, "import { nowPlaying } from './js/jetztlaeuft.mjs';", '');
+script = must(script, "import { applyDesign } from './js/design.mjs';", '');
 script = must(script, "const ton = q.get('ton') !== 'aus';", 'let ton = false;');
 script = must(script, "const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };",
   "const wrap = $('rahmen');\nconst fit = () => { const s = wrap.clientWidth / 1920; stage.style.transform = `scale(${s})`; wrap.style.height = `${1080 * s}px`; };");

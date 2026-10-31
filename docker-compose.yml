@@ -1,27 +1,31 @@
-# Co-Working-Overlay für CasaOS (oder jeden Docker-Rechner).
-# CasaOS: App Store → „Eigene App installieren“ (oben rechts) → diese Datei einfügen. Oder per Terminal: docker compose up -d --build
+# Co-Working-Overlay auf CasaOS. Das Programm liegt im Ordner „app“ und wird über Admin → System per ZIP aktualisiert,
+# deshalb braucht es kein eigenes Image. Zugangsdaten stehen in data/novelsbyeverly.env (siehe ANLEITUNG_UPDATE.md), nicht hier.
+name: novelsbyeverly
 services:
   overlay:
-    build: .
-    image: novelsbyeverly:latest
+    image: node:22-alpine
     container_name: novelsbyeverly
     restart: unless-stopped
-    ports:
-      - "8888:8888"
+    working_dir: /app
+    command: ["node", "server/index.mjs"]
     environment:
-      ADMIN_PASSWORD: "bitte-aendern"          # Passwort für /admin/ (lang wählen)
-      TWITCH_CLIENT_ID: ""                      # aus https://dev.twitch.tv/console/apps (Client Type: Public)
-      TWITCH_CLIENT_SECRET: ""                  # leer lassen bei Public; nur bei „Confidential“ nötig
-      INGEST_TOKEN: ""                          # optional: Schlüssel für /api/words und /api/musik (Hilfsprogramme)
-      TZ: "Europe/Berlin"
+      TZ: Europe/Berlin
+      DATA_DIR: /data
+    ports:
+      - "8888:8888"      # Admin: http://<NAS-IP>:8888/admin/  ·  Overlay: http://<NAS-IP>:8888/overlay
     volumes:
-      - ./data:/data                            # CasaOS: z. B. /DATA/AppData/novelsbyeverly/data:/data
+      - /DATA/AppData/novelsbyeverly/app:/app
+      - /DATA/AppData/novelsbyeverly/data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
     x-casaos:
       title:
         de_de: Co-Working-Overlay
       description:
         de_de: Stream-Overlay, Admin-Oberfläche und Twitch-Bot für Schreib- und Co-Working-Streams.
-      category: Media
       port_map: "8888"
       index: /admin/
 x-casaos:
@@ -29,7 +33,5 @@ x-casaos:
   main: overlay
   author: derehrlich
   category: Media
-  tagline:
-    de_de: Overlay und Bot für Schreib-Streams
   title:
     de_de: Co-Working-Overlay

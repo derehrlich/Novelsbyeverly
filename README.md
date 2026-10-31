@@ -93,30 +93,20 @@ Nur im Zimmer-Modus: `!sitzen`, `!aufstehen`, `!figur`, `!rang`, `!szene`.
 
 ## Einrichtung (CasaOS oder jeder Docker-Rechner)
 
-Der Server ist ein kleiner Node-Container ohne weitere Abhängigkeiten. Er liefert Overlay und Admin aus, speichert alles in `/data` und hält selbst die Verbindung zu Twitch (EventSub per WebSocket). Dafür ruft er Twitch an, es muss also **nichts aus dem Internet auf den Server zugreifen**: keine Portfreigabe, keine Domain, kein Tunnel.
+Das Programm ist ein reiner Ordner ohne Zusatzpakete und läuft im Standard-Image `node:22-alpine`. Es liegt im Ordner `app` auf dem Server, die Daten im Ordner `data`. Updates lädst du als ZIP im Admin hoch (Admin → System), es muss nichts neu gebaut werden. Der Server hält selbst die Verbindung zu Twitch (EventSub per WebSocket): **nichts aus dem Internet muss auf den Server zugreifen**, keine Portfreigabe, keine Domain.
 
-1. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen: Client Type **Public**, OAuth Redirect URL `http://localhost` (wird nicht benutzt, Twitch verlangt aber eine). Die *Client-ID* kopieren, ein Secret braucht es bei „Public“ nicht.
-2. **Container starten.**
-   - *CasaOS:* im App Store oben rechts **„Eigene App installieren“** und den Inhalt von `docker-compose.yml` einfügen. Vorher `build: .` durch das fertige Image ersetzen oder das Repository auf dem Server auschecken und dort bauen (siehe unten).
-   - *Terminal:* Repository auschecken, in `docker-compose.yml` `ADMIN_PASSWORD` und `TWITCH_CLIENT_ID` eintragen, dann `docker compose up -d --build`.
-   - Der Ordner für das Volume (`./data` bzw. in CasaOS z. B. `/DATA/AppData/novelsbyeverly/data`) enthält Einstellungen, Verbindungen und Zählerstände. Das ist alles, was du sichern musst.
+Schritt für Schritt (Installation, Umzug, Update, Sicherung) steht in **[ANLEITUNG_UPDATE.md](ANLEITUNG_UPDATE.md)**. Kurzfassung:
 
-   | Variable | Inhalt |
-   |---|---|
-   | `ADMIN_PASSWORD` | Passwort für `/admin/`, lang wählen |
-   | `TWITCH_CLIENT_ID` | aus der Twitch-App |
-   | `TWITCH_CLIENT_SECRET` | nur bei Client Type „Confidential“ |
-   | `INGEST_TOKEN` | optional: Schlüssel für `/api/words` und `/api/musik` (Hilfsprogramme) |
-   | `PORT` | optional, Standard 8888 |
-
-3. **Admin öffnen:** `http://CASAOS-IP:8888/admin/`, anmelden.
-4. **Kanal mit Twitch verbinden:** Der Admin zeigt einen Code. Auf `twitch.tv/activate` eingeben und bestätigen (am Handy geht auch). Das läuft über den „Device Code“-Ablauf, deshalb braucht der Heimserver keine Weiterleitungs-Adresse.
-5. **Bot-Account verbinden:** eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen und über die Schaltfläche verbinden (den Code dabei in einem privaten Fenster mit dem Bot-Konto bestätigen). Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
-6. **Reward & Verbindung abgleichen** klicken. Die Statusanzeige oben sollte grün sein („Verbindung zu Twitch steht“). Reißt die Verbindung ab, baut der Server sie selbst wieder auf.
+1. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen: Client Type **Public**, OAuth Redirect URL `http://localhost` (wird nicht benutzt). *Client-ID* kopieren.
+2. Auf dem Server im Projektordner: `sudo sh scripts/installieren.sh`, dann in `/DATA/AppData/novelsbyeverly/data/novelsbyeverly.env` `ADMIN_PASSWORD` und `TWITCH_CLIENT_ID` eintragen und `docker compose up -d` starten.
+3. **Admin öffnen:** `http://CASAOS-IP:8888/admin/`.
+4. **Kanal mit Twitch verbinden:** Der Admin zeigt einen Code, den du auf `twitch.tv/activate` bestätigst (Device-Code-Ablauf, braucht keine Weiterleitungs-Adresse).
+5. **Bot-Account verbinden:** eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen und über die Schaltfläche verbinden (Code in einem privaten Fenster mit dem Bot-Konto bestätigen). Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
+6. **Reward & Verbindung abgleichen** klicken. Die Statusanzeige oben sollte grün sein.
 7. **OBS:** Browser-Quelle mit `http://CASAOS-IP:8888/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
-8. Im Admin unter *Anordnung* alles an die gewünschte Stelle ziehen und speichern, unter *Szene* Darstellung sowie Jahres- und Tageszeit wählen.
+8. Im Admin unter **Overlay** Darstellung, Design und Anordnung einstellen (mit Live-Vorschau).
 
-Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist (Phasenwechsel und Chat-Ansagen kommen vom Server). Es gibt `GET /healthz` für Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
+Der Admin hat drei Seiten: **Betrieb** (Einrichtung, Pomodoro, Ziele, To-Do, Musik, Einstellungen), **Overlay** (Vorschau, Anordnung, Szene, Fenster-Ansicht, Design der Karten, Module) und **System** (Version, Update per ZIP, älterer Programmstand, Datensicherungen). Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist. `GET /healthz` dient der Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
 
 ## Wortzähler und Papyrus Autor
 
@@ -144,23 +134,11 @@ Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt si
 ```
 npm test                                  # Ende-zu-Ende-Tests mit simulierter Twitch-API und simuliertem WebSocket
 ADMIN_PASSWORD=geheim TWITCH_CLIENT_ID=deine-id npm start   # http://localhost:8888/admin/
+npm run zip                               # Update-ZIP bauen (novelsbyeverly-<Version>.zip)
 ```
 
-Es gibt keine Abhängigkeiten (Node 22 genügt). Daten landen in `./data`. Ohne `TWITCH_CLIENT_ID` laufen Overlay und Admin trotzdem, nur die Verbindung zu Twitch bleibt aus.
+Es gibt keine Abhängigkeiten (Node 22 genügt). Daten landen in `./data`. Ohne `TWITCH_CLIENT_ID` laufen Overlay und Admin trotzdem, nur die Verbindung zu Twitch bleibt aus. Aufbau und Regeln für Änderungen stehen in **[CLAUDE.md](CLAUDE.md)**.
 
-Aufbau:
-- `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Teich, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/fenster.mjs`: Fenster-Ansicht (Leseecke, Arbeitsplatz, Ausblicke, Wetter) · `public/js/figur.mjs`: Chibi-Figuren (Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
-- `public/admin/`: Verwaltung mit Anordnungs-Editor
-- `server/index.mjs`: Server (statische Dateien, API, Timer-Takt, Start der Twitch-Verbindung) · `Dockerfile`, `docker-compose.yml`
-- `server/routes/`: `overlay` (Stand), `admin`, `auth` (Verbindung mit Twitch per Device-Code), `words-ingest`, `musik-ingest`
-- `server/lib/`: `eventsub` (WebSocket-Verbindung zu Twitch, Nachrichten verteilen), `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
-
-Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` (`szene.mjs`) und ein Eintrag in `layout.mjs` und `BOXEN` (`public/admin/admin.js`). Neue Jahreszeit oder Pflanze: in `wachstum.mjs` (`PAL`, `MIX` und die Zeichenfunktionen).
-
-Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene Illustrationen verwenden möchte, ersetzt die Zeichenfunktionen durch Bilder.
-
-## Hinweise
-
-- Es läuft kein Hintergrundprozess. Timer-Wechsel und Abrechnung holt das Overlay oder der Chat beim nächsten Abruf nach (spätestens nach wenigen Sekunden).
-- Wörter, die Zuschauer melden, beruhen auf Vertrauen und zählen nur für den Chat-Zähler.
-- Die Daten liegen in JSON-Dateien im Datenordner. Schreibzugriffe sind pro Person getrennt; sehr gleichzeitige Meldungen derselben Person könnten sich theoretisch überschreiben.
+- `server/`: `index.mjs` (Start), `update.mjs` (Update beim Start), `core/` (Server, Speicher, ZIP, Sicherung), `twitch/` (API, EventSub-WebSocket, Anmeldung), `features/` (Timer, Chat-Befehle, Wörter, Aufgaben, Einstellungen …), `api/` (Routen: Overlay, Admin, System, Schnittstellen)
+- `public/overlay.html` und `public/js/`: Overlay (Landschaft, Fenster-Ansicht, Karten, Design, Module)
+- `public/admin/`: Verwaltung (Betrieb, Overlay-Studio, System)

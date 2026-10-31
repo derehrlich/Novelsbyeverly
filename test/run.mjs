@@ -54,24 +54,24 @@ const chatSent = () => calls.filter((c) => c.path.endsWith('/chat/messages')).ma
 const lastChat = () => chatSent().at(-1);
 
 const mod = (rel) => import(`../server/${rel}`);
-const { db } = await mod('lib/store.mjs');
-const { getSettings, saveSettings, DEFAULTS, normalize } = await mod('lib/settings.mjs');
-const eventsub = await mod('lib/eventsub.mjs');
-const overlay = (await mod('routes/overlay.mjs')).default;
-const admin = (await mod('routes/admin.mjs')).default;
-const ingest = (await mod('routes/words-ingest.mjs')).default;
-const auth = (await mod('routes/auth.mjs')).default;
-const people = await mod('lib/people.mjs');
-const timerLib = await mod('lib/timer.mjs');
-const wordsLib = await mod('lib/words.mjs');
-const tasksLib = await mod('lib/tasks.mjs');
-const { ensureCheckinReward } = await mod('lib/twitch.mjs');
-const musikIngest = (await mod('routes/musik-ingest.mjs')).default;
-const { resolveSeason, resolveTime } = await mod('lib/zeiten.mjs');
-const { getMusik } = await mod('lib/musik.mjs');
+const { db } = await mod('core/store.mjs');
+const { getSettings, saveSettings, DEFAULTS, normalize } = await mod('features/settings.mjs');
+const eventsub = await mod('twitch/eventsub.mjs');
+const overlay = (await mod('api/overlay.mjs')).default;
+const admin = (await mod('api/admin.mjs')).default;
+const ingest = (await mod('api/ingest-words.mjs')).default;
+const auth = (await mod('api/auth.mjs')).default;
+const people = await mod('features/people.mjs');
+const timerLib = await mod('features/timer.mjs');
+const wordsLib = await mod('features/words.mjs');
+const tasksLib = await mod('features/tasks.mjs');
+const { ensureCheckinReward } = await mod('twitch/api.mjs');
+const musikIngest = (await mod('api/ingest-musik.mjs')).default;
+const { resolveSeason, resolveTime } = await mod('features/zeiten.mjs');
+const { getMusik } = await mod('features/musik.mjs');
 const layoutLib = await import('../public/js/layout.mjs');
-const pagesLib = await mod('lib/pages.mjs');
-const streamLib = await mod('lib/streamzeit.mjs');
+const pagesLib = await mod('features/pages.mjs');
+const streamLib = await mod('features/streamzeit.mjs');
 const kat = await import('../public/js/katalog.mjs');
 
 let passed = 0;
@@ -455,7 +455,7 @@ await test('Pomodoro: lange Pause nach der eingestellten Anzahl, Ziel im Chattex
   await saveSettings({ longBreakEvery: 2, longBreakMinutes: 15, breakMinutes: 5, focusMinutes: 1, pomodoroGoal: 6, autoBreak: true, autoCycle: false });
   const s = await getSettings();
   await timerLib.stopTimer(s);
-  const key = `stats/sprints-${(await mod('lib/util.mjs')).streamDay(s)}`;
+  const key = `stats/sprints-${(await mod('core/util.mjs')).streamDay(s)}`;
   const start = (await db.get(key))?.n ?? 0;
   await db.set(key, { n: start + (2 - ((start) % 2)) - 1 }); // eine Runde vor der langen Pause
   const t0 = Date.now() - 200_000;
@@ -606,6 +606,115 @@ await test('Admin: Seiten und Streamzeit', async () => {
   assert.equal((await adminCall('POST', 'pages', { value: 'x' }, cookie)).status, 400);
   assert.equal((await adminCall('POST', 'stream/start', {}, cookie)).body.quelle, 'hand');
   assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
+});
+
+console.log('Design und Zugangsdaten-Datei');
+await test('Design: wird geprüft, begrenzt, mit Standard ergänzt und im Overlay mitgeschickt', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const r = await adminCall('PUT', 'settings', { design: { theme: 'nacht', farben: { akzent: '#FF00AA', text: 'rot', gibtEsNicht: '#000000' }, radius: 999, deckkraft: 1, schrift: 'comic', randBreite: 'x' } }, cookie);
+  const d = r.body.settings.design;
+  assert.equal(d.theme, 'nacht'); assert.deepEqual(d.farben, { akzent: '#ff00aa' }); assert.equal(d.radius, 44); assert.equal(d.deckkraft, 40);
+  assert.equal(d.schrift, 'rund'); assert.equal(d.randBreite, 3); assert.equal(d.schatten, true);
+  assert.equal((await viewNow()).design.theme, 'nacht');
+  const { designVars } = await import('../public/js/design.mjs');
+  const vars = designVars(d); assert.equal(vars['--akzent'], '#ff00aa'); assert.equal(vars['--radius'], '44px'); assert.match(vars['--papier'], /^rgba\(44, 42, 58, 0\.4\)$/);
+  await adminCall('PUT', 'settings', { design: { theme: 'warm', farben: null } }, cookie); // Farben zurücksetzen
+  assert.deepEqual((await viewNow()).design.farben, {});
+});
+await test('novelsbyeverly.env: Werte werden geladen, echte Umgebungsvariablen haben Vorrang', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-env-'));
+  fs.writeFileSync(path.join(dir, 'novelsbyeverly.env'), '# Kommentar\nADMIN_PASSWORD="aus datei"\nTWITCH_CLIENT_ID = abc123\nPORT=9999\n');
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, ['-e', "import('./server/core/config.mjs').then(() => console.log(JSON.stringify([process.env.ADMIN_PASSWORD, process.env.TWITCH_CLIENT_ID, process.env.PORT])))"], { env: { PATH: process.env.PATH, DATA_DIR: dir, PORT: '1234' }, encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(r.stdout), ['aus datei', 'abc123', '1234']);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+console.log('System: ZIP, Update, Sicherung');
+const { readZip, writeZip } = await mod('core/zip.mjs');
+const sicherung = await mod('core/sicherung.mjs');
+const updateMod = await mod('update.mjs');
+const system = await mod('api/system.mjs');
+const { DATA_DIR: dataDir, BACKUP_DIR: backupDir } = await mod('core/config.mjs');
+const zipOf = (files) => writeZip(Object.entries(files).map(([name, text]) => ({ name, data: Buffer.from(text) })));
+await test('ZIP: schreiben und lesen, Umlaute und Unterordner', async () => {
+  const z = readZip(zipOf({ 'server/ü.txt': 'Grüße', 'a/b/c.txt': 'x'.repeat(5000) }));
+  assert.deepEqual(z.map((e) => e.name), ['server/ü.txt', 'a/b/c.txt']);
+  assert.equal(z[0].data().toString(), 'Grüße'); assert.equal(z[1].data().length, 5000);
+  assert.throws(() => readZip(Buffer.from('kein zip')), /keine gültige ZIP/);
+});
+await test('Update-ZIP: umschließender Ordner wird abgestreift, Fremdes ignoriert, Pflichtdateien geprüft', async () => {
+  const gut = { 'server/index.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': 'x', 'README.md': 'egal', 'docker-compose.yml': 'egal' };
+  const e = updateMod.programmEintraege(readZip(zipOf(Object.fromEntries(Object.entries(gut).map(([k, v]) => [`novelsbyeverly/${k}`, v])))));
+  assert.deepEqual([...e.keys()].sort(), ['VERSION.txt', 'public/overlay.html', 'server/index.mjs', 'server/update.mjs']);
+  assert.equal(updateMod.programmEintraege(readZip(zipOf(gut))).size, 4);
+  assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ 'server/index.mjs': '1' }))), /kein Update für dieses Programm/);
+  assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ ...gut, 'server/../../x.mjs': '1' }))), /Unzulässiger Pfad/);
+});
+await test('Datensicherung: ohne Twitch-Zugänge, Wiederherstellung ersetzt die Daten', async () => {
+  await db.set('config/settings', { marker: 'vorher' }); await db.set('config/tokens', { access_token: 'geheim' });
+  const name = sicherung.sichereDaten('test');
+  const inhalt = readZip(fs.readFileSync(path.join(backupDir, name))).map((e) => e.name);
+  assert.ok(inhalt.includes('cowork/config%2Fsettings')); assert.ok(inhalt.includes('INFO.txt'));
+  assert.ok(!inhalt.some((n) => n.includes('tokens')), 'Zugänge dürfen nicht in der Sicherung stehen');
+  await db.set('config/settings', { marker: 'nachher' }); await db.set('config/tokens', { access_token: 'neu' });
+  sicherung.stelleDatenWiederHer(path.join(backupDir, name));
+  assert.equal((await db.get('config/settings')).marker, 'vorher');
+  assert.equal((await db.get('config/tokens')).access_token, 'neu'); // Zugänge bleiben unberührt
+  assert.ok(sicherung.liste().daten.some((b) => b.name === name));
+  assert.ok(sicherung.liste().daten.some((b) => b.name.endsWith('_vor_wiederherstellung.zip')));
+});
+await test('Update einspielen: neues Programm, Sicherung des alten, fehlerhaftes Update ändert nichts', async () => {
+  // Kopie des Programms in einem Hilfsordner, damit das echte Projekt unangetastet bleibt
+  const app = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-app-')), data = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-data-'));
+  fs.cpSync('server', path.join(app, 'server'), { recursive: true }); fs.mkdirSync(path.join(app, 'public')); fs.writeFileSync(path.join(app, 'public/overlay.html'), 'alt');
+  fs.writeFileSync(path.join(app, 'VERSION.txt'), '1.0 alt'); fs.writeFileSync(path.join(app, 'package.json'), '{}');
+  const { spawnSync } = await import('node:child_process');
+  const lauf = () => spawnSync(process.execPath, ['-e', "import('./server/update.mjs').then((m) => console.log('NEUSTART=' + m.wendeAnstehendesAn()))"], { cwd: app, env: { ...process.env, DATA_DIR: data, LOCAL_STORE_DIR: '' }, encoding: 'utf8' });
+  const programm = { 'server/index.mjs': 'export {};', 'server/update.mjs': fs.readFileSync('server/update.mjs', 'utf8'), 'server/core/config.mjs': fs.readFileSync('server/core/config.mjs', 'utf8'), 'server/core/zip.mjs': fs.readFileSync('server/core/zip.mjs', 'utf8'), 'server/core/sicherung.mjs': fs.readFileSync('server/core/sicherung.mjs', 'utf8'), 'public/overlay.html': 'neu', 'VERSION.txt': '2.0 neu', 'package.json': '{}' };
+  // 1) fehlerhaft: Syntaxfehler
+  fs.writeFileSync(path.join(data, 'update.zip'), zipOf({ ...programm, 'server/kaputt.mjs': 'const = ;' }));
+  let r = lauf(); assert.match(r.stdout, /NEUSTART=false/);
+  assert.equal(fs.readFileSync(path.join(app, 'VERSION.txt'), 'utf8'), '1.0 alt'); assert.ok(fs.existsSync(path.join(data, 'update_fehlerhaft.zip')));
+  assert.match(fs.readFileSync(path.join(data, 'update_status.txt'), 'utf8'), /Syntaxfehler in server\/kaputt\.mjs/);
+  assert.ok(!fs.existsSync(path.join(app, 'server/kaputt.mjs')));
+  // 2) gut
+  fs.writeFileSync(path.join(data, 'update.zip'), zipOf(Object.fromEntries(Object.entries(programm).map(([k, v]) => [`novelsbyeverly/${k}`, v]))));
+  r = lauf(); assert.match(r.stdout, /NEUSTART=true/, r.stderr);
+  assert.equal(fs.readFileSync(path.join(app, 'VERSION.txt'), 'utf8'), '2.0 neu'); assert.equal(fs.readFileSync(path.join(app, 'public/overlay.html'), 'utf8'), 'neu');
+  assert.ok(!fs.existsSync(path.join(data, 'update.zip'))); assert.match(fs.readFileSync(path.join(data, 'update_status.txt'), 'utf8'), /erfolgreich/);
+  const backups = fs.readdirSync(path.join(data, 'backups')).filter((n) => n.startsWith('programm_vor_update_'));
+  assert.equal(backups.length, 1);
+  assert.equal(readZip(fs.readFileSync(path.join(data, 'backups', backups[0]))).find((e) => e.name === 'VERSION.txt').data().toString(), '1.0 alt');
+  fs.rmSync(app, { recursive: true, force: true }); fs.rmSync(data, { recursive: true, force: true });
+});
+await test('System-API: nur mit Login, Update-Upload wird geprüft und vorgemerkt, Rückrollen und Sicherungen', async () => {
+  let neustarts = 0; system.hooks.neustart = () => { neustarts += 1; };
+  const call = (method, p, { body, type = 'application/json', cookie } = {}) => system.default(new Request(`https://x/api/system/${p}`, { method, headers: { ...(type ? { 'content-type': type } : {}), ...(cookie ? { cookie } : {}) }, body }));
+  assert.equal((await call('GET', '')).status, 401);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const info = await (await call('GET', '', { cookie })).json();
+  assert.match(info.version, /^1\./); assert.ok(Array.isArray(info.daten) && Array.isArray(info.programm));
+  assert.equal((await call('POST', 'update', { body: 'x', type: 'application/zip' })).status, 401);
+  assert.equal((await call('POST', 'update', { body: 'x', type: 'text/plain', cookie })).status, 415);
+  assert.equal((await call('POST', 'update', { body: 'kein zip', type: 'application/zip', cookie })).status, 400);
+  assert.equal((await call('POST', 'update', { body: zipOf({ 'foo.txt': 'x' }), type: 'application/zip', cookie })).status, 400); // kein Programm
+  assert.equal(neustarts, 0);
+  const gut = zipOf({ 'server/index.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': '9.9 test' });
+  assert.equal((await call('POST', 'update', { body: gut, type: 'application/zip', cookie })).status, 200);
+  assert.ok(fs.existsSync(path.join(dataDir, 'update.zip'))); assert.equal(neustarts, 1);
+  fs.rmSync(path.join(dataDir, 'update.zip'));
+  assert.ok((await (await call('GET', '', { cookie })).json()).daten.some((b) => b.name.endsWith('_vor_update.zip'))); // Daten wurden vorher gesichert
+  assert.equal((await call('POST', 'zurueck', { body: JSON.stringify({ name: '../../etc/passwd' }), cookie })).status, 400);
+  // Datensicherung: anlegen, herunterladen, löschen
+  const neu = await (await call('POST', 'sicherung', { body: '{}', cookie })).json();
+  const dl = await call('GET', `sicherung/${neu.name}`, { cookie, type: null }); assert.equal(dl.headers.get('content-type'), 'application/zip');
+  assert.equal((await call('POST', 'wiederherstellen', { body: JSON.stringify({ name: neu.name }), cookie })).status, 200); assert.equal(neustarts, 2);
+  fs.rmSync(path.join(dataDir, 'restore.zip'), { force: true });
+  assert.equal((await call('DELETE', `sicherung/${neu.name}`, { body: '{}', cookie })).status, 200);
+  assert.equal((await call('GET', `sicherung/${neu.name}`, { cookie, type: null })).status, 404);
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

@@ -17,6 +17,7 @@
 
   <div id="app" hidden>
     <div class="reihe" style="justify-content: space-between"><h1>✍️ Co-Working-Bot</h1><button class="hell" id="abmelden">Abmelden</button></div>
+    <nav class="menue"><a href="/admin/" class="aktiv">Betrieb</a><a href="/admin/overlay.html">Overlay</a><a href="/admin/system.html">System</a></nav>
 
     <section class="karte">
       <h2>Einrichtung</h2>
@@ -46,31 +47,6 @@
         <button class="hell" id="pomoMinus" title="Eins abziehen">−</button><button class="hell" id="pomoPlus" title="Eins dazuzählen, z. B. für Arbeit ohne Timer">+</button>
       </div>
       <p class="leise">Dauer, Pausen und das Tagesziel stellst du unter „Einstellungen → Pomodoro“ ein. Im Chat: <code>!pomodoro 25</code>, <code>!pause</code>, <code>!stop</code>.</p>
-    </section>
-
-    <section class="karte">
-      <h2>Szene</h2>
-      <h3>Darstellung</h3>
-      <div class="szenen" id="modi"></div>
-      <h3>Jahreszeit</h3>
-      <div class="szenen" id="jahreszeiten"></div>
-      <h3>Tageszeit</h3>
-      <div class="szenen" id="tageszeiten"></div>
-      <h3>Landschaft wächst mit</h3>
-      <div class="szenen" id="quellen"></div>
-      <p class="leise">Jahreszeit und Tageszeit gelten für die Landschaft und für die Fenster-Ansicht.</p>
-      <p class="leise">Die Wiese beginnt leer und wächst mit dem Fortschritt zu: im Frühling Blüten, Baum und Rosenbogen, im Sommer Sonnenblumen und Lavendel, im Herbst verliert der Baum seine Blätter, im Winter schneit es alles zu. „Auto“ nimmt Datum und Uhrzeit.</p>
-    </section>
-
-    <section class="karte">
-      <h2>Fenster-Ansicht</h2>
-      <p class="leise">Ein großes Fenster mit Blick nach draußen. Wähle unter „Darstellung“ die Fenster-Ansicht; Jahreszeit und Tageszeit stellst du oben ein.</p>
-      <h3>Ort im Zimmer</h3>
-      <div class="szenen" id="fensterOrte"></div>
-      <h3>Blick nach draußen</h3>
-      <div class="szenen" id="fensterBlicke"></div>
-      <h3>Wetter</h3>
-      <div class="szenen" id="fensterWetter"></div>
     </section>
 
     <section class="karte">
@@ -125,19 +101,6 @@
     </section>
 
     <section class="karte">
-      <h2>Anordnung</h2>
-      <p class="leise">Ziehe Uhr, Wörter, To-Do-Liste, Musik, Kamerafenster und Module an die gewünschte Stelle. Anklicken und Größe ändern. Das Bild zeigt den echten Stand. <b>Kamera in OBS unter das Overlay legen</b>: Das Kamerafenster ist durchsichtig ausgeschnitten.</p>
-      <div id="editor"><iframe id="editorFrame" title="Vorschau" tabindex="-1"></iframe><div id="editorBoxen"></div></div>
-      <div class="reihe" id="editorPanel">
-        <b id="editorName">Nichts ausgewählt</b>
-        <label><input type="checkbox" id="edAn"> sichtbar</label>
-        <label>Größe <input type="range" id="edGroesse" min="0.5" max="2" step="0.05" style="width:140px"></label>
-        <span id="edKamera" hidden><label>Seitenlänge (1:1) <input type="number" id="edW" min="160" max="1080" step="10"></label></span>
-      </div>
-      <div class="reihe"><button class="gruen" id="layoutSpeichern">Anordnung speichern</button><button class="hell" id="layoutZurueck">Standard</button><button class="hell" id="layoutLaden">Neu laden</button></div>
-    </section>
-
-    <section class="karte">
       <h2>Einstellungen</h2>
       <div id="formular"></div>
       <div class="reihe"><button class="gruen" id="speichern">Speichern</button><span class="leise">Nach Änderungen an „Erscheinen bei“ oder am Reward-Namen einmal auf „Reward &amp; Verbindung abgleichen“ klicken.</span></div>
@@ -175,6 +138,6 @@
   </div>
 </main>
 <div class="meldung" id="meldung" hidden></div>
-<script type="module" src="admin.js"></script>
+<script type="module" src="betrieb.js"></script>
 </body>
 </html>

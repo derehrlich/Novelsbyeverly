@@ -43,3 +43,20 @@ code { background: rgba(139, 94, 60, .15); padding: 1px 6px; border-radius: 6px;
 .ebox:active { cursor: grabbing; }
 details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
 .code { font-size: 1.3em; letter-spacing: .15em; font-weight: 700; }
+
+/* Menü und Overlay-Seite */
+.menue { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 4px; }
+.menue a { text-decoration: none; color: var(--text); font-weight: 600; padding: 7px 16px; border-radius: 10px; border: 2px solid var(--rand); }
+.menue a.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+.zeile { display: flex; gap: 8px; align-items: center; margin: 5px 0; font-weight: 500; }
+.farben { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 16px; }
+.farbe { display: flex; align-items: center; gap: 10px; font-weight: 500; } .farbe input[type=color] { width: 44px; height: 34px; padding: 0; border-radius: 8px; cursor: pointer; }
+.thema { display: flex; align-items: center; gap: 8px; background: var(--bg); color: var(--text); border: 3px solid var(--rand); }
+.thema .muster { width: 34px; height: 22px; border-radius: 6px; background: var(--p); border: 2px solid var(--r); display: flex; gap: 3px; align-items: center; justify-content: center; }
+.thema .muster i { width: 9px; height: 9px; border-radius: 50%; background: var(--a); } .thema .muster i:first-child { background: var(--t); }
+.thema.aktiv { border-color: var(--gruen); outline: 3px solid var(--gruen); }
+#speicherLeiste { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); transition: transform .25s; background: var(--karte); border: 3px solid var(--rand); border-radius: 14px; padding: 10px 16px; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); z-index: 5; }
+#speicherLeiste.offen { transform: translate(-50%, 0); }
+output { font-weight: 600; }
+.kachel { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+table.liste td, table.liste th { vertical-align: middle; }

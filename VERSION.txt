@@ -1,0 +1,1 @@
+1.1.0 – Umbau für CasaOS: Update per ZIP, aufgeräumtes Backend, Overlay-Seite im Admin
