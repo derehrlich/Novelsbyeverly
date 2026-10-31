@@ -54,6 +54,8 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 - OBS: In den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate verwenden“ auf 60 stellen (Standard ist 30).
 
 ## Stolperfallen (schon erlebt)
+- **Zeichenreihenfolge bei Topfpflanzen:** erst `pot()`, dann die Pflanze (Stängel beginnen auf Höhe der Erde, `y - Topfhöhe`). Wird der Topf nach den Blättern gemalt, sieht es aus, als kämen die Stängel hinter dem Topf hervor.
+- **Baumkrone** (`wachstum.mjs`, `treeModel`): Laub nicht nur an den Astspitzen, sondern auch in einer gefüllten Ellipse im Inneren plus deckende Laubmassen, sonst scheint der Himmel durch die Mitte.
 - Beim Messen von Canvas-Zeiten die Zeichnung erzwingen (`getImageData(0,0,1,1)`), sonst misst man nur das Aufzeichnen der Befehle.
 - **Dateinamen im Projekt nicht doppeln** (z. B. `public/overlay.html` und eine Admin-Seite gleichen Namens): CasaOS flacht hochgeladene ZIPs/Ordner ab, dann überschreibt eine Datei die andere. Deshalb heißt die Admin-Seite `studio.html`.
 - `pkill -f <name>` in der Shell kann die eigene Shell beenden; Prozesse gezielt per PID beenden.

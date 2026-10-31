@@ -102,7 +102,7 @@ function cafe(c) {
   pendant(c, 640, 150, '#cdb98a'); pendant(c, 1280, 150, '#c3cfb0');
   // Pflanzen
   vine(c, 592, REGAL.y + 18, 250, 5, 1.1); vine(c, 1334, REGAL.y + 18, 300, 9, 1.15);
-  for (const [px, col] of [[596, '#d8c7a8'], [1330, '#c9a08a']]) { for (const [a, l] of [[-0.7, 44], [0.1, 54], [0.8, 46]]) leaf(c, px, REGAL.y - 40, l, l * 0.38, a, '#7f9d6f'); pot(c, px, REGAL.y, 62, 46, col); }
+  for (const [px, col] of [[596, '#d8c7a8'], [1330, '#c9a08a']]) { pot(c, px, REGAL.y, 62, 46, col); for (const [a, l] of [[-0.7, 44], [0.1, 54], [0.8, 46]]) leaf(c, px, REGAL.y - 44, l, l * 0.38, a, '#7f9d6f'); }
   monstera(c, 118, 842, 1.25, 3); snakePlant(c, 1790, 838, 1.15, 4); fern(c, 1688, 760, 0.7, 5);
   for (const wx of [348, 1568]) { pot(c, wx - 60, 476 - 4, 54, 40, '#cbb28a'); leaf(c, wx - 60, 440, 54, 18, -0.5, '#8aa67e'); leaf(c, wx - 60, 440, 62, 20, 0.2, '#7a9a74'); leaf(c, wx - 60, 440, 50, 17, 0.8, '#97b189'); }
 }

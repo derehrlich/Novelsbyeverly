@@ -232,7 +232,18 @@ function treeModel(seed) {
   };
   // fünf Hauptäste aus der Stammgabel: breit ausladend wie bei einer Solitär-Eiche
   for (const [ang, len, w, dx, y0] of [[-1.1, 120, 36, -34, -128], [-0.5, 148, 38, -14, -165], [0.04, 128, 34, 0, -185], [0.5, 148, 38, 16, -150], [1.1, 120, 36, 34, -122]]) grow(dx, y0, ang, len, w, 1);
-  const leaves = [];
+  const leaves = [], inner = [];
+  // Krone von innen füllen: Die Spitzen allein lassen die Mitte hohl. Deshalb sitzt auch Laub im ganzen Inneren der Krone
+  // (eine Ellipse über den Astspitzen, nicht ganz unten am Stamm), dazu dunkle Laubmassen als Tiefe.
+  const xs = tips.map((q) => q[0]), ys = tips.map((q) => q[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const ccx = (minX + maxX) / 2, ccy = minY + (maxY - minY) * 0.36, crx = (maxX - minX) * 0.43, cry = (maxY - minY) * 0.4;
+  for (let i = 0; i < 900; i += 1) {
+    const a = r() * TAU, rad = Math.sqrt(r()), x = ccx + Math.cos(a) * crx * rad, y = ccy + Math.sin(a) * cry * rad;
+    if (y > -190) continue; // der Stammansatz und die untersten Äste bleiben sichtbar
+    leaves.push({ x, y, size: 17 + r() * 11, rot: r() * TAU, tone: r(), th: r(), lobed: r() < 0.75, acorn: false, katze: false });
+  }
+  for (let i = 0; i < 46; i += 1) { const a = r() * TAU, rad = Math.sqrt(r()) * 0.78, y = ccy + Math.sin(a) * cry * rad; if (y > -200) continue; inner.push([ccx + Math.cos(a) * crx * rad, y]); }
   for (const [tx, ty, ang] of tips) {
     for (let i = 0; i < 15; i += 1) {
       const rad = 10 + r() * 50, a = r() * TAU;
@@ -240,7 +251,7 @@ function treeModel(seed) {
     }
   }
   leaves.sort((a, b) => a.y - b.y);
-  const model = { segs, tips, leaves };
+  const model = { segs, tips, leaves, inner };
   treeModels.set(seed, model);
   return model;
 }
@@ -258,7 +269,7 @@ function eichenblatt(c, x, y, size, rot, col) {
   c.restore();
 }
 export function drawTree(c, x, y, s, { leafAmt, tones, season, p, snow = 0 }) {
-  const { segs, tips, leaves } = treeModel(9);
+  const { segs, tips, leaves, inner } = treeModel(9);
   c.save(); c.translate(x, y); c.scale(s, s);
   ell(c, 0, 10, 210, 26, alpha('#2b2118', 0.22));
   c.lineCap = 'round'; c.lineJoin = 'round';
@@ -272,7 +283,6 @@ export function drawTree(c, x, y, s, { leafAmt, tones, season, p, snow = 0 }) {
   c.strokeStyle = alpha('#c9ad8c', 0.35); c.lineWidth = 2;
   for (let i = 0; i < 14; i += 1) { const px = -48 + rb() * 70, y0 = -10 - rb() * 60, len = 50 + rb() * 70; c.beginPath(); c.moveTo(px, y0); c.bezierCurveTo(px - 2, y0 - len * 0.4, px + 3, y0 - len * 0.8, px, y0 - len); c.stroke(); }
   for (let i = 0; i < 5; i += 1) { c.strokeStyle = alpha('#33261a', 0.4); c.lineWidth = 2; c.beginPath(); const yy = -30 - i * 30, xl = -44 + i * 2; c.moveTo(xl, yy); c.quadraticCurveTo(0, yy + 6 + (i % 2) * 4, -xl + 4, yy - 2); c.stroke(); }
-  ell(c, -14, -92, 13, 20, alpha('#2f2218', 0.7)); ell(c, -14, -88, 8, 14, alpha('#150f0a', 0.7)); // Astloch
   if (season !== 'winter') { ell(c, -48, -26, 16, 30, alpha('#6f8f55', 0.5), null, 0, 0.1); ell(c, -40, -60, 10, 20, alpha('#7f9d62', 0.4)); } // Moos auf der Wetterseite
   if (snow > 0.05) for (const [dx, dy, w] of [[-38, 8, 40], [42, 10, 44]]) ell(c, dx, dy, w, 8 * snow + 2, alpha('#ffffff', 0.9 * snow));
   // Äste: gebogen und nach oben dünner
@@ -282,7 +292,11 @@ export function drawTree(c, x, y, s, { leafAmt, tones, season, p, snow = 0 }) {
     if (snow > 0.05 && w0 > 3) { c.strokeStyle = alpha('#ffffff', 0.92 * snow); c.lineWidth = Math.max(2, w0 * 0.34); c.beginPath(); c.moveTo(x0 - w0 * 0.28, y0 - w0 * 0.14); c.quadraticCurveTo(cx - w0 * 0.28, cy - w0 * 0.14, x1 - w1 * 0.28, y1 - w1 * 0.14); c.stroke(); }
   }
   if (leafAmt > 0.02) {
-    for (const [tx, ty] of tips) { const k = smooth(clamp01((leafAmt - 0.06) / 0.5)); if (k > 0.02) ell(c, tx, ty - 8, 54 * k, 44 * k, alpha(shade(tones[2], -0.28), 0.2 * k)); }
+    const kk = smooth(clamp01((leafAmt - 0.06) / 0.5));
+    if (kk > 0.02) { // dunkle, dichte Masse im Inneren der Krone und weicher Schatten an den Spitzen
+      for (const [ix, iy] of inner) ell(c, ix, iy - 6, 42 * kk, 34 * kk, shade(tones[2], -0.14)); // deckend, damit der Himmel nicht durch die Krone scheint
+      for (const [tx, ty] of tips) ell(c, tx, ty - 8, 54 * kk, 44 * kk, alpha(shade(tones[2], -0.28), 0.2 * kk));
+    }
     for (const lf of leaves) {
       const k = smooth(clamp01((leafAmt - lf.th * 0.92) / 0.14));
       if (k <= 0.02) continue;

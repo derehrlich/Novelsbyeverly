@@ -136,6 +136,7 @@ export function basket(c, x, y, w, h) {
 
 // ---- Pflanzen (Ursprung = Topfboden)
 export function monstera(c, x, y, s = 1, seed = 1) {
+  pot(c, x, y, 120 * s, 96 * s, '#c58f70'); // zuerst der Topf, dann wachsen die Stängel aus der Erde heraus
   const r = rng(seed);
   const greens = ['#5f7d5c', '#6f8f68', '#7f9a74', '#58765a'];
   const n = 8;
@@ -146,30 +147,30 @@ export function monstera(c, x, y, s = 1, seed = 1) {
   }
   leaves.sort((a, b) => b.size - a.size);
   for (const lf of leaves) {
-    const sx = x + (lf.ang * 18) * s, sy = y - 78 * s;
-    const ex = x + Math.sin(lf.ang) * lf.len, ey = y - 78 * s - Math.cos(lf.ang) * lf.len * 0.95;
+    const sx = x + (lf.ang * 18) * s, sy = y - 96 * s;
+    const ex = x + Math.sin(lf.ang) * lf.len, ey = y - 96 * s - Math.cos(lf.ang) * lf.len * 0.95;
     stem(c, sx, sy, sx + Math.sin(lf.ang) * lf.len * 0.15, ey + lf.len * 0.35, ex, ey, 6 * s, '#566f50');
     monsteraLeaf(c, ex, ey, lf.size, lf.ang * 1.1 + lf.tilt, lf.col);
   }
-  pot(c, x, y, 120 * s, 96 * s, '#c58f70');
 }
 export function snakePlant(c, x, y, s = 1, seed = 2) {
+  pot(c, x, y, 118 * s, 90 * s, '#d6c8b0'); // zuerst der Topf, dann wachsen die Stängel aus der Erde heraus
   const r = rng(seed);
   for (let i = 0; i < 7; i += 1) {
     const ang = (i - 3) * 0.13 + (r() - 0.5) * 0.06, len = (180 + r() * 90) * s, wid = (26 + r() * 6) * s;
-    c.save(); c.translate(x + (i - 3) * 9 * s, y - 70 * s); c.rotate(ang);
+    c.save(); c.translate(x + (i - 3) * 9 * s, y - 88 * s); c.rotate(ang);
     path(c, (k) => { k.moveTo(-wid / 2, 0); k.quadraticCurveTo(-wid * 0.6, -len * 0.5, 0, -len); k.quadraticCurveTo(wid * 0.6, -len * 0.5, wid / 2, 0); k.closePath(); }, lg(c, -wid, 0, wid, 0, [[0, '#4f6d50'], [0.5, '#6d8c63'], [1, '#556f52']]), alpha('#d8d6a0', 0.55), 2.5);
     c.strokeStyle = alpha('#2f4a38', 0.28); c.lineWidth = 2;
     for (let k = 1; k < 6; k += 1) { c.beginPath(); c.moveTo(-wid * 0.38, -len * k * 0.15); c.quadraticCurveTo(0, -len * k * 0.15 - 8, wid * 0.38, -len * k * 0.15); c.stroke(); }
     c.restore();
   }
-  pot(c, x, y, 118 * s, 90 * s, '#d6c8b0');
 }
 export function fern(c, x, y, s = 1, seed = 3) {
+  pot(c, x, y, 114 * s, 86 * s, '#bf8c70'); // zuerst der Topf, dann wachsen die Stängel aus der Erde heraus
   const r = rng(seed);
   for (let i = 0; i < 9; i += 1) {
     const dir = (i / 8 - 0.5) * 2.4, len = (150 + r() * 70) * s;
-    const bx = x, by = y - 70 * s, ex = x + Math.sin(dir) * len, ey = by - Math.cos(dir) * len * 0.7 + len * 0.25;
+    const bx = x, by = y - 86 * s, ex = x + Math.sin(dir) * len, ey = by - Math.cos(dir) * len * 0.7 + len * 0.25;
     const cx = x + Math.sin(dir) * len * 0.45, cy = by - len * 0.8;
     stem(c, bx, by, cx, cy, ex, ey, 3 * s, '#5f7b55');
     for (let k = 1; k < 13; k += 1) {
@@ -178,13 +179,13 @@ export function fern(c, x, y, s = 1, seed = 3) {
       for (const sd of [-1, 1]) leaf(c, px, py, size, size * 0.34, dir + sd * 1.15, k % 2 ? '#7d9a6f' : '#6a8a62', { veins: false });
     }
   }
-  pot(c, x, y, 114 * s, 86 * s, '#bf8c70');
 }
 export function palm(c, x, y, s = 1, seed = 4) {
+  pot(c, x, y, 120 * s, 92 * s, '#c9a07c'); // zuerst der Topf, dann wachsen die Stängel aus der Erde heraus
   const r = rng(seed);
   for (let i = 0; i < 7; i += 1) {
     const dir = (i / 6 - 0.5) * 2.0, len = (240 + r() * 60) * s;
-    const bx = x + (i - 3) * 6 * s, by = y - 80 * s, ex = x + Math.sin(dir) * len, ey = by - Math.cos(dir) * len * 0.78 + 30 * s;
+    const bx = x + (i - 3) * 6 * s, by = y - 90 * s, ex = x + Math.sin(dir) * len, ey = by - Math.cos(dir) * len * 0.78 + 30 * s;
     const cx = x + Math.sin(dir) * len * 0.35, cy = by - len * 0.85;
     stem(c, bx, by, cx, cy, ex, ey, 4 * s, '#667f4f');
     for (let k = 3; k < 16; k += 1) {
@@ -193,7 +194,6 @@ export function palm(c, x, y, s = 1, seed = 4) {
       for (const sd of [-1, 1]) leaf(c, px, py, size, size * 0.2, dir + sd * 1.0 + tt * sd * 0.3, k % 2 ? '#6d8d57' : '#7c9b62', { veins: false });
     }
   }
-  pot(c, x, y, 120 * s, 92 * s, '#c9a07c');
 }
 // Hängende Ranke (Efeutute) von (x,y) nach unten
 export function vine(c, x, y, len, seed = 5, scale = 1) {

@@ -1,1 +1,1 @@
-1.5.2 – Overlay-Studio: Positionsfelder (X/Y) und OBS-Hinweis für das Kamerafenster
+1.5.3 – Topfpflanzen wachsen aus der Erde statt hinter dem Topf hervor, dichtere Baumkrone, Astloch im Stamm entfernt
