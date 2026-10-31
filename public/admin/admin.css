@@ -42,3 +42,4 @@ code { background: rgba(139, 94, 60, .15); padding: 1px 6px; border-radius: 6px;
 .ebox.aus { opacity: .45; border-style: dotted; }
 .ebox:active { cursor: grabbing; }
 details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
+.code { font-size: 1.3em; letter-spacing: .15em; font-weight: 700; }

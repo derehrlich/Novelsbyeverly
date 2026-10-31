@@ -1,6 +1,6 @@
-# Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
+# Novels by Everly – Co-Working-Overlay und Bot für Twitch (läuft lokal, z. B. auf CasaOS)
 
-Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, eine mächtige Eiche, Pilze. Alternativ gibt es eine gemütliche **Fenster-Ansicht** (Leseecke oder Arbeitsplatz mit großem Fenster und wechselndem Ausblick). Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, eine mächtige Eiche, Pilze. Alternativ gibt es eine gemütliche **Fenster-Ansicht** (Leseecke oder Arbeitsplatz mit großem Fenster und wechselndem Ausblick). Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle. Der Server läuft als Container im Heimnetz (zum Beispiel auf einem CasaOS-Server), ohne Cloud und ohne öffentliche Adresse.
 
 ![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
 ![Frühling am Morgen](docs/vorschau-2-fruehling.png)
@@ -66,7 +66,7 @@ Das Overlay zeigt, was gerade läuft. Es gibt zwei Wege (*Admin → Musik*):
 2. **Über den Server:** *Anzeige: Server*. Der Titel kommt per Chat (`!song Titel - Interpret`, `!song aus`), von Hand im Admin oder von einem Hilfsprogramm, das `POST /api/musik` aufruft. Das mitgelieferte `scripts/pc-helfer.mjs` liest Tuna und meldet den Titel alle paar Sekunden:
 
    ```
-   SITE_URL=https://DEINE-SEITE.netlify.app INGEST_TOKEN=dein-schluessel node scripts/pc-helfer.mjs
+   SITE_URL=http://casaos-ip:8888 INGEST_TOKEN=dein-schluessel node scripts/pc-helfer.mjs
    ```
 
 Andere Programme, die einen Titel auf einer lokalen Adresse bereitstellen, funktionieren ebenfalls, weil die Antwort tolerant gelesen wird (`title`, `artist(s)`, `cover`/`cover_url`, `status`). Alternativen aus der Recherche: das Windows-Programm *Streamling*, die Browser-Erweiterung *memesound.live* und das OBS-Widget *Now Playing*.
@@ -91,27 +91,32 @@ Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos
 
 Nur im Zimmer-Modus: `!sitzen`, `!aufstehen`, `!figur`, `!rang`, `!szene`.
 
-## Einrichtung
+## Einrichtung (CasaOS oder jeder Docker-Rechner)
 
-1. **Netlify**: Repo verbinden (*Add new site → Import from Git*). Die Build-Einstellungen kommen aus `netlify.toml`, es gibt keinen Build-Befehl.
-2. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen:
-   - OAuth Redirect URL: `https://DEINE-SEITE.netlify.app/api/auth/callback`
-   - Client Type: **Confidential**
-3. **Umgebungsvariablen** in Netlify (*Site configuration → Environment variables*), danach neu deployen:
+Der Server ist ein kleiner Node-Container ohne weitere Abhängigkeiten. Er liefert Overlay und Admin aus, speichert alles in `/data` und hält selbst die Verbindung zu Twitch (EventSub per WebSocket). Dafür ruft er Twitch an, es muss also **nichts aus dem Internet auf den Server zugreifen**: keine Portfreigabe, keine Domain, kein Tunnel.
+
+1. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen: Client Type **Public**, OAuth Redirect URL `http://localhost` (wird nicht benutzt, Twitch verlangt aber eine). Die *Client-ID* kopieren, ein Secret braucht es bei „Public“ nicht.
+2. **Container starten.**
+   - *CasaOS:* im App Store oben rechts **„Eigene App installieren“** und den Inhalt von `docker-compose.yml` einfügen. Vorher `build: .` durch das fertige Image ersetzen oder das Repository auf dem Server auschecken und dort bauen (siehe unten).
+   - *Terminal:* Repository auschecken, in `docker-compose.yml` `ADMIN_PASSWORD` und `TWITCH_CLIENT_ID` eintragen, dann `docker compose up -d --build`.
+   - Der Ordner für das Volume (`./data` bzw. in CasaOS z. B. `/DATA/AppData/novelsbyeverly/data`) enthält Einstellungen, Verbindungen und Zählerstände. Das ist alles, was du sichern musst.
 
    | Variable | Inhalt |
    |---|---|
-   | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | aus der Twitch-App |
-   | `EVENTSUB_SECRET` | beliebiger Zufallstext, 10 bis 100 Zeichen |
    | `ADMIN_PASSWORD` | Passwort für `/admin/`, lang wählen |
-   | `INGEST_TOKEN` | optional: Schlüssel für die Schnittstellen `/api/words` und `/api/musik` (Hilfsprogramme) |
-   | `SITE_URL` | optional, nur bei eigener Domain |
+   | `TWITCH_CLIENT_ID` | aus der Twitch-App |
+   | `TWITCH_CLIENT_SECRET` | nur bei Client Type „Confidential“ |
+   | `INGEST_TOKEN` | optional: Schlüssel für `/api/words` und `/api/musik` (Hilfsprogramme) |
+   | `PORT` | optional, Standard 8888 |
 
-4. **Admin** öffnen (`/admin/`), anmelden und **Kanal mit Twitch verbinden** (Broadcaster-Konto).
-5. **Bot-Account verbinden**: eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen (höhere Nachrichtenlimits) und über die Schaltfläche verbinden. Dafür bei Twitch ausloggen oder ein privates Fenster nutzen, sonst meldet Twitch das Kanal-Konto an. Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
-6. **Reward & Webhooks abgleichen** klicken. Die Statusanzeige oben sollte grün sein.
-7. **OBS**: Browser-Quelle mit `https://DEINE-SEITE.netlify.app/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
-8. Im Admin unter *Anordnung* alles an die gewünschte Stelle ziehen und speichern, unter *Landschaft* Jahres- und Tageszeit wählen.
+3. **Admin öffnen:** `http://CASAOS-IP:8888/admin/`, anmelden.
+4. **Kanal mit Twitch verbinden:** Der Admin zeigt einen Code. Auf `twitch.tv/activate` eingeben und bestätigen (am Handy geht auch). Das läuft über den „Device Code“-Ablauf, deshalb braucht der Heimserver keine Weiterleitungs-Adresse.
+5. **Bot-Account verbinden:** eigenes Twitch-Konto für den Bot anlegen, im Chat zum **Moderator** machen und über die Schaltfläche verbinden (den Code dabei in einem privaten Fenster mit dem Bot-Konto bestätigen). Ohne Bot-Konto schreibt der Bot unter dem Kanalnamen.
+6. **Reward & Verbindung abgleichen** klicken. Die Statusanzeige oben sollte grün sein („Verbindung zu Twitch steht“). Reißt die Verbindung ab, baut der Server sie selbst wieder auf.
+7. **OBS:** Browser-Quelle mit `http://CASAOS-IP:8888/overlay` (1920×1080), „Audio über OBS steuern“ aktivieren. Die Kamera darunter legen.
+8. Im Admin unter *Anordnung* alles an die gewünschte Stelle ziehen und speichern, unter *Szene* Darstellung sowie Jahres- und Tageszeit wählen.
+
+Der Timer läuft im Server weiter, auch wenn kein Overlay geöffnet ist (Phasenwechsel und Chat-Ansagen kommen vom Server). Es gibt `GET /healthz` für Überwachung. Der Admin ist nur durch das Passwort geschützt, bitte den Server nicht ins Internet stellen.
 
 ## Wortzähler und Papyrus Autor
 
@@ -121,7 +126,7 @@ Papyrus Autor hat nach meiner Recherche keine Schnittstelle, die ein Overlay aus
 2. **Hilfsprogramm auf dem PC (später)**: liest die Zahl regelmäßig aus der Statuszeile (Barrierefreiheits-Schnittstelle von Windows/macOS oder Texterkennung) und schickt sie an die Schnittstelle:
 
    ```
-   POST https://DEINE-SEITE.netlify.app/api/words
+   POST http://casaos-ip:8888/api/words
    Authorization: Bearer <INGEST_TOKEN>
    { "absolute": 4231 }     # Stand aus der Statuszeile
    { "delta": 300 }         # nur dazugeschrieben
@@ -137,18 +142,18 @@ Der erste Stand des Tages ist der Ausgangspunkt; mit *Heute schon …* lässt si
 ## Entwicklung
 
 ```
-npm install
-npm test                                  # Ende-zu-Ende-Tests mit simulierter Twitch-API
-ADMIN_PASSWORD=geheim EVENTSUB_SECRET=zufallstext123 node scripts/dev-server.mjs   # http://localhost:8888/admin/
+npm test                                  # Ende-zu-Ende-Tests mit simulierter Twitch-API und simuliertem WebSocket
+ADMIN_PASSWORD=geheim TWITCH_CLIENT_ID=deine-id npm start   # http://localhost:8888/admin/
 ```
 
-Der lokale Server braucht kein Netlify und legt Daten in `./data` ab. Twitch-Funktionen (Chat, Reward) laufen nur auf der veröffentlichten Seite.
+Es gibt keine Abhängigkeiten (Node 22 genügt). Daten landen in `./data`. Ohne `TWITCH_CLIENT_ID` laufen Overlay und Admin trotzdem, nur die Verbindung zu Twitch bleibt aus.
 
 Aufbau:
 - `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Teich, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/fenster.mjs`: Fenster-Ansicht (Leseecke, Arbeitsplatz, Ausblicke, Wetter) · `public/js/figur.mjs`: Chibi-Figuren (Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
 - `public/admin/`: Verwaltung mit Anordnungs-Editor
-- `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`, `musik-ingest`
-- `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
+- `server/index.mjs`: Server (statische Dateien, API, Timer-Takt, Start der Twitch-Verbindung) · `Dockerfile`, `docker-compose.yml`
+- `server/routes/`: `overlay` (Stand), `admin`, `auth` (Verbindung mit Twitch per Device-Code), `words-ingest`, `musik-ingest`
+- `server/lib/`: `eventsub` (WebSocket-Verbindung zu Twitch, Nachrichten verteilen), `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
 
 Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` (`szene.mjs`) und ein Eintrag in `layout.mjs` und `BOXEN` (`public/admin/admin.js`). Neue Jahreszeit oder Pflanze: in `wachstum.mjs` (`PAL`, `MIX` und die Zeichenfunktionen).
 
@@ -158,4 +163,4 @@ Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene I
 
 - Es läuft kein Hintergrundprozess. Timer-Wechsel und Abrechnung holt das Overlay oder der Chat beim nächsten Abruf nach (spätestens nach wenigen Sekunden).
 - Wörter, die Zuschauer melden, beruhen auf Vertrauen und zählen nur für den Chat-Zähler.
-- Die Daten liegen in Netlify Blobs. Schreibzugriffe von gleichzeitigen Anfragen sind pro Person getrennt; sehr gleichzeitige Meldungen derselben Person könnten sich theoretisch überschreiben.
+- Die Daten liegen in JSON-Dateien im Datenordner. Schreibzugriffe sind pro Person getrennt; sehr gleichzeitige Meldungen derselben Person könnten sich theoretisch überschreiben.

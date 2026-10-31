@@ -1,4 +1,4 @@
-// Chat-Webhook (channel.chat.message): Befehle für Platz, Figur, Aufgaben, Wörter, Rang und die Sprint-Steuerung.
+// Chat-Nachrichten (channel.chat.message): Befehle für Platz, Figur, Aufgaben, Wörter, Rang und die Sprint-Steuerung.
 import { db } from './store.mjs';
 import { ITEMS, SLOTS, SLOT_ALIASE, SZENEN, cleanFigur, nextRank, norm, rankFor, slotValues } from '../../public/js/katalog.mjs';
 import { allowsSit, getSettings, needsReward, saveSettings } from './settings.mjs';

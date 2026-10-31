@@ -19,7 +19,7 @@ async function twitchStart(now) {
   try {
     const tokens = await storedTokens('broadcaster');
     if (tokens && process.env.TWITCH_CLIENT_ID) {
-      const r = await helix('GET', 'streams', { as: 'app', query: { user_id: tokens.user_id } });
+      const r = await helix('GET', 'streams', { query: { user_id: tokens.user_id } });
       const live = r.data?.[0];
       startedAt = live?.started_at ? Date.parse(live.started_at) : null;
     }

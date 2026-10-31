@@ -8,14 +8,15 @@ export const ROLES = {
 export const EVENT_TYPE = 'channel.channel_points_custom_reward_redemption.add';
 export const CHAT_TYPE = 'channel.chat.message';
 
+// Adresse dieses Servers, wie der Browser sie sieht (im Heimnetz z. B. http://192.168.1.20:8888)
 export const siteUrl = (req) =>
-  (process.env.SITE_URL || process.env.URL || (req ? new URL(req.url).origin : '')).replace(/\/$/, '');
+  (process.env.SITE_URL || (req ? new URL(req.url).origin : '')).replace(/\/$/, '');
 
 export async function tokenRequest(params) {
   const res = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: process.env.TWITCH_CLIENT_ID, client_secret: process.env.TWITCH_CLIENT_SECRET, ...params }),
+    body: new URLSearchParams({ client_id: process.env.TWITCH_CLIENT_ID, ...(process.env.TWITCH_CLIENT_SECRET ? { client_secret: process.env.TWITCH_CLIENT_SECRET } : {}), ...params }),
   });
   if (!res.ok) throw new Error(`Twitch-Token: ${res.status} ${await res.text()}`);
   return res.json();
@@ -43,19 +44,10 @@ export async function userToken(role = 'broadcaster') {
   return t;
 }
 
-// App-Token (nötig für EventSub-Webhooks)
-let appTok = null;
-async function appToken() {
-  if (appTok && Date.now() < appTok.exp) return appTok.token;
-  const t = await tokenRequest({ grant_type: 'client_credentials' });
-  appTok = { token: t.access_token, exp: Date.now() + (t.expires_in - 300) * 1000 };
-  return appTok.token;
-}
-
 export async function helix(method, endpoint, { query, body, as = 'broadcaster' } = {}) {
   const url = new URL('https://api.twitch.tv/helix/' + endpoint);
   for (const [k, v] of Object.entries(query ?? {})) url.searchParams.set(k, v);
-  const token = as === 'app' ? await appToken() : (await userToken(as)).access_token;
+  const token = (await userToken(as)).access_token;
   const res = await fetch(url, {
     method,
     headers: { Authorization: `Bearer ${token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -118,36 +110,26 @@ export async function ensureCheckinReward(settings, wanted) {
   return reward;
 }
 
-// Meine Webhook-Subscriptions (alle Typen und Stati)
-export async function listSubscriptions(webhookUrl) {
-  const { data } = await helix('GET', 'eventsub/subscriptions', { as: 'app' });
-  return data.filter((s) => s.transport?.callback === webhookUrl);
-}
-
-// Alte Abos entfernen und neu anlegen: Reward-Einlösungen (falls nötig) und Chat.
-// Das Chat-Abo läuft über den Bot-Account, wenn einer verbunden ist (Twitch verlangt dann seine Berechtigungen und
-// channel:bot vom Kanal), sonst über den Kanal selbst. Fehlt etwas, kommt eine Meldung statt eines Abbruchs.
-export async function subscribe(webhookUrl, { rewardId = null, chat = true } = {}) {
+// Legt die EventSub-Abos für eine WebSocket-Sitzung an: Reward-Einlösungen (falls nötig) und Chat.
+// WebSocket-Abos brauchen Nutzer-Token: Rewards läuft über den Kanal, Chat über den Bot-Account (wenn verbunden, sonst Kanal).
+// Twitch verlangt beim Chat-Abo die Berechtigungen des Lesenden und channel:bot vom Kanal. Fehlt etwas, kommt eine Meldung statt eines Abbruchs.
+export async function subscribeWs(sessionId, { rewardId = null, chat = true } = {}) {
   const channel = await storedTokens('broadcaster');
   if (!channel) throw new Error('Twitch ist noch nicht verbunden');
   const bot = await storedTokens('bot');
-  for (const sub of await listSubscriptions(webhookUrl)) {
-    await helix('DELETE', 'eventsub/subscriptions', { as: 'app', query: { id: sub.id } });
-  }
-  const create = (type, condition) => helix('POST', 'eventsub/subscriptions', {
-    as: 'app',
-    body: { type, version: '1', condition, transport: { method: 'webhook', callback: webhookUrl, secret: process.env.EVENTSUB_SECRET } },
-  });
+  const create = (type, condition, as) => helix('POST', 'eventsub/subscriptions', { as, body: { type, version: '1', condition, transport: { method: 'websocket', session_id: sessionId } } });
   const warnings = [];
-  if (rewardId) await create(EVENT_TYPE, { broadcaster_user_id: channel.user_id, reward_id: rewardId });
+  if (rewardId) {
+    try { await create(EVENT_TYPE, { broadcaster_user_id: channel.user_id, reward_id: rewardId }, 'broadcaster'); } catch (e) { warnings.push(`Reward: ${e.message}`); }
+  }
   if (chat) {
     const reader = bot ?? channel;
     const missing = ROLES.broadcaster.scopes.filter((sc) => Array.isArray(channel.scopes) && !channel.scopes.includes(sc));
     const botMissing = bot ? ROLES.bot.scopes.filter((sc) => Array.isArray(bot.scopes) && !bot.scopes.includes(sc)) : [];
     if (missing.length || botMissing.length) {
-      warnings.push(`Chat: Berechtigung ${[...missing, ...botMissing].join(', ')} fehlt – bitte oben neu verbinden und erneut abgleichen`);
+      warnings.push(`Chat: Berechtigung ${[...missing, ...botMissing].join(', ')} fehlt – bitte neu verbinden`);
     } else {
-      try { await create(CHAT_TYPE, { broadcaster_user_id: channel.user_id, user_id: reader.user_id }); } catch (e) {
+      try { await create(CHAT_TYPE, { broadcaster_user_id: channel.user_id, user_id: reader.user_id }, bot ? 'bot' : 'broadcaster'); } catch (e) {
         const status = /-> (\d{3})/.exec(e.message)?.[1];
         warnings.push(`Chat: Twitch hat das Abo abgelehnt${status ? ` (${status})` : ''} – bitte Kanal und Bot neu verbinden`);
         console.warn('Chat-Abo fehlgeschlagen:', e.message);

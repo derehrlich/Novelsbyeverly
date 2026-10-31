@@ -1,4 +1,4 @@
-// Admin-API: Anmeldung und Verteilung auf die Bereiche in netlify/lib/admin/ (alles außer Login nur mit Session-Cookie).
+// Admin-API: Anmeldung und Verteilung auf die Bereiche in server/lib/admin/ (alles außer Login nur mit Session-Cookie).
 import { adminEnabled, checkPassword, cookie, hasSession, json, makeSession } from '../lib/http.mjs';
 import { status } from '../lib/admin/status.mjs';
 import { config as settingsRoute } from '../lib/admin/config.mjs';

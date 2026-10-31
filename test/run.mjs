@@ -1,14 +1,12 @@
 // Ende-zu-Ende-Test der Functions mit simulierter Twitch-API und Dateispeicher.  npm test
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 process.env.LOCAL_STORE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-test-'));
 Object.assign(process.env, {
-  TWITCH_CLIENT_ID: 'cid', TWITCH_CLIENT_SECRET: 'csecret', EVENTSUB_SECRET: 'hooksecret1234',
-  ADMIN_PASSWORD: 'geheim', SITE_URL: 'https://beispiel.netlify.app', INGEST_TOKEN: 'ingest-geheim',
+  TWITCH_CLIENT_ID: 'cid', ADMIN_PASSWORD: 'geheim', INGEST_TOKEN: 'ingest-geheim',
 });
 
 // ---- Twitch simulieren
@@ -17,12 +15,21 @@ let rewards = [];
 let subs = [];
 const failSubTypes = new Set();
 let liveStart = null; // simulierter Twitch-Stream (ISO-Zeit) oder null
+let devicePending = false;
+let lastSocket = null; // simulierte EventSub-WebSocket-Verbindung
+globalThis.WebSocket = class {
+  constructor(url) { this.url = url; lastSocket = this; setTimeout(() => this.onmessage?.({ data: JSON.stringify({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'sess1', keepalive_timeout_seconds: 10 } } }) }), 5); }
+  close() { this.closed = true; }
+};
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const entry = { method: init.method || 'GET', path: u.pathname, query: Object.fromEntries(u.searchParams), auth: init.headers?.Authorization, body: init.body && !String(init.body).includes('=') ? JSON.parse(init.body) : init.body };
+  entry.raw = String(init.body ?? '');
   calls.push(entry);
   const ok = (data, status = 200) => new Response(JSON.stringify(data), { status });
   if (u.host === 'id.twitch.tv') {
+    if (u.pathname.endsWith('/device')) return ok({ device_code: 'dc', user_code: 'ABCD', verification_uri: 'https://www.twitch.tv/activate', interval: 5, expires_in: 600 });
+    if (u.pathname.endsWith('/token') && entry.raw.includes('device_code') && devicePending) return ok({ message: 'authorization_pending' }, 400);
     if (u.pathname.endsWith('/validate')) return ok({ user_id: '999', login: 'streamerin', scopes: [] });
     return ok({ access_token: 'tok', refresh_token: 'ref', expires_in: 3600 });
   }
@@ -46,20 +53,20 @@ globalThis.fetch = async (url, init = {}) => {
 const chatSent = () => calls.filter((c) => c.path.endsWith('/chat/messages')).map((c) => c.body);
 const lastChat = () => chatSent().at(-1);
 
-const mod = (rel) => import(`../netlify/${rel}`);
+const mod = (rel) => import(`../server/${rel}`);
 const { db } = await mod('lib/store.mjs');
 const { getSettings, saveSettings, DEFAULTS, normalize } = await mod('lib/settings.mjs');
-const webhook = (await mod('functions/twitch-webhook.mjs')).default;
-const overlay = (await mod('functions/overlay.mjs')).default;
-const admin = (await mod('functions/admin.mjs')).default;
-const ingest = (await mod('functions/words-ingest.mjs')).default;
-const auth = (await mod('functions/auth.mjs')).default;
+const eventsub = await mod('lib/eventsub.mjs');
+const overlay = (await mod('routes/overlay.mjs')).default;
+const admin = (await mod('routes/admin.mjs')).default;
+const ingest = (await mod('routes/words-ingest.mjs')).default;
+const auth = (await mod('routes/auth.mjs')).default;
 const people = await mod('lib/people.mjs');
 const timerLib = await mod('lib/timer.mjs');
 const wordsLib = await mod('lib/words.mjs');
 const tasksLib = await mod('lib/tasks.mjs');
 const { ensureCheckinReward } = await mod('lib/twitch.mjs');
-const musikIngest = (await mod('functions/musik-ingest.mjs')).default;
+const musikIngest = (await mod('routes/musik-ingest.mjs')).default;
 const { resolveSeason, resolveTime } = await mod('lib/zeiten.mjs');
 const { getMusik } = await mod('lib/musik.mjs');
 const layoutLib = await import('../public/js/layout.mjs');
@@ -74,14 +81,11 @@ const test = async (name, fn) => {
 
 // ---- Hilfen
 let n = 0;
-const sign = (body, type = 'notification', extra = {}) => {
-  const raw = JSON.stringify(body);
-  const id = `m${(n += 1)}`; const ts = extra.ts ?? new Date().toISOString();
-  const sig = 'sha256=' + crypto.createHmac('sha256', extra.secret ?? process.env.EVENTSUB_SECRET).update(id + ts + raw).digest('hex');
-  return new Request('https://x/api/twitch-webhook', { method: 'POST', body: raw, headers: { 'twitch-eventsub-message-id': id, 'twitch-eventsub-message-timestamp': ts, 'twitch-eventsub-message-signature': sig, 'twitch-eventsub-message-type': type } });
-};
+// Twitch-Nachricht direkt zustellen (wie sie über die WebSocket-Verbindung ankäme)
+const webhook = (msg) => eventsub.handleNotification(msg.subscription.type, msg.event);
+const sign = (msg) => msg;
 const chatEvent = (uid, name, text, extra = {}) => ({ subscription: { type: 'channel.chat.message' }, event: { broadcaster_user_id: '999', chatter_user_id: uid, chatter_user_name: name, message_id: `c${(n += 1)}`, message: { text }, badges: [], ...extra } });
-const say = async (uid, name, text, extra) => { const res = await webhook(sign(chatEvent(uid, name, text, extra))); assert.equal(res.status, 204); return lastChat(); };
+const say = async (uid, name, text, extra) => { await webhook(chatEvent(uid, name, text, extra)); return lastChat(); };
 const adminCall = async (method, p, body, cookie) => {
   const res = await admin(new Request(`https://x/api/admin/${p}`, { method, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }));
   return { status: res.status, body: res.headers.get('content-type')?.includes('json') ? await res.json() : await res.text(), headers: res.headers };
@@ -115,16 +119,6 @@ await test('Einstellungen werden geprüft', async () => {
   assert.match(normalize({ commandPrefix: 'ab c' }).error, /Befehlszeichen/);
 });
 
-console.log('Webhook');
-await test('falsche Signatur und altes Datum werden abgelehnt', async () => {
-  assert.equal((await webhook(sign(chatEvent('1', 'A', '!hilfe'), 'notification', { secret: 'falsch' }))).status, 403);
-  assert.equal((await webhook(sign(chatEvent('1', 'A', '!hilfe'), 'notification', { ts: new Date(Date.now() - 3_600_000).toISOString() }))).status, 403);
-});
-await test('Verifizierung gibt die Challenge zurück', async () => {
-  const res = await webhook(sign({ challenge: 'abc123' }, 'webhook_callback_verification'));
-  assert.equal(await res.text(), 'abc123');
-});
-
 console.log('Platz und Figur');
 await test('!sitzen setzt eine Figur hin, antwortet als Bot und als Antwort auf die Nachricht', async () => {
   const before = calls.length;
@@ -142,8 +136,8 @@ await test('doppeltes !sitzen setzt niemanden doppelt hin', async () => {
 });
 await test('Zustellungen mit derselben Nachrichten-ID werden nur einmal beantwortet', async () => {
   const ev = chatEvent('2', 'Jonas', '!sitzen');
-  await webhook(sign(ev)); const sent = chatSent().length;
-  await webhook(sign(ev));
+  await webhook(ev); const sent = chatSent().length;
+  await webhook(ev);
   assert.equal(chatSent().length, sent);
   assert.equal((await people.activeSeats(await getSettings())).length, 2);
 });
@@ -304,7 +298,7 @@ await test('appearOn=checkin: !sitzen verweist auf den Reward, die Einlösung se
   assert.match((await say('20', 'Emma', '!sitzen')).message, /per Kanalpunkte-Reward „Check-in“/);
   const reward = await ensureCheckinReward(await getSettings(), true);
   assert.equal(reward.title, 'Check-in');
-  const redeem = (id, uid, name) => webhook(sign({ subscription: { type: 'channel.channel_points_custom_reward_redemption.add' }, event: { id, user_id: uid, user_name: name, reward: { id: reward.id } } }));
+  const redeem = (id, uid, name) => webhook(({ subscription: { type: 'channel.channel_points_custom_reward_redemption.add' }, event: { id, user_id: uid, user_name: name, reward: { id: reward.id } } }));
   await redeem('r1', '20', 'Emma');
   assert.match(lastChat().message, /Emma ist eingecheckt – Besuch #1/);
   assert.ok(calls.some((c) => c.path.endsWith('/redemptions') && c.body.status === 'FULFILLED'));
@@ -312,7 +306,7 @@ await test('appearOn=checkin: !sitzen verweist auf den Reward, die Einlösung se
   await redeem('r2', '20', 'Emma'); // schon da: Punkte zurück
   assert.match(lastChat().message, /sitzt schon.*Punkte/);
   assert.ok(calls.some((c) => c.path.endsWith('/redemptions') && c.body.status === 'CANCELED'));
-  await webhook(sign({ subscription: { type: 'x' }, event: { id: 'r3', user_id: '21', user_name: 'X', reward: { id: 'fremd' } } }));
+  await webhook(({ subscription: { type: 'x' }, event: { id: 'r3', user_id: '21', user_name: 'X', reward: { id: 'fremd' } } }));
   assert.equal(await db.get('seat/21'), null); // fremder Reward
 });
 await test('appearOn=both erlaubt beides, appearOn=sit schaltet den Reward in Twitch aus', async () => {
@@ -354,6 +348,8 @@ await test('Admin: Login, Zustand, Einstellungen, Timer, Tests', async () => {
   const chatSub = subs.find((x) => x.type === 'channel.chat.message');
   assert.deepEqual(chatSub.condition, { broadcaster_user_id: '999', user_id: '555' }); // der Bot liest mit
   assert.ok(subs.find((x) => x.type.includes('redemption')));
+  assert.deepEqual(chatSub.transport, { method: 'websocket', session_id: 'sess1' }); // Verbindung per WebSocket, kein Webhook
+  assert.equal((await adminCall('GET', 'state', null, cookie)).body.eventsub.state, 'verbunden');
   assert.equal((await adminCall('POST', 'timer/focus', { minutes: 20 }, cookie)).body.timer.phase, 'focus');
   assert.equal((await adminCall('POST', 'timer/stop', {}, cookie)).body.timer.phase, 'idle');
   assert.equal((await adminCall('POST', 'words', { mode: 'absolute', value: 'abc' }, cookie)).status, 400);
@@ -387,18 +383,32 @@ await test('Wortzähler-Schnittstelle: nur mit Schlüssel', async () => {
   const res = await (await post({ delta: 10 }, 'ingest-geheim')).json();
   assert.equal(res.ok, true); assert.equal((await wordsLib.getWords(s)).abs, base + 10);
 });
-await test('OAuth: Bot-Rolle fordert nur Bot-Berechtigungen, Callback speichert getrennt', async () => {
+await test('Twitch verbinden per Device-Code: Bot-Rolle fordert nur Bot-Berechtigungen, Tokens werden getrennt gespeichert', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const res = await auth(new Request('https://x/api/auth/login?role=bot', { headers: { cookie } }));
-  const loc = new URL(res.headers.get('location'));
-  assert.equal(loc.searchParams.get('scope'), 'user:write:chat user:read:chat user:bot');
-  const state = loc.searchParams.get('state'); assert.ok(state.endsWith('.bot'));
+  const post = (p, body, ck = cookie) => auth(new Request(`https://x/api/auth/device/${p}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(ck ? { cookie: ck } : {}) }, body: JSON.stringify(body) }));
+  assert.equal((await post('start', { role: 'bot' }, null)).status, 401); // nur mit Admin-Login
+  const start = await (await post('start', { role: 'bot' })).json();
+  assert.equal(start.user_code, 'ABCD');
+  assert.equal(new URLSearchParams(calls.findLast((c) => c.path.endsWith('/oauth2/device')).raw).get('scopes'), 'user:write:chat user:read:chat user:bot');
+  devicePending = true;
+  assert.equal((await (await post('poll', { role: 'bot', device_code: 'dc' })).json()).pending, true);
+  devicePending = false;
   await db.delete('config/bot-tokens');
-  const cb = await auth(new Request(`https://x/api/auth/callback?code=abc&state=${encodeURIComponent(state)}`, { headers: { cookie: `${cookie}; oauth_state=${encodeURIComponent(state)}` } }));
-  assert.equal(cb.status, 302); assert.match(cb.headers.get('location'), /verbunden=bot/);
+  const done = await (await post('poll', { role: 'bot', device_code: 'dc' })).json();
+  assert.equal(done.ok, true);
   assert.equal((await db.get('config/bot-tokens')).login, 'streamerin'); // Mock liefert immer denselben Nutzer
   assert.equal((await db.get('config/tokens')).access_token, 'tokB');
+});
+await test('EventSub-WebSocket: Chat-Nachrichten kommen über die Verbindung an', async () => {
+  await eventsub.startEventSub();
+  assert.equal(eventsub.info.state, 'verbunden');
+  const before = chatSent().length;
+  lastSocket.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_keepalive' }, payload: {} }) });
+  lastSocket.onmessage({ data: JSON.stringify({ metadata: { message_type: 'notification' }, payload: { subscription: { type: 'channel.chat.message' }, event: chatEvent('77', 'Ws', '!hilfe').event } }) });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(chatSent().length, before + 1);
+  eventsub.stopEventSub();
 });
 
 console.log('Landschaft, Pomodoro, Layout, Musik');
@@ -406,8 +416,8 @@ await saveSettings({ szeneModus: 'wachstum', appearOn: 'sit', scene: 'cafe', mod
 const viewNow = async () => (await overlay(new Request('https://x/api/overlay'))).json();
 await test('Wachstums-Modus: Platz-Befehle sind pausiert, keine Figuren im Overlay', async () => {
   const before = chatSent().length;
-  await webhook(sign(chatEvent('31', 'Neu', '!sitzen')));
-  await webhook(sign(chatEvent('31', 'Neu', '!figur haare rot')));
+  await webhook((chatEvent('31', 'Neu', '!sitzen')));
+  await webhook((chatEvent('31', 'Neu', '!figur haare rot')));
   assert.equal(chatSent().length, before);
   assert.equal(await db.get('seat/31'), null);
   const v = await viewNow();

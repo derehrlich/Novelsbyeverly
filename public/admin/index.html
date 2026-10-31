@@ -22,10 +22,11 @@
       <h2>Einrichtung</h2>
       <ul class="status" id="status"></ul>
       <div class="reihe">
-        <a class="knopf" href="/api/auth/login?role=broadcaster">Kanal mit Twitch verbinden</a>
-        <a class="knopf hell" href="/api/auth/login?role=bot">Bot-Account verbinden</a>
-        <button class="gruen" id="abgleich">Reward &amp; Webhooks abgleichen</button>
+        <button id="verbindeKanal">Kanal mit Twitch verbinden</button>
+        <button class="hell" id="verbindeBot">Bot-Account verbinden</button>
+        <button class="gruen" id="abgleich">Reward &amp; Verbindung abgleichen</button>
       </div>
+      <div id="geraet" class="leise" hidden style="margin-top:10px"></div>
       <p class="leise">Für den Bot-Account vorher bei Twitch ausloggen oder ein privates Fenster nutzen und dort mit dem Bot-Konto anmelden. Der Bot sollte in deinem Chat Moderator sein (höhere Nachrichtenlimits).</p>
       <h3>Adressen</h3>
       <div id="urls"></div>
@@ -139,7 +140,7 @@
     <section class="karte">
       <h2>Einstellungen</h2>
       <div id="formular"></div>
-      <div class="reihe"><button class="gruen" id="speichern">Speichern</button><span class="leise">Nach Änderungen an „Erscheinen bei“ oder am Reward-Namen einmal auf „Reward &amp; Webhooks abgleichen“ klicken.</span></div>
+      <div class="reihe"><button class="gruen" id="speichern">Speichern</button><span class="leise">Nach Änderungen an „Erscheinen bei“ oder am Reward-Namen einmal auf „Reward &amp; Verbindung abgleichen“ klicken.</span></div>
     </section>
 
     <section class="karte">
