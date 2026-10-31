@@ -5,6 +5,7 @@ import * as auth from './auth.mjs';
 import * as ingestWords from './ingest-words.mjs';
 import * as ingestMusik from './ingest-musik.mjs';
 import * as system from './system.mjs';
+import * as sounds from './sounds.mjs';
 
-export const routes = [overlay, admin, auth, ingestWords, ingestMusik, system]
+export const routes = [overlay, admin, auth, ingestWords, ingestMusik, system, sounds]
   .flatMap((m) => [m.config.path].flat().map((path) => ({ path, maxBody: m.config.maxBody, handler: m.default })));

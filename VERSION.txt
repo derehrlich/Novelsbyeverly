@@ -1,1 +1,1 @@
-1.4.1 – Pomodoro mit festem Ablauf (Länge, Pause, Wiederholungen), Anhalten/Fortsetzen, Start- und Endton; Update-ZIP auch für ältere Installationen
+1.5.0 – Nur zwei Töne (Pomodoro Beginn/Ende), eigene Tondateien, Stumm-Schalter, flüssigeres Overlay, neuer Admin mit Seitenleiste und Burger-Menü, Speichern-Leiste im Overlay-Studio behoben

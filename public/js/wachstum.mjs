@@ -413,10 +413,12 @@ const vomBaum = (c, t, n, seed, draw) => {
 
 export class Wachstum {
   constructor() {
-    this.bg = canvas(); this.gl = canvas(); this.bgKey = ''; this.glKey = '';
+    this.bg = canvas(); this.gl = canvas(); this.base = canvas(); this.bgKey = ''; this.glKey = '';
   }
 
-  draw(c, view, t) {
+  // Setzt den ruhenden Teil (Himmel, Boden, Pflanzen, Tönung, Vignette) zusammen, aber nur wenn sich etwas geändert hat.
+  // Gibt einen Schlüssel zurück, der sich ändert, wenn die Basis neu ist (this.base). finish = Vignette und Körnung aus Szene.
+  vorbereiten(view, finish = null) {
     const season = PAL[view.jahreszeit] ? view.jahreszeit : 'fruehling';
     const zeit = SKY[view.tageszeit] ? view.tageszeit : 'mittag';
     const p = clamp01(view.progress ?? 0);
@@ -425,13 +427,22 @@ export class Wachstum {
     if (bgKey !== this.bgKey) { this.bgKey = bgKey; const k = this.bg.getContext('2d'); k.clearRect(0, 0, W, H); paintBackground(k, season, zeit, snowQ); this.glKey = ''; }
     const pq = Math.round(p * 80) / 80;
     const glKey = `${bgKey}|${pq}`;
-    if (glKey !== this.glKey) { this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq); }
-    c.drawImage(this.bg, 0, 0);
+    if (glKey !== this.glKey) {
+      this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq);
+      const b = this.base.getContext('2d'); b.clearRect(0, 0, W, H); b.drawImage(this.bg, 0, 0); b.drawImage(this.gl, 0, 0);
+      const tint = SKY[zeit].tint;
+      if (tint) { b.fillStyle = alpha(tint[0], tint[1]); b.fillRect(0, 0, W, H); }
+      if (finish) b.drawImage(finish, 0, 0);
+    }
+    this.aktuell = { season, zeit, pq };
+    return glKey;
+  }
+
+  // Nur das, was sich bewegt (Nebel, Schmetterlinge, Laub, Schnee, Glühwürmchen); kommt auf die Ebene über der Basis.
+  animiere(c, t) {
+    const { season, zeit, pq } = this.aktuell;
     if (zeit === 'morgen') for (let i = 0; i < 4; i += 1) ell(c, 300 + i * 480 + Math.sin(t / 5000 + i) * 60, 700 + (i % 2) * 24, 380, 36, alpha('#fff4ee', 0.2));
-    c.drawImage(this.gl, 0, 0);
     this.living(c, season, zeit, pq, t);
-    const tint = SKY[zeit].tint;
-    if (tint) { c.fillStyle = alpha(tint[0], tint[1]); c.fillRect(0, 0, W, H); }
   }
 
   living(c, season, zeit, p, t) {

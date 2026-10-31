@@ -4,21 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Co-Working-Bot · Verwaltung</title>
+<title>Übersicht · Verwaltung</title>
 <link rel="stylesheet" href="admin.css">
 </head>
-<body>
+<body data-seite="index" data-titel="Übersicht">
 <main>
   <section class="karte" id="login" hidden>
-    <h1>Co-Working-Bot</h1>
+    <h1>✍️ Co-Working-Bot</h1>
     <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
     <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
   </section>
 
-  <div id="app" hidden>
-    <div class="reihe" style="justify-content: space-between"><h1>✍️ Co-Working-Bot</h1><button class="hell" id="abmelden">Abmelden</button></div>
-    <nav class="menue"><a href="/admin/" class="aktiv">Betrieb</a><a href="/admin/studio.html">Overlay</a><a href="/admin/system.html">System</a><a href="/admin/panel.html">Stream-Panel</a></nav>
-
+  <div id="app" class="spalten" hidden>
     <section class="karte">
       <h2>Twitch-App</h2>
       <p class="leise">Lege auf <a href="https://dev.twitch.tv/console/apps" target="_blank" rel="noopener">dev.twitch.tv/console/apps</a> eine Anwendung an (Client Type: <b>Public</b>, OAuth Redirect URL: <code>http://localhost</code>) und trage ihre Daten hier ein.</p>
@@ -34,7 +31,6 @@
       <p class="leise" id="appStatus"></p>
       <p class="leise">Die Daten liegen im Datenordner des Servers (nicht in Git, nicht in Sicherungen). Das Secret wird nie wieder angezeigt. Wechselst du die Client-ID, musst du Kanal und Bot neu verbinden.</p>
     </section>
-
     <section class="karte">
       <h2>Einrichtung</h2>
       <ul class="status" id="status"></ul>
@@ -49,112 +45,9 @@
       <div id="urls"></div>
     </section>
 
-    <section class="karte">
-      <h2>Pomodoro</h2>
-      <div class="reihe"><span class="timer" id="timer">–</span><span class="leise" id="timerInfo"></span></div>
-      <div class="reihe">
-        <label>Minuten <input type="number" id="minuten" min="1" max="180" placeholder="Standard"></label>
-        <button class="gruen" id="fokus">▶ Pomodoro starten</button>
-        <button class="orange" id="pause">☕ Pause jetzt</button>
-        <button class="hell" id="halt">⏸ Anhalten / ▶ Weiter</button>
-        <button class="rot" id="stopp">■ Stopp</button>
-      </div>
-      <div class="reihe">
-        <span>Heute geschafft: <b id="pomoHeute">0</b> von <b id="pomoZiel">0</b></span>
-        <button class="hell" id="pomoMinus" title="Eins abziehen">−</button><button class="hell" id="pomoPlus" title="Eins dazuzählen, z. B. für Arbeit ohne Timer">+</button>
-      </div>
-      <p class="leise">Der Ablauf ist fest: Pomodoro → Pause, so oft wie „Wiederholungen“ eingestellt ist. Länge, Pause, Wiederholungen und Töne stellst du schnell im <a href="/admin/panel.html">Stream-Panel</a> ein (oder unter „Einstellungen → Pomodoro“). Im Chat (Moderation): <code>!pomodoro 25 5 4</code> (Pomodoro-Minuten, Pause-Minuten, Wiederholungen), <code>!anhalten</code>, <code>!weiter</code>, <code>!pause</code>, <code>!stop</code>.</p>
-    </section>
-
-    <section class="karte">
-      <h2>Ziel</h2>
-      <p class="leise">Die Ziel-Karte im Overlay zeigt, worauf du heute hinarbeitest. Wähle eine Art:</p>
-      <div class="szenen" id="zielArten"></div>
-      <div class="felder" style="margin-top:12px">
-        <div class="feld"><label for="zielWoerter">Wörterziel heute</label><input type="number" id="zielWoerter" min="0"></div>
-        <div class="feld"><label for="zielSeiten">Seitenziel heute</label><input type="number" id="zielSeiten" min="0"></div>
-        <div class="feld"><label for="zielStunden">Streamzeit geplant (Stunden)</label><input type="number" id="zielStunden" min="0.25" max="24" step="0.25"></div>
-        <div class="feld"><label>&nbsp;</label><button id="zieleSpeichern">Ziele speichern</button></div>
-      </div>
-      <h3>Wörter heute: <span id="woerterHeute">0</span> / <span id="woerterZiel">0</span></h3>
-      <div class="reihe">
-        <input type="number" id="woerterWert" min="0" placeholder="Zahl" style="width:120px">
-        <button id="wAbs" title="Gesamtzahl aus der Statuszeile von Papyrus">Stand aus Papyrus</button>
-        <button class="hell" id="wDelta" title="Dazugeschriebene Wörter addieren">+ dazu</button>
-        <button class="hell" id="wToday" title="Wie viele Wörter heute schon geschrieben wurden">Heute schon …</button>
-        <button class="hell" id="wReset">Tag zurücksetzen</button>
-      </div>
-      <p class="leise">Im Chat: <code>!wörter 4231</code> (Stand aus Papyrus) oder <code>!wörter +300</code>.</p>
-      <h3>Seiten heute: <span id="seitenHeute">0</span> / <span id="seitenZiel">0</span></h3>
-      <div class="reihe">
-        <input type="number" id="seitenWert" min="0" placeholder="Zahl" style="width:120px">
-        <button id="sSet">Setzen</button><button class="hell" id="sPlus">+ dazu</button>
-      </div>
-      <p class="leise">Im Chat: <code>!seiten 12</code> oder <code>!seiten +3</code>, Ziel mit <code>!seitenziel 40</code>.</p>
-      <h3>Streamzeit: <span id="streamText">nicht gestartet</span></h3>
-      <div class="reihe"><button class="gruen" id="streamStart">▶ Streamzeit starten</button><button class="hell" id="streamStop">■ Beenden</button></div>
-      <p class="leise">Läuft dein Twitch-Stream, erkennt das Overlay den Beginn selbst. Mit „Streamzeit starten“ legst du den Anfang von Hand fest. Im Chat: <code>!stream start</code>, <code>!stream stop</code>, <code>!stream ziel 3</code>. Mit „Landschaft wächst mit: Streamzeit“ wächst die Wiese auch ohne Eingabe.</p>
-    </section>
-
-    <section class="karte">
-      <h2>To-Do-Liste</h2>
-      <div id="aufgaben"></div>
-      <div class="reihe"><input id="neueAufgabe" placeholder="Neue Aufgabe" maxlength="70" style="flex:1; min-width: 200px"><button id="aufgabeAdd">Hinzufügen</button><button class="hell" id="aufgabenLeer">Alle löschen</button></div>
-      <p class="leise">Im Chat: <code>!task Text</code>, <code>!done</code>, <code>!tasks</code> (für alle, die Liste im Overlay zeigt die der Streamerin).</p>
-      <div id="plaetze" class="leise" hidden></div>
-      <div class="reihe" id="zimmerKnoepfe" hidden><button class="hell" id="alleAufstehen">Alle Figuren aufstehen lassen</button></div>
-    </section>
-
-    <section class="karte">
-      <h2>Musik</h2>
-      <div class="reihe"><label for="musikQuelleSel">Anzeige</label><select id="musikQuelleSel"></select><input id="musikUrlFeld" placeholder="http://localhost:1608/" style="flex:1; min-width: 220px"><button id="musikSpeichern">Speichern</button></div>
-      <div class="reihe"><input id="musikText" placeholder="Titel - Interpret" maxlength="160" style="flex:1; min-width: 220px"><button id="musikSetzen">Von Hand setzen</button><button class="hell" id="musikLoeschen">Löschen</button></div>
-      <p class="leise" id="musikStatus">–</p>
-      <details><summary>So kommt YouTube Music ins Overlay</summary><div class="leise">
-        <p><b>Variante 1 (lokal, am einfachsten):</b> Die YouTube-Music-Desktop-App (<i>Pear Desktop</i>, früher „th-ch/youtube-music“) hat ein Plugin <b>„Tuna OBS“</b>. Zusammen mit dem OBS-Plugin <b>Tuna</b> (in Tuna als Quelle „Web browser“ wählen und „Host/receive information on local webserver“ mit Port 1608 aktivieren) steht der aktuelle Titel unter <code>http://localhost:1608/</code>. Hier „Anzeige: lokal“ wählen und diese Adresse eintragen. Das Overlay liest sie selbst, es muss auf demselben PC laufen wie OBS.</p>
-        <p><b>Variante 2 (Server):</b> „Anzeige: Server“ wählen. Dann kommt der Titel per Chat (<code>!song Titel - Interpret</code>, <code>!song aus</code>), von Hand (oben) oder von einem Hilfsprogramm, das <code>POST /api/musik</code> mit dem <code>INGEST_TOKEN</code> aufruft.</p>
-        <p>Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos führen. Gut ist Musik ohne Urheberrechtsprobleme oder Musik, die nur du hörst (dann zeigt das Overlay nur den Titel).</p>
-      </div></details>
-    </section>
-
-    <section class="karte">
-      <h2>Einstellungen</h2>
-      <div id="formular"></div>
-      <div class="reihe"><button class="gruen" id="speichern">Speichern</button><span class="leise">Nach Änderungen an „Erscheinen bei“ oder am Reward-Namen einmal auf „Reward &amp; Verbindung abgleichen“ klicken.</span></div>
-    </section>
-
-    <section class="karte">
-      <h2>Mitschreibende (Zimmer-Modus)</h2>
-      <div class="reihe"><a class="knopf hell" href="/api/admin/export.csv">CSV-Export</a><button class="hell" id="usersLaden">Aktualisieren</button></div>
-      <table><thead><tr><th>Name</th><th>Rang</th><th>Arbeitszeit</th><th>Sprints</th><th>Wörter</th><th>Besuche</th><th></th></tr></thead><tbody id="users"></tbody></table>
-    </section>
-
-    <section class="karte">
-      <h2>Testen</h2>
-      <p class="leise">Mit Testereignissen (und im Zimmer-Modus Testfiguren) siehst du im Overlay, wie alles aussieht, ohne dass jemand im Chat ist.</p>
-      <div class="reihe">
-        <button data-test="seats">Testfiguren setzen</button><button class="hell" data-test="clear">Testfiguren entfernen</button>
-        <button class="hell" data-event="sprint">Pomodoro-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
-        <button class="hell" data-event="rankup">Rang</button><button class="hell" data-event="unlock">Freischaltung</button>
-        <button class="hell" data-event="deko">Zimmer wächst</button><button class="hell" data-event="taskdone">Aufgabe erledigt</button>
-      </div>
-    </section>
-
-    <section class="karte">
-      <h2>Chat-Befehle</h2>
-      <table>
-        <tr><td><code>!pomodoro [Min]</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Timer (nur Moderation und Streamerin)</td></tr>
-        <tr><td><code>!pomodoros 6</code> · <code>!ziel 1500</code></td><td>Pomodoro-Ziel bzw. Wörterziel für heute (nur Streamerin)</td></tr>
-        <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>
-        <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
-        <tr><td><code>!song Titel - Interpret</code> · <code>!song aus</code></td><td>Musik-Anzeige von Hand (Moderation)</td></tr>
-        <tr><td><code>!hilfe</code></td><td>Befehlsübersicht</td></tr>
-        <tr><td><i>Zimmer-Modus (pausiert):</i> <code>!sitzen</code> · <code>!aufstehen</code> · <code>!figur</code> · <code>!rang</code> · <code>!szene</code></td><td>Figuren der Zuschauer an Tischen, nur wenn „Darstellung: Zimmer“ gewählt ist</td></tr>
-      </table>
-    </section>
   </div>
 </main>
 <div class="meldung" id="meldung" hidden></div>
-<script type="module" src="betrieb.js"></script>
+<script type="module" src="uebersicht.js"></script>
 </body>
 </html>

@@ -36,9 +36,10 @@ export const DEFAULTS = {
   focusMinutes: 25,
   breakMinutes: 5,
   repeats: 4,
-  // Töne im Overlay (OBS: „Audio über OBS steuern“): Startton bei neuem Pomodoro, Endton wenn ein Abschnitt abgelaufen ist
-  soundStart: true,
-  soundEnde: true,
+  // Töne im Overlay (OBS: „Audio über OBS steuern“): nur zwei Stück, Pomodoro-Beginn und Pomodoro-Ende; eigene Dateien siehe features/sounds.mjs
+  soundAn: true, // Hauptschalter: aus = das Overlay ist komplett stumm
+  soundStart: true, // Ton, wenn ein Pomodoro beginnt
+  soundEnde: true, // Ton, wenn ein Pomodoro zu Ende ist (Pausen und alles andere bleiben still)
   soundLautstaerke: 60, // 0–100
   timezone: 'Europe/Berlin',
   dayRolloverHour: 5,
@@ -77,7 +78,7 @@ export const DEFAULTS = {
 };
 
 const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const BOOL = ['soundAn', 'soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
 const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';

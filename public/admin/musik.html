@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Musik · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-seite="musik" data-titel="Musik">
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>✍️ Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <section class="karte">
+      <h2>Musik</h2>
+      <div class="reihe"><label for="musikQuelleSel">Anzeige</label><select id="musikQuelleSel"></select><input id="musikUrlFeld" placeholder="http://localhost:1608/" style="flex:1; min-width: 220px"><button id="musikSpeichern">Speichern</button></div>
+      <div class="reihe"><input id="musikText" placeholder="Titel - Interpret" maxlength="160" style="flex:1; min-width: 220px"><button id="musikSetzen">Von Hand setzen</button><button class="hell" id="musikLoeschen">Löschen</button></div>
+      <p class="leise" id="musikStatus">–</p>
+      <details><summary>So kommt YouTube Music ins Overlay</summary><div class="leise">
+        <p><b>Variante 1 (lokal, am einfachsten):</b> Die YouTube-Music-Desktop-App (<i>Pear Desktop</i>, früher „th-ch/youtube-music“) hat ein Plugin <b>„Tuna OBS“</b>. Zusammen mit dem OBS-Plugin <b>Tuna</b> (in Tuna als Quelle „Web browser“ wählen und „Host/receive information on local webserver“ mit Port 1608 aktivieren) steht der aktuelle Titel unter <code>http://localhost:1608/</code>. Hier „Anzeige: lokal“ wählen und diese Adresse eintragen. Das Overlay liest sie selbst, es muss auf demselben PC laufen wie OBS.</p>
+        <p><b>Variante 2 (Server):</b> „Anzeige: Server“ wählen. Dann kommt der Titel per Chat (<code>!song Titel - Interpret</code>, <code>!song aus</code>), von Hand (oben) oder von einem Hilfsprogramm, das <code>POST /api/musik</code> mit dem <code>INGEST_TOKEN</code> aufruft.</p>
+        <p>Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos führen. Gut ist Musik ohne Urheberrechtsprobleme oder Musik, die nur du hörst (dann zeigt das Overlay nur den Titel).</p>
+      </div></details>
+    </section>
+
+  </div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="musik.js"></script>
+</body>
+</html>

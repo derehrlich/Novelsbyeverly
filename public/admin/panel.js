@@ -3,7 +3,7 @@
 import { $, api, initSeite, meldung, run, show } from './common.js';
 
 const FELDER = ['focusMinutes', 'breakMinutes', 'repeats', 'pomodoroGoal', 'soundLautstaerke'];
-const KISTEN = ['soundStart', 'soundEnde'];
+const KISTEN = ['soundAn', 'soundStart', 'soundEnde'];
 const pad = (n) => String(n).padStart(2, '0');
 let state = null, tippt = false;
 

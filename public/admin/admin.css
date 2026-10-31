@@ -45,9 +45,6 @@ details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
 .code { font-size: 1.3em; letter-spacing: .15em; font-weight: 700; }
 
 /* Menü und Overlay-Seite */
-.menue { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 4px; }
-.menue a { text-decoration: none; color: var(--text); font-weight: 600; padding: 7px 16px; border-radius: 10px; border: 2px solid var(--rand); }
-.menue a.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
 .zeile { display: flex; gap: 8px; align-items: center; margin: 5px 0; font-weight: 500; }
 .farben { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 16px; }
 .farbe { display: flex; align-items: center; gap: 10px; font-weight: 500; } .farbe input[type=color] { width: 44px; height: 34px; padding: 0; border-radius: 8px; cursor: pointer; }
@@ -60,3 +57,42 @@ details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
 output { font-weight: 600; }
 .kachel { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 table.liste td, table.liste th { vertical-align: middle; }
+
+/* ---- Rahmen: Seitenleiste am PC, Burger-Menü am Handy ---- */
+.rahmen { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+body:not(.angemeldet) .rahmen { grid-template-columns: 1fr; }
+.seitenleiste { display: none; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--karte); border-right: 3px solid var(--rand); padding: 18px 14px; }
+body.angemeldet .seitenleiste { display: flex; }
+.seitenleiste .marke { font-size: 22px; font-weight: 700; padding: 4px 12px 14px; }
+.seitenleiste a { display: flex; gap: 12px; align-items: center; padding: 11px 14px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600; }
+.seitenleiste a .sym { font-size: 22px; width: 28px; text-align: center; }
+.seitenleiste a:hover { background: rgba(139, 94, 60, .14); }
+.seitenleiste a.aktiv { background: var(--akzent); color: #fff; }
+.seitenleiste .abstand { flex: 1; min-height: 16px; }
+.kopfzeile { display: none; align-items: center; gap: 12px; }
+body.angemeldet .kopfzeile { display: flex; padding: 18px 24px 0; }
+.kopfzeile h1 { margin: 0; font-size: 28px; }
+#burger { display: none; font-size: 22px; padding: 4px 12px; line-height: 1.2; }
+#hintergrund { display: none; }
+.haupt main { max-width: 1180px; margin: 0; padding: 8px 24px 90px; }
+#app.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 0 20px; align-items: start; }
+#app.spalten > section.karte { margin: 12px 0; }
+#app.spalten > section.karte.breit { grid-column: 1 / -1; }
+.tonzeile { padding: 10px 0; border-bottom: 1px solid rgba(139, 94, 60, .2); } .tonzeile:last-child { border-bottom: 0; }
+.tonzeile input[type=file] { max-width: 100%; }
+@media (max-width: 899px) {
+  .rahmen, body:not(.angemeldet) .rahmen { grid-template-columns: 1fr; }
+  .seitenleiste { position: fixed; z-index: 30; left: 0; top: 0; width: min(84vw, 320px); transform: translateX(-105%); transition: transform .25s; box-shadow: 0 0 30px rgba(0, 0, 0, .4); }
+  body.menue-offen .seitenleiste { transform: none; }
+  body.angemeldet #burger { display: inline-flex; }
+  body.angemeldet .kopfzeile { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 10px 14px; border-bottom: 2px solid rgba(139, 94, 60, .25); }
+  .kopfzeile h1 { font-size: 22px; }
+  .haupt main { padding: 6px 12px 90px; }
+  #app.spalten { grid-template-columns: 1fr; }
+  #hintergrund { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 25; }
+  body.menue-offen #hintergrund { display: block; }
+  body.menue-offen { overflow: hidden; }
+  .reihe > button, .reihe > .knopf { flex: 1 1 auto; }
+  input[type=file] { width: 100%; }
+}
+main a:not(.knopf) { color: var(--akzent); }

@@ -385,7 +385,23 @@ function rr(c, x, y, w, h, r, fill, stroke, lw) {
 const lg = (c, x0, y0, x1, y1, stops) => { const g = c.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
 const rg = (c, x, y, r0, r1, stops) => { const g = c.createRadialGradient(x, y, r0, x, y, r1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
 // Weiche Lichtkugel (Glühen von Lampen, Sonne)
-function glow(c, x, y, r, col, a = 0.5) { c.fillStyle = rg(c, x, y, 0, r, [[0, alpha(col, a)], [1, alpha(col, 0)]]); c.fillRect(x - r, y - r, r * 2, r * 2); }
+// Die Lichtkugel wird einmal als kleines Bild gemalt und danach nur noch kopiert: das ist viel schneller als jedes Mal einen Verlauf
+// aufzubauen (wichtig für die vielen Glühwürmchen, Lichter und Funken, die jedes Bild neu gezeichnet werden).
+const glowBilder = new Map();
+function glow(c, x, y, r, col, a = 0.5) {
+  const rad = Math.max(1, Math.round(r)), key = `${col}|${rad}`;
+  let img = glowBilder.get(key);
+  if (!img) {
+    if (glowBilder.size > 400) glowBilder.clear();
+    img = document.createElement('canvas'); img.width = img.height = rad * 2;
+    const k = img.getContext('2d'); k.fillStyle = rg(k, rad, rad, 0, rad, [[0, alpha(col, 1)], [1, alpha(col, 0)]]); k.fillRect(0, 0, rad * 2, rad * 2);
+    glowBilder.set(key, img);
+  }
+  const vorher = c.globalAlpha;
+  c.globalAlpha = vorher * a;
+  c.drawImage(img, x - rad, y - rad);
+  c.globalAlpha = vorher;
+}
 
 // ---- Blätter
 // Spitzes Blatt, Stielansatz bei (0,0), Spitze bei (0,-len)
@@ -1265,10 +1281,12 @@ const vomBaum = (c, t, n, seed, draw) => {
 
 class Wachstum {
   constructor() {
-    this.bg = canvas(); this.gl = canvas(); this.bgKey = ''; this.glKey = '';
+    this.bg = canvas(); this.gl = canvas(); this.base = canvas(); this.bgKey = ''; this.glKey = '';
   }
 
-  draw(c, view, t) {
+  // Setzt den ruhenden Teil (Himmel, Boden, Pflanzen, Tönung, Vignette) zusammen, aber nur wenn sich etwas geändert hat.
+  // Gibt einen Schlüssel zurück, der sich ändert, wenn die Basis neu ist (this.base). finish = Vignette und Körnung aus Szene.
+  vorbereiten(view, finish = null) {
     const season = PAL[view.jahreszeit] ? view.jahreszeit : 'fruehling';
     const zeit = SKY[view.tageszeit] ? view.tageszeit : 'mittag';
     const p = clamp01(view.progress ?? 0);
@@ -1277,13 +1295,22 @@ class Wachstum {
     if (bgKey !== this.bgKey) { this.bgKey = bgKey; const k = this.bg.getContext('2d'); k.clearRect(0, 0, W, H); paintBackground(k, season, zeit, snowQ); this.glKey = ''; }
     const pq = Math.round(p * 80) / 80;
     const glKey = `${bgKey}|${pq}`;
-    if (glKey !== this.glKey) { this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq); }
-    c.drawImage(this.bg, 0, 0);
+    if (glKey !== this.glKey) {
+      this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq);
+      const b = this.base.getContext('2d'); b.clearRect(0, 0, W, H); b.drawImage(this.bg, 0, 0); b.drawImage(this.gl, 0, 0);
+      const tint = SKY[zeit].tint;
+      if (tint) { b.fillStyle = alpha(tint[0], tint[1]); b.fillRect(0, 0, W, H); }
+      if (finish) b.drawImage(finish, 0, 0);
+    }
+    this.aktuell = { season, zeit, pq };
+    return glKey;
+  }
+
+  // Nur das, was sich bewegt (Nebel, Schmetterlinge, Laub, Schnee, Glühwürmchen); kommt auf die Ebene über der Basis.
+  animiere(c, t) {
+    const { season, zeit, pq } = this.aktuell;
     if (zeit === 'morgen') for (let i = 0; i < 4; i += 1) ell(c, 300 + i * 480 + Math.sin(t / 5000 + i) * 60, 700 + (i % 2) * 24, 380, 36, alpha('#fff4ee', 0.2));
-    c.drawImage(this.gl, 0, 0);
     this.living(c, season, zeit, pq, t);
-    const tint = SKY[zeit].tint;
-    if (tint) { c.fillStyle = alpha(tint[0], tint[1]); c.fillRect(0, 0, W, H); }
   }
 
   living(c, season, zeit, p, t) {
@@ -1699,7 +1726,7 @@ class Fenster {
   constructor() {
     this.cache = fxCanvas(); this.key = ''; this.meta = { towers: [], lamps: [], lights: [], cup: null };
     const r = rng(2024);
-    this.rain = Array.from({ length: 280 }, () => ({ x: r() * FW.w * 1.3, y: r() * (FW.h + 80), v: 700 + r() * 500, l: 14 + r() * 14 }));
+    this.rain = Array.from({ length: 180 }, () => ({ x: r() * FW.w * 1.3, y: r() * (FW.h + 80), v: 700 + r() * 500, l: 14 + r() * 14 }));
     this.snow = Array.from({ length: 170 }, () => ({ x: r() * FW.w, y: r() * FW.h, v: 40 + r() * 60, s: 1.4 + r() * 2.4, ph: r() * 6 }));
     this.pane = Array.from({ length: 16 }, () => ({ x: FW.x + 20 + r() * (FW.w - 40), y0: r() * FW.h, v: 6 + r() * 14, l: 14 + r() * 40 }));
     this.rings = Array.from({ length: 16 }, () => ({ x: FW.x + 80 + r() * (FW.w - 160), y: FW.y + FW.h * 0.55 + r() * FW.h * 0.38, ph: r() }));
@@ -1740,13 +1767,17 @@ class Fenster {
     fxLicht(c, o, meta);
   }
 
-  draw(c, view, t) {
+  // Ruhender Teil (Zimmer, Ausblick, Licht, Vignette) in this.cache; gibt einen Schlüssel zurück, der sich bei Änderungen ändert.
+  vorbereiten(view, finish = null) {
     const o = this.options(view);
     const key = `${o.ort}|${o.blick}|${o.wetter}|${o.season}|${o.zeit}|${o.p}`;
-    if (key !== this.key) { this.key = key; this.compose(o); }
-    c.drawImage(this.cache, 0, 0);
-    this.live(c, o, t);
+    if (key !== this.key) { this.key = key; this.compose(o); if (finish) this.cache.getContext('2d').drawImage(finish, 0, 0); } // Vignette und Körnung gleich mit einbacken
+    this.aktuell = o;
+    return key;
   }
+
+  // Nur das, was sich bewegt (Wetter, Lichterkette, Dampf, Katze, Vögel)
+  animiere(c, t) { this.live(c, this.aktuell, t); }
 
   live(c, o, t) {
     const { meta } = this, k = lampStrength(o.zeit, o.wetter);
@@ -2077,14 +2108,16 @@ function plank(c, w) {
   c.fillStyle = alpha('#fff6e0', 0.3); c.fillRect(-w / 2 + 12, 1, w - 24, 3);
 }
 
-// Rahmen um das Kamerabild. Das Innere wird durchsichtig geschnitten: In OBS liegt die Kamera unter dem Overlay.
-function cameraFrame(c, k) {
+// Rahmen um das Kamerabild und das durchsichtige Loch darin: In OBS liegt die Kamera unter dem Overlay.
+function kameraRahmen(c, k) {
   const { x, y, w, h } = k;
   rr(c, x - 22, y - 22, w + 44, h + 44, 34, lg(c, x, y - 22, x, y + h + 22, [[0, '#d9bf94'], [1, '#a88660']]), alpha('#2b2118', 0.3), 3);
   rr(c, x - 12, y - 12, w + 24, h + 24, 26, null, alpha('#fff6e0', 0.35), 3);
   for (const [lx, ly, a] of [[x - 14, y + 30, -0.4], [x - 8, y + 56, -0.9], [x + w + 14, y + h - 30, 2.7], [x + w + 8, y + h - 56, 2.2], [x + w * 0.3, y - 18, 0.9], [x + w * 0.7, y + h + 18, 3.9]]) leaf(c, lx, ly, 48, 17, a, '#7f9d6f');
+}
+function kameraLoch(c, k) {
   c.globalCompositeOperation = 'destination-out';
-  rr(c, x, y, w, h, 20, '#000000');
+  rr(c, k.x, k.y, k.w, k.h, 20, '#000000');
   c.globalCompositeOperation = 'source-over';
 }
 
@@ -2096,6 +2129,12 @@ class Szene {
     this.cache = document.createElement('canvas'); this.cache.width = W; this.cache.height = H;
     this.cacheKey = '';
     this.finish = finishLayer();
+    // Zwei Ebenen: Die ruhende Basis (Hintergrund) liegt in einem eigenen Canvas dahinter und wird nur bei Änderungen gemalt,
+    // der Canvas davor (this.canvas) zeigt nur das Bewegte. So muss nicht in jedem Bild ein ganzes Full-HD-Bild kopiert werden.
+    this.basis = document.createElement('canvas'); this.basis.width = W; this.basis.height = H;
+    this.basis.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:1080px';
+    canvas.parentNode?.insertBefore(this.basis, canvas);
+    this.bc = this.basis.getContext('2d'); this.basisKey = '';
     this.wachstum = new Wachstum();
     this.fenster = new Fenster();
     this.view = { scene: 'cafe', deco: [], seats: [], timer: { phase: 'idle' }, modules: {} };
@@ -2137,11 +2176,19 @@ class Szene {
     const { scene, deco, seats, timer, modules, modus, layout } = this.view;
     const wachs = modus !== 'zimmer';
     c.clearRect(0, 0, W, H);
-    if (modus === 'fenster') {
-      this.fenster.draw(c, this.view, t);
-    } else if (wachs) {
-      this.wachstum.draw(c, this.view, t);
+    this.basis.hidden = this.canvas.hidden;
+    const kam = layout?.kamera?.on ? layout.kamera : null;
+    if (wachs) {
+      const quelle = modus === 'fenster' ? this.fenster : this.wachstum;
+      const key = `${modus}|${quelle.vorbereiten(this.view, this.finish)}|${kam ? `${kam.x},${kam.y},${kam.w}` : ''}`;
+      if (key !== this.basisKey) { // nur bei Änderungen: Basis (und Kamerarahmen) neu auf die hintere Ebene malen
+        this.basisKey = key;
+        this.bc.clearRect(0, 0, W, H); this.bc.drawImage(quelle.base ?? quelle.cache, 0, 0);
+        if (kam) { kameraRahmen(this.bc, kam); kameraLoch(this.bc, kam); }
+      }
+      quelle.animiere(c, t);
     } else {
+      if (this.basisKey !== 'zimmer') { this.basisKey = 'zimmer'; this.bc.clearRect(0, 0, W, H); }
       this.background();
       c.drawImage(this.cache, 0, 0);
       this.rays(c, t);
@@ -2151,8 +2198,8 @@ class Szene {
     if (!wachs) this.drawSeats(c, t, scene, seats, timer);
     this.drawEffects(c, t);
     if (!wachs) this.particles(c, t);
-    c.drawImage(this.finish, 0, 0);
-    if (layout?.kamera?.on) cameraFrame(c, layout.kamera);
+    if (!wachs) c.drawImage(this.finish, 0, 0); // Landschaft und Fenster-Ansicht haben sie schon in ihrer Basis
+    if (kam) { if (!wachs) kameraRahmen(c, kam); kameraLoch(c, kam); } // das Loch muss auch aus dem Bewegten herausgeschnitten sein
   }
 
   drawSeats(c, t, scene, seats, timer) {
@@ -2298,10 +2345,26 @@ function chime(notes = [660, 880, 1320], gap = 0.16, loud = 0.25) {
     });
   } catch { /* ohne Ton weiter */ }
 }
-// Startton (neuer Pomodoro: aufsteigend) und Endton (Abschnitt abgelaufen: absteigendes Glockenspiel). Lautstärke und Schalter kommen aus dem Admin.
-const lautstaerke = () => Math.max(0, Math.min(1, (view?.ton?.lautstaerke ?? 60) / 100)) * 0.45;
-const startTon = () => chime([523, 659, 784, 1047], 0.12, lautstaerke());
-const endTon = () => chime([988, 784, 659, 523], 0.2, lautstaerke());
+// Es gibt genau zwei Töne: „start“ (ein Pomodoro beginnt) und „ende“ (ein Pomodoro ist zu Ende). Sonst bleibt das Overlay still.
+// Pro Ton gilt entweder die hochgeladene Datei (Admin → Pomodoro → Töne) oder ein eingebauter Klang. Hauptschalter, Einzelschalter
+// und Lautstärke kommen aus dem Admin. test = Probeton aus dem Admin (ignoriert die Einzelschalter, nicht den Hauptschalter).
+const dateien = new Map();
+function klang(art, { test = false } = {}) {
+  const t = view?.ton;
+  if (!ton || !t?.an || (!test && !t[art])) return;
+  const lautheit = Math.max(0, Math.min(1, (t.lautstaerke ?? 60) / 100));
+  const datei = t.dateien?.[art];
+  if (datei) {
+    try {
+      let a = dateien.get(art);
+      if (!a || a.dataset.url !== datei.url) { a = new Audio(datei.url); a.dataset.url = datei.url; dateien.set(art, a); }
+      a.volume = lautheit; a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch { /* ohne Ton weiter */ }
+    return;
+  }
+  if (art === 'start') chime([523, 659, 784, 1047], 0.12, lautheit * 0.45); else chime([988, 784, 659, 523], 0.2, lautheit * 0.45);
+}
 
 // ---- Konfetti
 const kc = $('konfetti').getContext('2d');
@@ -2313,7 +2376,10 @@ function burst(x, y, n = 80, spread = 1) {
     parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, r: 6 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length], life: 0 });
   }
 }
+let konfettiSichtbar = false; // nur löschen, wenn etwas zu löschen ist
 function stepConfetti() {
+  if (!parts.length && !konfettiSichtbar) return;
+  konfettiSichtbar = parts.length > 0;
   kc.clearRect(0, 0, 1920, 1080);
   parts = parts.filter((p) => p.life < 150 && p.y < 1100);
   for (const p of parts) {
@@ -2326,8 +2392,8 @@ function stepConfetti() {
 // ---- Banner
 const queue = [];
 let showing = false;
-function banner(icon, titel, sub = '', { gold = false, sound = true, confetti = 0 } = {}) {
-  queue.push({ icon, titel, sub, gold, sound, confetti });
+function banner(icon, titel, sub = '', { gold = false, confetti = 0 } = {}) {
+  queue.push({ icon, titel, sub, gold, confetti });
   if (!showing) nextBanner();
 }
 function nextBanner() {
@@ -2340,7 +2406,6 @@ function nextBanner() {
   el.querySelector('.icon').textContent = b.icon; el.querySelector('.titel').textContent = b.titel; el.querySelector('.sub').textContent = b.sub;
   el.querySelector('.sub').hidden = !b.sub;
   $('banner').append(el);
-  if (b.sound) chime();
   if (b.confetti) burst(960, 140, b.confetti, 1.3);
   setTimeout(() => el.classList.add('raus'), 5200);
   setTimeout(() => { el.remove(); nextBanner(); }, 5700);
@@ -2351,22 +2416,19 @@ function handleEvent(ev) {
   switch (ev.type) {
     case 'sprint': banner(ev.early ? '⏹️' : '🍅', ev.early ? 'Pomodoro beendet' : `Pomodoro ${ev.n ?? ''}${ev.goal ? ` von ${ev.goal}` : ''} geschafft!`.replace('  ', ' '), [`${ev.minutes} Min`, ev.streamerWords ? `+${fmt.format(ev.streamerWords)} Wörter` : '', ev.writers ? `${ev.writers} Mitschreibende` : ''].filter(Boolean).join(' · '), { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
     case 'phase': {
-      const t = view?.ton ?? { start: true, ende: true };
       const von = ev.cycle ? ` ${ev.cycle.index} von ${ev.cycle.total}` : '';
-      if (ev.vorher && t.ende) endTon(); // Ein Abschnitt ist abgelaufen
-      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); if (t.start) setTimeout(startTon, ev.vorher && t.ende ? 1000 : 0); }
-      else if (ev.phase === 'break') banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`);
+      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); klang('start'); }
+      else if (ev.phase === 'break') { banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`); if (ev.vorher === 'focus') klang('ende'); } // Pomodoro zu Ende (nicht: Pause zu Ende)
       else if (ev.sessionEnde) banner('🎉', 'Geschafft!', `${ev.gesamt} Pomodoro${ev.gesamt === 1 ? '' : 's'} am Stück`, { gold: true, confetti: 120 });
       break;
     }
     case 'hold': banner(ev.on ? '⏸️' : '▶️', ev.on ? 'Angehalten' : 'Weiter geht’s', ''); break;
-    case 'tontest': if (ev.art === 'start') startTon(); else endTon(); break;
+    case 'tontest': klang(ev.art === 'start' ? 'start' : 'ende', { test: true }); break;
     case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
     case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
     case 'taskdone': burst(200, 380, 40, .7); break;
-    case 'sit': if (teile.has('szene')) chime([880], 0); break;
     default: break;
   }
 }
@@ -2604,12 +2666,17 @@ $('k-ziel').onclick = (e) => { const v = e.target.dataset?.a; if (!v) return; cf
 for (const [box, attr, key] of [['k-modus', 'm', 'modus'], ['k-ort', 'o', 'ort'], ['k-blick', 'b', 'blick'], ['k-wetter', 'w', 'wetter']]) $(box).onclick = (e) => { const v = e.target.dataset?.[attr]; if (!v) return; cfg[key] = v; mark(box, attr, v); refresh(); };
 
 // ---- Schleifen
+const perf = window.__perf = { n: 0, ms: 0 }; // Messung: /overlay?perf=1 und in der Konsole window.__perf lesen
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  if (t - last < 70) return; // ca. 14 Bilder pro Sekunde reichen für Pixel-Optik
+  if (t - last < 15) return; // bis zu 60 Bilder pro Sekunde (in OBS in den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate“ auf 60 stellen)
   last = t;
-  if (szene && view) szene.draw(t);
+  if (szene && view) {
+    const t0 = performance.now();
+    szene.draw(t);
+    if (q.has('perf')) { perf.n += 1; perf.ms += performance.now() - t0; }
+  }
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
   if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();

@@ -105,7 +105,7 @@ function startDrag(e, id, el) {
   el.onpointermove = (m) => {
     layoutState[id].x = Math.round((x0 + (m.clientX - sx) / editScale) / 4) * 4;
     layoutState[id].y = Math.round((y0 + (m.clientY - sy) / editScale) / 4) * 4;
-    layoutState = normalizeLayout(layoutState); renderBoxen(); pushVorschau();
+    layoutState = normalizeLayout(layoutState); renderBoxen(); aendern(); // aendern() zeigt auch die Speichern-Leiste
   };
   el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; };
 }

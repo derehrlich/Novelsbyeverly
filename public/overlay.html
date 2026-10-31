@@ -167,10 +167,26 @@ function chime(notes = [660, 880, 1320], gap = 0.16, loud = 0.25) {
     });
   } catch { /* ohne Ton weiter */ }
 }
-// Startton (neuer Pomodoro: aufsteigend) und Endton (Abschnitt abgelaufen: absteigendes Glockenspiel). Lautstärke und Schalter kommen aus dem Admin.
-const lautstaerke = () => Math.max(0, Math.min(1, (view?.ton?.lautstaerke ?? 60) / 100)) * 0.45;
-const startTon = () => chime([523, 659, 784, 1047], 0.12, lautstaerke());
-const endTon = () => chime([988, 784, 659, 523], 0.2, lautstaerke());
+// Es gibt genau zwei Töne: „start“ (ein Pomodoro beginnt) und „ende“ (ein Pomodoro ist zu Ende). Sonst bleibt das Overlay still.
+// Pro Ton gilt entweder die hochgeladene Datei (Admin → Pomodoro → Töne) oder ein eingebauter Klang. Hauptschalter, Einzelschalter
+// und Lautstärke kommen aus dem Admin. test = Probeton aus dem Admin (ignoriert die Einzelschalter, nicht den Hauptschalter).
+const dateien = new Map();
+function klang(art, { test = false } = {}) {
+  const t = view?.ton;
+  if (!ton || !t?.an || (!test && !t[art])) return;
+  const lautheit = Math.max(0, Math.min(1, (t.lautstaerke ?? 60) / 100));
+  const datei = t.dateien?.[art];
+  if (datei) {
+    try {
+      let a = dateien.get(art);
+      if (!a || a.dataset.url !== datei.url) { a = new Audio(datei.url); a.dataset.url = datei.url; dateien.set(art, a); }
+      a.volume = lautheit; a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch { /* ohne Ton weiter */ }
+    return;
+  }
+  if (art === 'start') chime([523, 659, 784, 1047], 0.12, lautheit * 0.45); else chime([988, 784, 659, 523], 0.2, lautheit * 0.45);
+}
 
 // ---- Konfetti
 const kc = $('konfetti').getContext('2d');
@@ -182,7 +198,10 @@ function burst(x, y, n = 80, spread = 1) {
     parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, r: 6 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length], life: 0 });
   }
 }
+let konfettiSichtbar = false; // nur löschen, wenn etwas zu löschen ist
 function stepConfetti() {
+  if (!parts.length && !konfettiSichtbar) return;
+  konfettiSichtbar = parts.length > 0;
   kc.clearRect(0, 0, 1920, 1080);
   parts = parts.filter((p) => p.life < 150 && p.y < 1100);
   for (const p of parts) {
@@ -195,8 +214,8 @@ function stepConfetti() {
 // ---- Banner
 const queue = [];
 let showing = false;
-function banner(icon, titel, sub = '', { gold = false, sound = true, confetti = 0 } = {}) {
-  queue.push({ icon, titel, sub, gold, sound, confetti });
+function banner(icon, titel, sub = '', { gold = false, confetti = 0 } = {}) {
+  queue.push({ icon, titel, sub, gold, confetti });
   if (!showing) nextBanner();
 }
 function nextBanner() {
@@ -209,7 +228,6 @@ function nextBanner() {
   el.querySelector('.icon').textContent = b.icon; el.querySelector('.titel').textContent = b.titel; el.querySelector('.sub').textContent = b.sub;
   el.querySelector('.sub').hidden = !b.sub;
   $('banner').append(el);
-  if (b.sound) chime();
   if (b.confetti) burst(960, 140, b.confetti, 1.3);
   setTimeout(() => el.classList.add('raus'), 5200);
   setTimeout(() => { el.remove(); nextBanner(); }, 5700);
@@ -220,22 +238,19 @@ function handleEvent(ev) {
   switch (ev.type) {
     case 'sprint': banner(ev.early ? '⏹️' : '🍅', ev.early ? 'Pomodoro beendet' : `Pomodoro ${ev.n ?? ''}${ev.goal ? ` von ${ev.goal}` : ''} geschafft!`.replace('  ', ' '), [`${ev.minutes} Min`, ev.streamerWords ? `+${fmt.format(ev.streamerWords)} Wörter` : '', ev.writers ? `${ev.writers} Mitschreibende` : ''].filter(Boolean).join(' · '), { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
     case 'phase': {
-      const t = view?.ton ?? { start: true, ende: true };
       const von = ev.cycle ? ` ${ev.cycle.index} von ${ev.cycle.total}` : '';
-      if (ev.vorher && t.ende) endTon(); // Ein Abschnitt ist abgelaufen
-      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); if (t.start) setTimeout(startTon, ev.vorher && t.ende ? 1000 : 0); }
-      else if (ev.phase === 'break') banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`);
+      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); klang('start'); }
+      else if (ev.phase === 'break') { banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`); if (ev.vorher === 'focus') klang('ende'); } // Pomodoro zu Ende (nicht: Pause zu Ende)
       else if (ev.sessionEnde) banner('🎉', 'Geschafft!', `${ev.gesamt} Pomodoro${ev.gesamt === 1 ? '' : 's'} am Stück`, { gold: true, confetti: 120 });
       break;
     }
     case 'hold': banner(ev.on ? '⏸️' : '▶️', ev.on ? 'Angehalten' : 'Weiter geht’s', ''); break;
-    case 'tontest': if (ev.art === 'start') startTon(); else endTon(); break;
+    case 'tontest': klang(ev.art === 'start' ? 'start' : 'ende', { test: true }); break;
     case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
     case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
     case 'taskdone': burst(200, 380, 40, .7); break;
-    case 'sit': if (teile.has('szene')) chime([880], 0); break;
     default: break;
   }
 }
@@ -441,12 +456,17 @@ if (demo) {
 }
 
 // ---- Schleifen
+const perf = window.__perf = { n: 0, ms: 0 }; // Messung: /overlay?perf=1 und in der Konsole window.__perf lesen
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  if (t - last < 70) return; // ca. 14 Bilder pro Sekunde reichen für Pixel-Optik
+  if (t - last < 15) return; // bis zu 60 Bilder pro Sekunde (in OBS in den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate“ auf 60 stellen)
   last = t;
-  if (szene && view) szene.draw(t);
+  if (szene && view) {
+    const t0 = performance.now();
+    szene.draw(t);
+    if (q.has('perf')) { perf.n += 1; perf.ms += performance.now() - t0; }
+  }
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
   if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();

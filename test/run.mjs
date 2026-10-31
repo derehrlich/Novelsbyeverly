@@ -514,7 +514,7 @@ await test('Chat und Admin: !pomodoro 25 5 3, !anhalten, !weiter (nur Moderation
   assert.equal((await adminCall('POST', 'timer/resume', {}, cookie)).body.timer.paused, null);
   assert.equal((await adminCall('POST', 'test/event', { kind: 'tonstart' }, cookie)).status, 200);
   assert.equal((await adminCall('POST', 'test/event', { kind: 'tonende' }, cookie)).status, 200);
-  const v = await viewNow(); assert.deepEqual(v.ton, { start: true, ende: true, lautstaerke: 60 }); assert.equal(v.timer.cycle.total, 2);
+  const v = await viewNow(); assert.deepEqual({ ...v.ton, dateien: undefined }, { an: true, start: true, ende: true, lautstaerke: 60, dateien: undefined }); assert.equal(v.timer.cycle.total, 2);
   await timerLib.stopTimer(await getSettings());
 });
 await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
@@ -679,6 +679,28 @@ await test('novelsbyeverly.env: Werte werden geladen, echte Umgebungsvariablen h
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+await test('Eigene Töne: nur echte Audiodateien, Abruf ohne Login, Upload und Löschen nur mit Login, Hauptschalter', async () => {
+  const sounds = (await mod('api/sounds.mjs')).default;
+  const call = (method, art, { body, type = 'audio/wav', cookie, name } = {}) => sounds(new Request(`https://x/api/sound${art ? `/${art}` : ''}`, { method, headers: { ...(type ? { 'content-type': type } : {}), ...(cookie ? { cookie } : {}), ...(name ? { 'x-dateiname': encodeURIComponent(name) } : {}) }, body }));
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.from([1, 2, 3, 4]), Buffer.from('WAVE'), Buffer.alloc(40)]);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await call('PUT', 'start', { body: wav })).status, 401); // ohne Login
+  assert.equal((await call('PUT', 'start', { body: Buffer.from('<html>kein ton</html>'.repeat(5)), cookie })).status, 400); // sieht nicht nach Audio aus
+  assert.equal((await call('PUT', 'start', { body: wav, type: 'text/html', cookie })).status, 415);
+  assert.equal((await call('PUT', 'quatsch', { body: wav, cookie })).status, 400);
+  assert.equal((await call('PUT', 'start', { body: Buffer.alloc(5 * 1024 * 1024, 1), cookie })).status, 400); // zu groß
+  const ok = await call('PUT', 'start', { body: wav, cookie, name: 'Mein Gong (1).wav' });
+  assert.equal(ok.status, 200); const info = await ok.json(); assert.equal(info.start.name, 'Mein Gong (1).wav'); assert.match(info.start.url, /^\/api\/sound\/start\?v=\d+$/); assert.equal(info.ende, null);
+  const get = await call('GET', 'start', { type: null }); // das Overlay darf ohne Login abrufen
+  assert.equal(get.status, 200); assert.equal(get.headers.get('content-type'), 'audio/wav'); assert.equal(Buffer.from(await get.arrayBuffer()).length, wav.length);
+  assert.equal((await call('GET', 'ende', { type: null })).status, 404);
+  assert.equal((await viewNow()).ton.dateien.start.name, 'Mein Gong (1).wav');
+  assert.equal((await call('GET', '', { type: null })).status, 401);
+  assert.equal((await call('DELETE', 'start', { cookie, type: null })).status, 200);
+  assert.equal((await viewNow()).ton.dateien.start, null);
+  await saveSettings({ soundAn: false }); assert.equal((await viewNow()).ton.an, false); await saveSettings({ soundAn: true });
+});
 console.log('System: ZIP, Update, Sicherung');
 const { readZip, writeZip } = await mod('core/zip.mjs');
 const sicherung = await mod('core/sicherung.mjs');

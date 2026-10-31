@@ -22,7 +22,7 @@
 ## Pomodoro-Ablauf (`features/timer.mjs`)
 - Fester Ablauf je Start: Pomodoro → Pause, `repeats`-mal (`state/timer.cycle = {total, index, focusMin, breakMin}`), danach Leerlauf. Keine automatische „lange Pause“ mehr. Start über `startFocus(settings, minutes, now, {breakMinutes, repeats})` (Chat `!pomodoro 25 5 4`, Admin `timer/focus`, Stream-Panel).
 - Anhalten/Fortsetzen: `holdTimer`/`resumeTimer` (`timer.paused = {at, remaining}`, beim Fortsetzen werden `startedAt`/`endsAt` um die Pausendauer verschoben); `tick()` lässt angehaltene Timer stehen.
-- Overlay-Ereignisse `phase` (mit `cycle`, `vorher`, `sessionEnde`) und `hold`: **Startton** bei neuem Pomodoro, **Endton** wenn `vorher` gesetzt ist (Abschnitt ist abgelaufen). Töne und Lautstärke: Einstellungen `soundStart`, `soundEnde`, `soundLautstaerke` (kommen im View als `ton`).
+- Overlay-Ereignisse `phase` (mit `cycle`, `vorher`, `sessionEnde`) und `hold`. **Töne: es gibt genau zwei**, `start` (ein Pomodoro beginnt) und `ende` (ein Pomodoro ist zu Ende, also `phase: break` mit `vorher: focus`); Pausenende, Banner und alles andere bleiben still. Einstellungen `soundAn` (Hauptschalter, aus = stumm), `soundStart`, `soundEnde`, `soundLautstaerke`; im View als `ton` samt `dateien`. Eigene Dateien: `features/sounds.mjs` + `api/sounds.mjs` (`/api/sound/<start|ende>`: GET öffentlich, PUT/DELETE mit Login; nur echte Audiodateien nach Dateikopf, höchstens 4 MB, liegen in `data/sounds/`).
 
 ## Aufbau (`server/`)
 ```
@@ -41,7 +41,7 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 
 ## Oberfläche (`public/`)
 - `overlay.html` + `js/`: das Overlay (OBS-Browserquelle 1920×1080). `js/wachstum.mjs` (Landschaft), `js/fenster.mjs` (Fenster-Ansicht), `js/szene.mjs` (Module, Kamerarahmen, pausierter Zimmer-Modus), `js/design.mjs` (Farben/Schrift der Karten als CSS-Variablen, gemeinsam mit Server und Admin), `js/malerei.mjs` (Malwerkzeuge), `js/layout.mjs` (Positionen).
-- `admin/`: `index.html`+`betrieb.js` (Einrichtung, Pomodoro, Ziele, Aufgaben, Musik, Einstellungen), `studio.html`+`studio.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“), `panel.html`+`panel.js` (Stream-Panel: schlanke Seite für den Stream mit Start/Pause/Stopp, Längen, Ziel; jedes Feld speichert sich einzeln), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `common.js` (API, Meldungen, Login).
+- `admin/`: ein Rahmen für alle Seiten (`nav.js`: Seitenleiste am PC, Burger-Menü am Handy, `common.js`: API, Meldungen, Login, `formular.js`: Einstellungsformulare aus einer Beschreibung). Seiten: `index.html`+`uebersicht.js` (Twitch-App, Verbindungen, Status, Adressen), `pomodoro.html`+`pomodoro.js` (Ablauf starten/anhalten, Länge/Pause/Wiederholungen, Töne inkl. eigener Dateien, Ziele, Wörter, Seiten, To-Do), `studio.html`+`studio.js` (Overlay-Studio: Live-Vorschau, Anordnung, Szene, Design, Module; speichert erst mit „Speichern“; jede Änderung, auch Verschieben, muss `aendern()` aufrufen), `musik.html`+`musik.js`, `chat.html`+`chat.js` (Bot, Chat-Texte, Befehle, Zimmer-Modus), `system.html`+`system.js` (Version, Update, Rückrollen, Sicherungen), `panel.html`+`panel.js` (Stream-Panel: schmal, ohne Menü, für den Stream). Neue Seite: HTML mit `<body data-seite data-titel>`, in `nav.js` eintragen.
 - Die Vorschau im Admin ist das echte Overlay im iframe (`?editor=1`); der Admin schickt per `postMessage({type:'vorschau', patch})` ungespeicherte Änderungen hinein.
 - `docs/vorschau.html` (eigenständige Beispielseite) wird mit `node scripts/build-vorschau.mjs` neu erzeugt. Neue JS-Module des Overlays dort in die Liste `modules` eintragen; Namen dürfen sich zwischen Modulen nicht doppeln.
 
@@ -49,7 +49,12 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 `npm test`: Ende-zu-Ende-Tests ohne Netzwerk (simulierte Twitch-API, simulierter WebSocket, Dateispeicher im Temp-Ordner, Update in einer Kopie des Programms). Vor jedem Release alle Tests, dann `VERSION.txt` erhöhen und `npm run zip`.
 - Optische Prüfung: `ADMIN_PASSWORD=geheim DATA_DIR=/tmp/x PORT=8899 node server/index.mjs` und mit Playwright Screenshots machen; Overlay-Vorschau ohne Server: `/overlay.html?demo=1&modus=fenster&blick=see&tageszeit=abend`.
 
+## Overlay-Geschwindigkeit
+- Zwei Ebenen: `Szene.basis` (eigener Canvas dahinter) trägt den ruhenden Hintergrund (Landschaft/Fenster-Ansicht samt Vignette und Kamerarahmen) und wird nur bei Änderungen gemalt (`vorbereiten()` liefert einen Schlüssel); der Canvas davor zeigt nur das Bewegte (`animiere()`), bis zu 60 Bilder pro Sekunde. `glow()` kopiert zwischengespeicherte Bilder statt Verläufe neu aufzubauen. Neue bewegte Dinge nur in `animiere()`/`living()`/`live()`, nie in die Basis. Messen: `/overlay.html?demo=1&perf=1`, dann `window.__perf`.
+- OBS: In den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate verwenden“ auf 60 stellen (Standard ist 30).
+
 ## Stolperfallen (schon erlebt)
+- Beim Messen von Canvas-Zeiten die Zeichnung erzwingen (`getImageData(0,0,1,1)`), sonst misst man nur das Aufzeichnen der Befehle.
 - **Dateinamen im Projekt nicht doppeln** (z. B. `public/overlay.html` und eine Admin-Seite gleichen Namens): CasaOS flacht hochgeladene ZIPs/Ordner ab, dann überschreibt eine Datei die andere. Deshalb heißt die Admin-Seite `studio.html`.
 - `pkill -f <name>` in der Shell kann die eigene Shell beenden; Prozesse gezielt per PID beenden.
 - Twitch erlaubt im Heimnetz keine Weiterleitung auf `http://192.168…`: deshalb Device-Code-Login.

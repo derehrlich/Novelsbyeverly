@@ -30,7 +30,23 @@ export function rr(c, x, y, w, h, r, fill, stroke, lw) {
 export const lg = (c, x0, y0, x1, y1, stops) => { const g = c.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
 export const rg = (c, x, y, r0, r1, stops) => { const g = c.createRadialGradient(x, y, r0, x, y, r1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
 // Weiche Lichtkugel (Glühen von Lampen, Sonne)
-export function glow(c, x, y, r, col, a = 0.5) { c.fillStyle = rg(c, x, y, 0, r, [[0, alpha(col, a)], [1, alpha(col, 0)]]); c.fillRect(x - r, y - r, r * 2, r * 2); }
+// Die Lichtkugel wird einmal als kleines Bild gemalt und danach nur noch kopiert: das ist viel schneller als jedes Mal einen Verlauf
+// aufzubauen (wichtig für die vielen Glühwürmchen, Lichter und Funken, die jedes Bild neu gezeichnet werden).
+const glowBilder = new Map();
+export function glow(c, x, y, r, col, a = 0.5) {
+  const rad = Math.max(1, Math.round(r)), key = `${col}|${rad}`;
+  let img = glowBilder.get(key);
+  if (!img) {
+    if (glowBilder.size > 400) glowBilder.clear();
+    img = document.createElement('canvas'); img.width = img.height = rad * 2;
+    const k = img.getContext('2d'); k.fillStyle = rg(k, rad, rad, 0, rad, [[0, alpha(col, 1)], [1, alpha(col, 0)]]); k.fillRect(0, 0, rad * 2, rad * 2);
+    glowBilder.set(key, img);
+  }
+  const vorher = c.globalAlpha;
+  c.globalAlpha = vorher * a;
+  c.drawImage(img, x - rad, y - rad);
+  c.globalAlpha = vorher;
+}
 
 // ---- Blätter
 // Spitzes Blatt, Stielansatz bei (0,0), Spitze bei (0,-len)

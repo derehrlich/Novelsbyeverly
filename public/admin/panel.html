@@ -61,11 +61,12 @@
 
     <section class="karte">
       <h3 style="margin-top:0">Töne im Overlay</h3>
-      <label class="zeile"><input type="checkbox" id="soundStart"> Startton (neuer Pomodoro beginnt)</label>
-      <label class="zeile"><input type="checkbox" id="soundEnde"> Endton (Pomodoro oder Pause ist abgelaufen)</label>
+      <label class="zeile"><input type="checkbox" id="soundAn"> <b>Töne an</b> (aus = alles stumm)</label>
+      <label class="zeile"><input type="checkbox" id="soundStart"> Ton, wenn ein Pomodoro beginnt</label>
+      <label class="zeile"><input type="checkbox" id="soundEnde"> Ton, wenn ein Pomodoro zu Ende ist</label>
       <label class="zeile">Lautstärke <input type="range" id="soundLautstaerke" min="0" max="100" style="flex:1"> <output id="lautWert"></output></label>
-      <div class="reihe"><button class="hell" id="tonStart">🔔 Startton testen</button><button class="hell" id="tonEnde">🔔 Endton testen</button></div>
-      <p class="leise" style="margin:4px 0 0">Die Töne kommen aus dem Overlay (in OBS „Audio über OBS steuern“ aktivieren).</p>
+      <div class="reihe"><button class="hell" id="tonStart">🔔 Beginn testen</button><button class="hell" id="tonEnde">🔔 Ende testen</button></div>
+      <p class="leise" style="margin:4px 0 0">Es gibt nur diese zwei Töne, Pausen und alles andere bleiben still. Eigene Tondateien lädst du im Admin hoch. Die Töne kommen aus dem Overlay (in OBS „Audio über OBS steuern“ aktivieren).</p>
     </section>
   </div>
 </main>

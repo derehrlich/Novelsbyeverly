@@ -372,7 +372,7 @@ export class Fenster {
   constructor() {
     this.cache = fxCanvas(); this.key = ''; this.meta = { towers: [], lamps: [], lights: [], cup: null };
     const r = rng(2024);
-    this.rain = Array.from({ length: 280 }, () => ({ x: r() * FW.w * 1.3, y: r() * (FW.h + 80), v: 700 + r() * 500, l: 14 + r() * 14 }));
+    this.rain = Array.from({ length: 180 }, () => ({ x: r() * FW.w * 1.3, y: r() * (FW.h + 80), v: 700 + r() * 500, l: 14 + r() * 14 }));
     this.snow = Array.from({ length: 170 }, () => ({ x: r() * FW.w, y: r() * FW.h, v: 40 + r() * 60, s: 1.4 + r() * 2.4, ph: r() * 6 }));
     this.pane = Array.from({ length: 16 }, () => ({ x: FW.x + 20 + r() * (FW.w - 40), y0: r() * FW.h, v: 6 + r() * 14, l: 14 + r() * 40 }));
     this.rings = Array.from({ length: 16 }, () => ({ x: FW.x + 80 + r() * (FW.w - 160), y: FW.y + FW.h * 0.55 + r() * FW.h * 0.38, ph: r() }));
@@ -413,13 +413,17 @@ export class Fenster {
     fxLicht(c, o, meta);
   }
 
-  draw(c, view, t) {
+  // Ruhender Teil (Zimmer, Ausblick, Licht, Vignette) in this.cache; gibt einen Schlüssel zurück, der sich bei Änderungen ändert.
+  vorbereiten(view, finish = null) {
     const o = this.options(view);
     const key = `${o.ort}|${o.blick}|${o.wetter}|${o.season}|${o.zeit}|${o.p}`;
-    if (key !== this.key) { this.key = key; this.compose(o); }
-    c.drawImage(this.cache, 0, 0);
-    this.live(c, o, t);
+    if (key !== this.key) { this.key = key; this.compose(o); if (finish) this.cache.getContext('2d').drawImage(finish, 0, 0); } // Vignette und Körnung gleich mit einbacken
+    this.aktuell = o;
+    return key;
   }
+
+  // Nur das, was sich bewegt (Wetter, Lichterkette, Dampf, Katze, Vögel)
+  animiere(c, t) { this.live(c, this.aktuell, t); }
 
   live(c, o, t) {
     const { meta } = this, k = lampStrength(o.zeit, o.wetter);

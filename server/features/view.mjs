@@ -8,6 +8,7 @@ import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from '../twitch/api.mjs';
 import { getMusik } from './musik.mjs';
+import { soundInfo } from './sounds.mjs';
 import { resolveSeason, resolveTime, resolveWeather } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
@@ -85,7 +86,7 @@ export async function buildView(settings, since, now = Date.now()) {
     modules: { blume: settings.moduleBlume, kerze: settings.moduleKerze, buecher: settings.moduleBuecher },
     sprintsToday: done,
     timer: { phase: timer.phase, round: timer.round, startedAt: timer.startedAt, endsAt: timer.endsAt, minutes: timer.minutes ?? null, wordsAtStart: timer.wordsAtStart ?? 0, cycle: timer.cycle ?? null, paused: timer.paused ?? null },
-    ton: { start: settings.soundStart, ende: settings.soundEnde, lautstaerke: settings.soundLautstaerke },
+    ton: { an: settings.soundAn, start: settings.soundStart, ende: settings.soundEnde, lautstaerke: settings.soundLautstaerke, dateien: soundInfo() },
     words: { today: words.today, goal: words.goal, chat: await viewerWordsToday(settings) },
     streamerTasks,
     seats: people,
