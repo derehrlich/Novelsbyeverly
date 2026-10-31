@@ -85,15 +85,16 @@ const pad = (n) => String(n).padStart(2, '0');
 function renderTimer() {
   const t = state?.timer;
   if (!t || t.phase === 'idle') { $('timer').textContent = 'bereit'; $('timerInfo').textContent = ''; return; }
-  const s = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
+  const s = t.paused ? Math.ceil(t.paused.remaining / 1000) : Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
   $('timer').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-  $('timerInfo').textContent = t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause';
+  $('timerInfo').textContent = (t.paused ? 'Angehalten · ' : '') + (t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause') + (t.cycle ? ` · Durchgang ${t.cycle.index} von ${t.cycle.total}` : '');
 }
 setInterval(renderTimer, 500);
 setInterval(() => { if (!$('app').hidden) { loadState().catch(() => {}); loadStream().catch(() => {}); } }, 15000);
 const minutes = () => ($('minuten').value ? Number($('minuten').value) : undefined);
 $('fokus').onclick = run(async () => { await api('POST', 'timer/focus', { minutes: minutes() }); await loadState(); });
 $('pause').onclick = run(async () => { await api('POST', 'timer/break', { minutes: minutes() }); await loadState(); });
+$('halt').onclick = run(async () => { await api('POST', state?.timer?.paused ? 'timer/resume' : 'timer/hold'); await loadState(); });
 $('stopp').onclick = run(async () => { await api('POST', 'timer/stop'); await loadState(); });
 for (const [id, delta] of [['pomoMinus', -1], ['pomoPlus', 1]]) $(id).onclick = run(async () => { await api('POST', 'timer/count', { delta }); await loadState(); });
 
@@ -140,11 +141,10 @@ const OPT = {
 };
 const SCHEMA = [
   ['Pomodoro', [
-    ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
-    ['longBreakMinutes', 'Lange Pause (Minuten)', 'number'], ['longBreakEvery', 'Lange Pause nach … Pomodoros (0 = nie)', 'number'],
-    ['pomodoroGoal', 'Ziel pro Tag (Anzahl, 0 = ohne)', 'number'],
-    ['autoBreak', 'Nach dem Pomodoro automatisch Pause', 'bool'], ['autoCycle', 'Nach der Pause automatisch nächster Pomodoro', 'bool'],
-    ['announceSprint', 'Ansagen im Chat', 'bool'],
+    ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Dauer der Pause (Minuten)', 'number'],
+    ['repeats', 'Wiederholungen (Pomodoro + Pause)', 'number', '1 = ein Pomodoro, eine Pause, dann Schluss. Höher = der Ablauf wiederholt sich entsprechend oft.'],
+    ['pomodoroGoal', 'Ziel pro Tag (Anzahl, 0 = ohne)', 'number'], ['announceSprint', 'Ansagen im Chat', 'bool'],
+    ['soundStart', 'Startton (neuer Pomodoro beginnt)', 'bool'], ['soundEnde', 'Endton (Abschnitt abgelaufen)', 'bool'], ['soundLautstaerke', 'Lautstärke der Töne (0–100)', 'number'],
   ]],
   ['Tag und Zeit', [['timezone', 'Zeitzone', 'text'], ['dayRolloverHour', 'Neuer Stream-Tag ab (Uhr)', 'number', 'Streams nach Mitternacht zählen zum Vortag.']]],
   ['Chat', [
@@ -152,7 +152,7 @@ const SCHEMA = [
     ['commandPrefix', 'Befehlszeichen', 'text'], ['commandCooldown', 'Pause zwischen Info-Antworten (Sek.)', 'number'], ['maxTasks', 'Offene Aufgaben je Person', 'number'],
   ]],
   ['Chat-Texte', [
-    ['sprintStartTemplate', 'Pomodoro-Start', 'area', '{minutes}'], ['breakTemplate', 'Kurze Pause', 'area', '{minutes}'], ['longBreakTemplate', 'Lange Pause', 'area', '{minutes} {n}'],
+    ['sprintStartTemplate', 'Pomodoro-Start', 'area', '{minutes} {runde} {gesamt}'], ['breakTemplate', 'Pause', 'area', '{minutes}'], ['sessionEndTemplate', 'Ablauf geschafft', 'area', '{gesamt}'],
     ['sprintEndTemplate', 'Pomodoro geschafft', 'area', '{n} {ziel} {streamer}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
   ]],
   ['Zimmer-Modus (pausiert)', [

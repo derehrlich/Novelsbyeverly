@@ -182,9 +182,9 @@ await test('nur Mods dürfen den Timer steuern', async () => {
 await test('!sprint startet, am Ende bekommen Sitzende Arbeitszeit, Rang und Gegenstand', async () => {
   const s = await getSettings();
   await db.set('seat/1', { ...(await db.get('seat/1')), since: Date.now() - 120_000 });
-  const msg = await say('999', 'Streamerin', '!sprint 1', { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] });
+  const msg = await say('999', 'Streamerin', '!sprint 1 5 1', { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] });
   assert.equal(msg.sender_id, '555');
-  assert.match(msg.message, /Pomodoro startet: 1 Minuten/);
+  assert.match(msg.message, /Pomodoro 1 von 1 startet: 1 Minuten/);
   const t = await timerLib.getTimer();
   assert.equal(t.phase, 'focus');
   await timerLib.tick(s, t.endsAt + 500);
@@ -239,15 +239,6 @@ await test('Module: Schalter, Sprint-Zähler im Overlay, Deko abschaltbar', asyn
   assert.equal(v2.modules.blume, false); assert.deepEqual(v2.deco, []);
   await saveSettings({ moduleBlume: true, moduleDeko: true });
 });
-await test('automatische Runden, wenn aktiviert', async () => {
-  const s = { ...(await getSettings()), autoCycle: true, focusMinutes: 1, breakMinutes: 1 };
-  await timerLib.stopTimer(s);
-  const t = await timerLib.startFocus(s, 1, Date.now() - 125_000);
-  const after = await timerLib.tick(s, Date.now());
-  assert.equal(after.phase, 'focus'); assert.equal(after.round, t.round + 1);
-  await timerLib.stopTimer(s);
-});
-
 console.log('Wörter und Aufgaben');
 await test('Wortzähler: Stand aus Papyrus, Dazugeschriebenes, Tagesbeginn', async () => {
   const s = await getSettings();
@@ -449,25 +440,82 @@ await test('Einstellungen: neue Auswahlfelder werden geprüft', () => {
   assert.ok(normalize({ jahreszeit: 'regenzeit' }).error);
   assert.ok(normalize({ musikUrl: 'javascript:alert(1)' }).error);
   assert.equal(normalize({ pomodoroGoal: 999 }).settings.pomodoroGoal, 30);
-  assert.equal(normalize({ longBreakEvery: -3 }).settings.longBreakEvery, 0);
+  assert.equal(normalize({ repeats: -3 }).settings.repeats, 1); assert.equal(normalize({ repeats: 99 }).settings.repeats, 20);
+  assert.equal(normalize({ soundLautstaerke: 500 }).settings.soundLautstaerke, 100);
 });
-await test('Pomodoro: lange Pause nach der eingestellten Anzahl, Ziel im Chattext', async () => {
-  await saveSettings({ longBreakEvery: 2, longBreakMinutes: 15, breakMinutes: 5, focusMinutes: 1, pomodoroGoal: 6, autoBreak: true, autoCycle: false });
-  const s = await getSettings();
-  await timerLib.stopTimer(s);
-  const key = `stats/sprints-${(await mod('core/util.mjs')).streamDay(s)}`;
-  const start = (await db.get(key))?.n ?? 0;
-  await db.set(key, { n: start + (2 - ((start) % 2)) - 1 }); // eine Runde vor der langen Pause
-  const t0 = Date.now() - 200_000;
-  await timerLib.startFocus(s, 1, t0);
-  const t = await timerLib.getTimer();
-  await timerLib.tick(s, t.endsAt + 500);
-  const brk = await timerLib.getTimer();
-  assert.equal(brk.phase, 'break'); assert.equal(brk.minutes, 15);
-  assert.ok(chatSent().some((m) => /Lange Pause! 15 Minuten/.test(m.message)));
+const phasen = async () => { const out = []; for (const k of await db.list('event/')) { const ev = await db.get(k); if (ev?.type === 'phase' || ev?.type === 'hold') out.push(ev); } return out; };
+await test('Fester Ablauf: Pomodoro → Pause, bei Wiederholungen 1 ist danach Schluss', async () => {
+  await saveSettings({ focusMinutes: 20, breakMinutes: 5, repeats: 1, pomodoroGoal: 6, announceSprint: true });
+  const s = await getSettings(); await timerLib.stopTimer(s);
+  const t0 = Date.now() - 2_000_000; // lange her, damit alles fällig ist
+  const t = await timerLib.startFocus(s, undefined, t0);
+  assert.equal(t.phase, 'focus'); assert.deepEqual(t.cycle, { total: 1, index: 1, focusMin: 20, breakMin: 5 }); assert.equal(t.endsAt - t.startedAt, 20 * 60_000);
+  assert.match(lastChat().message, /Pomodoro 1 von 1 startet: 20 Minuten/);
+  let st = await timerLib.tick(s, t0 + 20 * 60_000 + 500);
+  assert.equal(st.phase, 'break'); assert.equal(st.minutes, 5);
   assert.ok(chatSent().some((m) => /Pomodoro \d+ von 6 geschafft/.test(m.message)));
+  st = await timerLib.tick(s, t0 + 25 * 60_000 + 500);
+  assert.equal(st.phase, 'idle'); // ein Pomodoro, eine Pause, Ende
+  assert.match(lastChat().message, /Geschafft! 1 Pomodoros am Stück/);
+  const ev = (await phasen()).filter((e) => e.type === 'phase').slice(-3);
+  assert.deepEqual(ev.map((e) => [e.phase, e.vorher ?? null]), [['focus', null], ['break', 'focus'], ['idle', 'break']]); // „vorher“ löst im Overlay den Endton aus
+  assert.equal(ev[2].sessionEnde, true);
+});
+await test('Fester Ablauf mit mehreren Wiederholungen, Werte nur für diesen Durchlauf überschreibbar', async () => {
+  const s = { ...(await getSettings()), repeats: 3 };
   await timerLib.stopTimer(s);
-  await db.set(key, { n: start });
+  const t0 = Date.now() - 5_000_000;
+  const t = await timerLib.startFocus(s, 10, t0, { breakMinutes: 2, repeats: 2 });
+  assert.deepEqual(t.cycle, { total: 2, index: 1, focusMin: 10, breakMin: 2 });
+  let st = await timerLib.tick(s, t0 + 10 * 60_000 + 1);
+  assert.equal(st.phase, 'break'); assert.equal(st.minutes, 2);
+  st = await timerLib.tick(s, t0 + 12 * 60_000 + 1);
+  assert.equal(st.phase, 'focus'); assert.equal(st.cycle.index, 2); assert.equal(st.round, t.round + 1);
+  assert.equal((await getSettings()).focusMinutes, 20); // die Einstellung bleibt unverändert
+  st = await timerLib.tick(s, t0 + 22 * 60_000 + 1); assert.equal(st.phase, 'break');
+  st = await timerLib.tick(s, t0 + 24 * 60_000 + 1); assert.equal(st.phase, 'idle');
+  // alles auf einmal nachholen (Server war aus)
+  await timerLib.startFocus(s, 5, Date.now() - 10_000_000, { breakMinutes: 1, repeats: 3 });
+  assert.equal((await timerLib.tick(s, Date.now())).phase, 'idle');
+});
+await test('Anhalten und Fortsetzen: Zeit steht still, Rest läuft weiter', async () => {
+  const s = await getSettings(); await timerLib.stopTimer(s);
+  const t0 = Date.now() - 600_000; // 10 Minuten vergangen
+  const t = await timerLib.startFocus(s, 25, t0, { repeats: 1 });
+  const h = await timerLib.holdTimer(s, t0 + 600_000);
+  assert.equal(h.paused.remaining, 15 * 60_000);
+  assert.equal((await timerLib.tick(s, t0 + 3 * 3_600_000)).phase, 'focus'); // auch Stunden später nichts passiert
+  assert.equal((await viewNow()).timer.paused.remaining, 15 * 60_000);
+  const later = t0 + 3_600_000; // 50 Minuten Pause
+  const r = await timerLib.resumeTimer(s, later);
+  assert.equal(r.paused, null); assert.equal(r.endsAt, later + 15 * 60_000); assert.equal(r.startedAt, t.startedAt + (later - (t0 + 600_000)));
+  assert.equal((await timerLib.tick(s, later + 14 * 60_000)).phase, 'focus');
+  assert.equal((await timerLib.tick(s, later + 15 * 60_000 + 1)).phase, 'break');
+  assert.ok((await phasen()).some((e) => e.type === 'hold' && e.on === true) && (await phasen()).some((e) => e.type === 'hold' && e.on === false));
+  assert.equal((await timerLib.holdTimer(s)).phase, 'break'); // Anhalten gilt auch in der Pause
+  await timerLib.stopTimer(s);
+  assert.equal((await timerLib.holdTimer(s)).phase, 'idle'); // im Leerlauf gibt es nichts anzuhalten
+});
+await test('Chat und Admin: !pomodoro 25 5 3, !anhalten, !weiter (nur Moderation)', async () => {
+  const mod = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  await say('999', 'Streamerin', '!pomodoro 25 5 3', mod);
+  let st = await timerLib.getTimer();
+  assert.deepEqual(st.cycle, { total: 3, index: 1, focusMin: 25, breakMin: 5 });
+  await say('1', 'Lena', '!anhalten'); assert.equal((await timerLib.getTimer()).paused, null); // Zuschauer dürfen das nicht
+  await say('999', 'Streamerin', '!anhalten', mod); assert.ok((await timerLib.getTimer()).paused);
+  await say('999', 'Streamerin', '!weiter', mod); assert.equal((await timerLib.getTimer()).paused, null);
+  await say('999', 'Streamerin', '!pomodoro', mod); // ohne Zahlen: Einstellungen
+  st = await timerLib.getTimer(); assert.equal(st.cycle.total, (await getSettings()).repeats);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const r = await adminCall('POST', 'timer/focus', { minutes: 30, breakMinutes: 10, repeats: 2 }, cookie);
+  assert.deepEqual(r.body.timer.cycle, { total: 2, index: 1, focusMin: 30, breakMin: 10 });
+  assert.ok((await adminCall('POST', 'timer/hold', {}, cookie)).body.timer.paused);
+  assert.equal((await adminCall('POST', 'timer/resume', {}, cookie)).body.timer.paused, null);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'tonstart' }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'tonende' }, cookie)).status, 200);
+  const v = await viewNow(); assert.deepEqual(v.ton, { start: true, ende: true, lautstaerke: 60 }); assert.equal(v.timer.cycle.total, 2);
+  await timerLib.stopTimer(await getSettings());
 });
 await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
@@ -479,7 +527,7 @@ await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
   assert.match((await say('999', 'Streamerin', '!pomodoros 8', bc)).message, /Ziel heute: 8 Pomodoros/);
   assert.equal((await getSettings()).pomodoroGoal, 8);
   await saveSettings({ pomodoroGoal: 6 });
-  assert.match((await say('999', 'Streamerin', '!pomodoro 20', bc)).message, /Pomodoro startet: 20 Minuten/);
+  assert.match((await say('999', 'Streamerin', '!pomodoro 20', bc)).message, /Pomodoro 1 von \d+ startet: 20 Minuten/);
   await timerLib.stopTimer(await getSettings());
 });
 await test('Layout: wird geprüft, begrenzt und mit Standard ergänzt', async () => {

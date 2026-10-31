@@ -29,7 +29,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #uhr .datum { display: flex; flex-direction: column; text-align: right; font-size: 21px; line-height: 1.1; color: var(--leise); font-weight: 500; margin-bottom: 8px; }
 #uhr .zeile { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
 .chip { display: inline-block; padding: 3px 14px; border-radius: 20px; font-weight: 700; font-size: 22px; color: #fff; background: var(--bereit); transition: background .4s; }
-.phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); }
+.phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); } .angehalten .chip { background: var(--akzent); }
 #uhr .runde { font-size: 20px; color: var(--leise); }
 .pomo { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; min-height: 22px; }
 .pomo i { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #c9988f; background: transparent; position: relative; }
@@ -2287,17 +2287,21 @@ let musikNow = null, musikBusy = false;
 
 // ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
 let audio = null;
-function chime(notes = [660, 880, 1320], gap = 0.16) {
+function chime(notes = [660, 880, 1320], gap = 0.16, loud = 0.25) {
   if (!ton) return;
   try {
     audio ??= new AudioContext();
     notes.forEach((f, i) => {
       const t = audio.currentTime + i * gap, o = audio.createOscillator(), g = audio.createGain();
-      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(loud, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
       o.connect(g).connect(audio.destination); o.start(t); o.stop(t + 1.2);
     });
   } catch { /* ohne Ton weiter */ }
 }
+// Startton (neuer Pomodoro: aufsteigend) und Endton (Abschnitt abgelaufen: absteigendes Glockenspiel). Lautstärke und Schalter kommen aus dem Admin.
+const lautstaerke = () => Math.max(0, Math.min(1, (view?.ton?.lautstaerke ?? 60) / 100)) * 0.45;
+const startTon = () => chime([523, 659, 784, 1047], 0.12, lautstaerke());
+const endTon = () => chime([988, 784, 659, 523], 0.2, lautstaerke());
 
 // ---- Konfetti
 const kc = $('konfetti').getContext('2d');
@@ -2346,7 +2350,17 @@ function handleEvent(ev) {
   szene?.event(ev);
   switch (ev.type) {
     case 'sprint': banner(ev.early ? '⏹️' : '🍅', ev.early ? 'Pomodoro beendet' : `Pomodoro ${ev.n ?? ''}${ev.goal ? ` von ${ev.goal}` : ''} geschafft!`.replace('  ', ' '), [`${ev.minutes} Min`, ev.streamerWords ? `+${fmt.format(ev.streamerWords)} Wörter` : '', ev.writers ? `${ev.writers} Mitschreibende` : ''].filter(Boolean).join(' · '), { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
-    case 'phase': if (ev.phase === 'focus') banner('✍️', 'Pomodoro startet', `${ev.minutes} Minuten schreiben`, { sound: true }); else if (ev.phase === 'break') banner(ev.long ? '🌿' : '☕', ev.long ? 'Lange Pause' : 'Pause', `${ev.minutes} Minuten durchatmen`, { sound: false }); break;
+    case 'phase': {
+      const t = view?.ton ?? { start: true, ende: true };
+      const von = ev.cycle ? ` ${ev.cycle.index} von ${ev.cycle.total}` : '';
+      if (ev.vorher && t.ende) endTon(); // Ein Abschnitt ist abgelaufen
+      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); if (t.start) setTimeout(startTon, ev.vorher && t.ende ? 1000 : 0); }
+      else if (ev.phase === 'break') banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`);
+      else if (ev.sessionEnde) banner('🎉', 'Geschafft!', `${ev.gesamt} Pomodoro${ev.gesamt === 1 ? '' : 's'} am Stück`, { gold: true, confetti: 120 });
+      break;
+    }
+    case 'hold': banner(ev.on ? '⏸️' : '▶️', ev.on ? 'Angehalten' : 'Weiter geht’s', ''); break;
+    case 'tontest': if (ev.art === 'start') startTon(); else endTon(); break;
     case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
@@ -2432,10 +2446,10 @@ function renderWords() {
 function renderTimer() {
   const t = view.timer;
   const card = $('uhr');
-  card.className = `card phase-${t.phase}`;
-  $('chip').textContent = t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
+  card.className = `card phase-${t.phase}${t.paused ? ' angehalten' : ''}`;
+  $('chip').textContent = t.paused ? 'Angehalten' : t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
   const pm = view.pomodoro ?? { done: 0, goal: 0 };
-  $('runde').textContent = t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} geschafft` : pm.done ? `${pm.done} geschafft` : '';
+  $('runde').textContent = t.cycle && t.phase !== 'idle' ? `${t.phase === 'focus' ? 'Pomodoro' : 'Pause'} ${t.cycle.index} von ${t.cycle.total}` : t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} geschafft` : pm.done ? `${pm.done} geschafft` : '';
   const total = pm.goal > 0 ? pm.goal : Math.max(4, pm.done + 1);
   const box = $('pomo');
   while (box.children.length < total) box.append(document.createElement('i'));
@@ -2458,8 +2472,8 @@ function tickClock() {
   }
   const t = view.timer;
   if (t.phase === 'idle') { $('rest').textContent = "Gleich geht's los"; $('fortschritt').style.width = '0%'; return; }
-  const now = Date.now() + offset;
-  const left = Math.max(0, t.endsAt - now);
+  const now = t.paused ? t.paused.at : Date.now() + offset; // angehalten: die Zeit steht
+  const left = t.paused ? t.paused.remaining : Math.max(0, t.endsAt - now);
   const s = Math.ceil(left / 1000);
   $('rest').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
   const frac = Math.min(1, (now - t.startedAt) / (t.endsAt - t.startedAt));

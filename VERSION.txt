@@ -1,1 +1,1 @@
-1.3.0 – Stream-Panel für die schnelle Bedienung (Pomodoro, Längen, Ziel)
+1.4.0 – Pomodoro mit festem Ablauf (Länge, Pause, Wiederholungen), Anhalten/Fortsetzen, Start- und Endton

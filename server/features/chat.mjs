@@ -5,7 +5,7 @@ import { allowsSit, getSettings, needsReward, saveSettings } from './settings.mj
 import { figureOf, getOrCreateUser, getSeat, getUser, leave, sceneOf, saveUser, sit, touchSeat } from './people.mjs';
 import { addTask, completeTask, getTasks } from './tasks.mjs';
 import { addViewerWords, addWords, getWords, setAbsolute } from './words.mjs';
-import { announceCredit, getTimer, say, startBreak, startFocus, stopTimer, tick } from './timer.mjs';
+import { announceCredit, getTimer, holdTimer, resumeTimer, say, startBreak, startFocus, stopTimer, tick } from './timer.mjs';
 import { fill, fmtDuration, fmtNumber, pushEvent } from '../core/util.mjs';
 import { storedTokens } from '../twitch/api.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
@@ -32,10 +32,12 @@ const COMMANDS = {
   seiten: 'pages', seitenziel: 'pagegoal', stream: 'stream',
   pause: 'pause',
   stop: 'stop', stopp: 'stop',
+  anhalten: 'hold', halt: 'hold', hold: 'hold',
+  weiter: 'resume', fortsetzen: 'resume', resume: 'resume',
   szene: 'scene', ort: 'scene',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream']);
+const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'hold', 'resume', 'scene', 'song', 'stream']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -164,11 +166,13 @@ async function run(action, ctx) {
       const next = nextRank(user.minutes);
       return `🏅 ${name}: ${rank.label} · ${fmtDuration(user.minutes)} Arbeitszeit · ${user.sprints} Sprints${next ? ` · noch ${fmtDuration(next.hours * 60 - user.minutes)} bis „${next.label}“` : ' · höchster Rang!'}`;
     }
-    case 'sprint': {
-      const n = num(args[0]);
-      await startFocus(settings, n && n > 0 ? n : undefined);
+    case 'sprint': { // !pomodoro [Pomodoro-Min] [Pause-Min] [Wiederholungen]
+      const [a, b, c] = args.map((x) => { const n = num(x); return n && n > 0 ? n : undefined; });
+      await startFocus(settings, a, Date.now(), { breakMinutes: b, repeats: c });
       return null; // die Ansage kommt vom Timer
     }
+    case 'hold': await holdTimer(settings); return null;
+    case 'resume': await resumeTimer(settings); return null;
     case 'pause': {
       const n = num(args[0]);
       await startBreak(settings, n && n > 0 ? n : undefined);

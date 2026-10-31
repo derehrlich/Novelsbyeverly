@@ -43,7 +43,7 @@ Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmc
 
 **Womit die Landschaft wächst**, wählst du getrennt: Ziel-Karte, Streamzeit, Wörter, Pomodoros oder ein Mittel aus Zeit und Ziel. Bei „Streamzeit“ wachsen Blumen und Pflanzen, auch wenn du nichts eingibst.
 
-**Pomodoro.** Dauer, kurze und lange Pause, die Anzahl pro Tag und ob es automatisch weitergeht, stellst du im Admin ein. Die Uhr zeigt Countdown und Fortschrittsbalken, darunter kleine Tomaten für das Tagesziel. Nach der eingestellten Anzahl (Standard 4) gibt es eine lange Pause. Pomodoros lassen sich auch von Hand dazuzählen.
+**Pomodoro (fester Ablauf).** Der Ablauf ist immer gleich: **Pomodoro → Pause**, und das so oft, wie bei **Wiederholungen** steht. Bei 1 gibt es einen Pomodoro und eine Pause, dann ist Schluss; bei 2, 3, 4 oder 5 wird der Zyklus entsprechend fortgesetzt. Du stellst drei Dinge ein: die Länge des Pomodoros (Minuten), die Länge der Pause (Minuten) und die Anzahl der Wiederholungen. Jederzeit kannst du den Ablauf **anhalten** und später **fortsetzen** (die Zeit steht still, der Rest läuft danach weiter). Die Uhr zeigt Countdown, Fortschrittsbalken und „Pomodoro 2 von 4“, darunter kleine Tomaten für das Tagesziel. Dazu gibt es einen **Startton** (ein neuer Pomodoro beginnt) und einen **Endton** (ein Abschnitt ist abgelaufen), getrennt abschaltbar und mit Lautstärke. Die Töne spielt das Overlay ab (in OBS „Audio über OBS steuern“ aktivieren). Alles lässt sich während des Streams im **Stream-Panel** (`/admin/panel.html`) oder per Chat einstellen, ohne den großen Admin: im Chat z. B. `!pomodoro 25 5 4` (Pomodoro-Minuten, Pause-Minuten, Wiederholungen), `!anhalten`, `!weiter`. Pomodoros lassen sich auch von Hand dazuzählen.
 
 **Module** (einzeln ein- und ausschaltbar, frei verschiebbar):
 - **Blume:** vom Keimling bis zur Blüte, wächst mit demselben Fortschritt wie die Landschaft
@@ -79,7 +79,7 @@ Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos
 
 | Befehl | Wer | Wirkung |
 |---|---|---|
-| `!pomodoro [Min]` · `!pause [Min]` · `!stop` | Moderation, Streamerin | Timer |
+| `!pomodoro [Min] [Pause-Min] [Wdh]` · `!anhalten` · `!weiter` · `!pause [Min]` · `!stop` | Moderation, Streamerin | Timer: Ablauf starten (z. B. `!pomodoro 25 5 4`), anhalten, fortsetzen, Pause sofort, stoppen |
 | `!pomodoros 6` · `!ziel 1500` | Streamerin | Ziel für heute (Anzahl bzw. Wörter) |
 | `!seiten 12` · `!seiten +3` · `!seitenziel 40` | Streamerin | Gelesene Seiten heute und Ziel |
 | `!stream start` · `!stream stop` · `!stream ziel 3` | Moderation, Streamerin | Streamzeit starten, beenden, Ziel in Stunden |

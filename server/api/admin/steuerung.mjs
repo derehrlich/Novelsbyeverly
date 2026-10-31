@@ -2,7 +2,7 @@
 import { db } from '../../core/store.mjs';
 import { getSettings, saveSettings } from '../../features/settings.mjs';
 import { activeSeats, newUser, saveUser, sit } from '../../features/people.mjs';
-import { startBreak, startFocus, stopTimer, tick } from '../../features/timer.mjs';
+import { holdTimer, resumeTimer, startBreak, startFocus, stopTimer, tick } from '../../features/timer.mjs';
 import { addWords, getWords, resetDay, setAbsolute, setToday } from '../../features/words.mjs';
 import { addTask, clearTasks, completeTask, getTasks, removeTask } from '../../features/tasks.mjs';
 import { streamerId } from '../../features/view.mjs';
@@ -18,9 +18,11 @@ export async function timer({ route, method, body }) {
   if (route[0] !== 'timer' || method !== 'POST') return;
   const settings = await getSettings();
   const minutes = num(body.minutes) > 0 ? num(body.minutes) : undefined;
-  if (route[1] === 'focus') return json({ timer: await startFocus(settings, minutes) });
+  if (route[1] === 'focus') return json({ timer: await startFocus(settings, minutes, Date.now(), { breakMinutes: num(body.breakMinutes) > 0 ? num(body.breakMinutes) : undefined, repeats: num(body.repeats) > 0 ? num(body.repeats) : undefined }) });
   if (route[1] === 'break') return json({ timer: await startBreak(settings, minutes) });
   if (route[1] === 'stop') return json({ timer: await stopTimer(settings) });
+  if (route[1] === 'hold') return json({ timer: await holdTimer(settings) });
+  if (route[1] === 'resume') return json({ timer: await resumeTimer(settings) });
   if (route[1] === 'tick') return json({ timer: await tick(settings) });
   if (route[1] === 'count') { // Pomodoros von Hand zählen (z. B. Arbeit ohne Timer)
     const key = `stats/sprints-${streamDay(settings)}`;
@@ -103,6 +105,8 @@ export async function tests({ route, method, body }) {
       rankup: { type: 'rankup', name: 'Lena', rank: 'Federkiel' },
       unlock: { type: 'unlock', name: 'Lena', item: 'Katze' },
       deko: { type: 'deko', item: 'Lichterkette' },
+      tonstart: { type: 'tontest', art: 'start' },
+      tonende: { type: 'tontest', art: 'ende' },
       taskdone: { type: 'taskdone', name: 'Lena', text: 'Kapitel 3 überarbeiten' },
     };
     if (!kinds[body.kind]) return json({ error: 'Unbekannter Test' }, 400);

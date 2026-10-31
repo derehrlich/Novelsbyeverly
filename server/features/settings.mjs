@@ -21,8 +21,6 @@ export const DEFAULTS = {
   fensterBlick: 'stadt', // stadt | landschaft | wald | see
   fensterWetter: 'auto', // auto (Winter: Schnee, sonst klar) | klar | regen | schnee
   pomodoroGoal: 6, // so viele Pomodoros sollen es heute werden (0 = ohne Ziel)
-  longBreakMinutes: 15,
-  longBreakEvery: 4, // nach so vielen Pomodoros kommt die lange Pause (0 = nie)
   // Musik-Anzeige: aus | lokal (das Overlay liest die Adresse selbst, z. B. Tuna) | server (Titel kommt per Schnittstelle, Chat oder Admin)
   musikQuelle: 'aus',
   musikUrl: 'http://localhost:1608/',
@@ -34,10 +32,14 @@ export const DEFAULTS = {
   maxSeats: MAX_PLAETZE,
   // Wer so lange nichts im Chat schreibt, verliert den Platz (Minuten)
   seatIdleMinutes: 120,
+  // Fester Ablauf: Pomodoro (focusMinutes) → Pause (breakMinutes), das Ganze `repeats`-mal. Bei 1 gibt es einen Pomodoro und eine Pause, dann ist Schluss.
   focusMinutes: 25,
   breakMinutes: 5,
-  autoBreak: true, // nach dem Fokus automatisch Pause
-  autoCycle: false, // nach der Pause automatisch der nächste Fokus
+  repeats: 4,
+  // Töne im Overlay (OBS: „Audio über OBS steuern“): Startton bei neuem Pomodoro, Endton wenn ein Abschnitt abgelaufen ist
+  soundStart: true,
+  soundEnde: true,
+  soundLautstaerke: 60, // 0–100
   timezone: 'Europe/Berlin',
   dayRolloverHour: 5,
   wordGoal: 1000,
@@ -64,9 +66,9 @@ export const DEFAULTS = {
   leaveTemplate: '👋 {user} steht auf. Heute {minutes} mitgearbeitet, insgesamt {total}.',
   notSeatedTemplate: '{user}, du sitzt gerade nicht. Mit {sit} setzt du dich dazu.',
   checkinTemplate: '✅ {user} ist eingecheckt – Besuch #{count}! Schön, dass du da bist.',
-  sprintStartTemplate: '🍅 Pomodoro startet: {minutes} Minuten Fokus. Stifte bereit!',
+  sprintStartTemplate: '🍅 Pomodoro {runde} von {gesamt} startet: {minutes} Minuten Fokus. Stifte bereit!',
   breakTemplate: '☕ Pause! {minutes} Minuten durchatmen.',
-  longBreakTemplate: '🌿 Lange Pause! {minutes} Minuten Luft holen, du hast {n} Pomodoros geschafft.',
+  sessionEndTemplate: '🎉 Geschafft! {gesamt} Pomodoros am Stück, schön gemacht.',
   sprintEndTemplate: '🎉 Pomodoro {n}{ziel} geschafft{streamer}!',
   rankUpTemplate: '⭐ {user} ist jetzt „{rank}“ ({hours} Arbeitszeit)!',
   unlockTemplate: '🎁 {user} hat „{item}“ freigeschaltet! Mit {figur} kannst du es anziehen.',
@@ -74,8 +76,8 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
+const BOOL = ['soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
 const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';

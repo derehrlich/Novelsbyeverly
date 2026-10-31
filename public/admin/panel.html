@@ -41,8 +41,8 @@
       </div>
       <div class="balken"><i id="balken"></i></div>
       <div class="gross">
-        <button class="gruen" id="fokus">▶ Pomodoro</button>
-        <button class="orange" id="pause">☕</button>
+        <button class="gruen" id="fokus">▶ Start</button>
+        <button class="orange" id="halt">⏸</button>
         <button class="rot" id="stopp">■</button>
       </div>
       <div class="zaehler"><button class="hell" id="minus" title="Eins abziehen">−</button><span>Heute geschafft: <b id="geschafft">0</b> von <b id="ziel">0</b></span><button class="hell" id="plus" title="Eins dazuzählen">+</button></div>
@@ -52,14 +52,20 @@
       <div class="werte">
         <div><label for="focusMinutes">Pomodoro (Min)</label><input type="number" inputmode="numeric" id="focusMinutes" min="1" max="180"></div>
         <div><label for="breakMinutes">Pause (Min)</label><input type="number" inputmode="numeric" id="breakMinutes" min="1" max="60"></div>
-        <div><label for="longBreakMinutes">Lange Pause (Min)</label><input type="number" inputmode="numeric" id="longBreakMinutes" min="1" max="90"></div>
-        <div><label for="longBreakEvery">Lange Pause nach … (0 = nie)</label><input type="number" inputmode="numeric" id="longBreakEvery" min="0" max="12"></div>
+        <div><label for="repeats">Wiederholungen</label><input type="number" inputmode="numeric" id="repeats" min="1" max="20"></div>
         <div><label for="pomodoroGoal">Ziel heute (Anzahl)</label><input type="number" inputmode="numeric" id="pomodoroGoal" min="0" max="30"></div>
-        <div><label for="einmal">Nur dieses Mal (Min)</label><input type="number" inputmode="numeric" id="einmal" min="1" max="180" placeholder="Standard"></div>
       </div>
       <div class="gespeichert" id="gespeichert"></div>
-      <label class="zeile"><input type="checkbox" id="autoBreak"> Nach dem Pomodoro automatisch Pause</label>
-      <label class="zeile"><input type="checkbox" id="autoCycle"> Nach der Pause automatisch weiter</label>
+      <p class="leise" style="margin:4px 0 0">Ablauf: Pomodoro → Pause, so oft wie bei „Wiederholungen“ steht. Bei 1 gibt es einen Pomodoro und eine Pause, dann ist Schluss.</p>
+    </section>
+
+    <section class="karte">
+      <h3 style="margin-top:0">Töne im Overlay</h3>
+      <label class="zeile"><input type="checkbox" id="soundStart"> Startton (neuer Pomodoro beginnt)</label>
+      <label class="zeile"><input type="checkbox" id="soundEnde"> Endton (Pomodoro oder Pause ist abgelaufen)</label>
+      <label class="zeile">Lautstärke <input type="range" id="soundLautstaerke" min="0" max="100" style="flex:1"> <output id="lautWert"></output></label>
+      <div class="reihe"><button class="hell" id="tonStart">🔔 Startton testen</button><button class="hell" id="tonEnde">🔔 Endton testen</button></div>
+      <p class="leise" style="margin:4px 0 0">Die Töne kommen aus dem Overlay (in OBS „Audio über OBS steuern“ aktivieren).</p>
     </section>
   </div>
 </main>

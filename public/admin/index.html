@@ -55,14 +55,15 @@
       <div class="reihe">
         <label>Minuten <input type="number" id="minuten" min="1" max="180" placeholder="Standard"></label>
         <button class="gruen" id="fokus">▶ Pomodoro starten</button>
-        <button class="orange" id="pause">☕ Pause</button>
+        <button class="orange" id="pause">☕ Pause jetzt</button>
+        <button class="hell" id="halt">⏸ Anhalten / ▶ Weiter</button>
         <button class="rot" id="stopp">■ Stopp</button>
       </div>
       <div class="reihe">
         <span>Heute geschafft: <b id="pomoHeute">0</b> von <b id="pomoZiel">0</b></span>
         <button class="hell" id="pomoMinus" title="Eins abziehen">−</button><button class="hell" id="pomoPlus" title="Eins dazuzählen, z. B. für Arbeit ohne Timer">+</button>
       </div>
-      <p class="leise">Dauer, Pausen und das Tagesziel stellst du unter „Einstellungen → Pomodoro“ ein. Im Chat: <code>!pomodoro 25</code>, <code>!pause</code>, <code>!stop</code>.</p>
+      <p class="leise">Der Ablauf ist fest: Pomodoro → Pause, so oft wie „Wiederholungen“ eingestellt ist. Länge, Pause, Wiederholungen und Töne stellst du schnell im <a href="/admin/panel.html">Stream-Panel</a> ein (oder unter „Einstellungen → Pomodoro“). Im Chat (Moderation): <code>!pomodoro 25 5 4</code> (Pomodoro-Minuten, Pause-Minuten, Wiederholungen), <code>!anhalten</code>, <code>!weiter</code>, <code>!pause</code>, <code>!stop</code>.</p>
     </section>
 
     <section class="karte">

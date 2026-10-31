@@ -19,6 +19,11 @@
 - **Release bauen:** `npm run zip` → `novelsbyeverly-<Version>.zip` (nur Programm). Marcel lädt sie im Admin hoch. Erste Installation oder Umzug: `sudo sh scripts/installieren.sh`.
 - **Zugangsdaten:** `server/core/config.mjs` liest `<DATA_DIR>/novelsbyeverly.env` (KEY=Wert); echte Umgebungsvariablen haben Vorrang.
 
+## Pomodoro-Ablauf (`features/timer.mjs`)
+- Fester Ablauf je Start: Pomodoro → Pause, `repeats`-mal (`state/timer.cycle = {total, index, focusMin, breakMin}`), danach Leerlauf. Keine automatische „lange Pause“ mehr. Start über `startFocus(settings, minutes, now, {breakMinutes, repeats})` (Chat `!pomodoro 25 5 4`, Admin `timer/focus`, Stream-Panel).
+- Anhalten/Fortsetzen: `holdTimer`/`resumeTimer` (`timer.paused = {at, remaining}`, beim Fortsetzen werden `startedAt`/`endsAt` um die Pausendauer verschoben); `tick()` lässt angehaltene Timer stehen.
+- Overlay-Ereignisse `phase` (mit `cycle`, `vorher`, `sessionEnde`) und `hold`: **Startton** bei neuem Pomodoro, **Endton** wenn `vorher` gesetzt ist (Abschnitt ist abgelaufen). Töne und Lautstärke: Einstellungen `soundStart`, `soundEnde`, `soundLautstaerke` (kommen im View als `ton`).
+
 ## Aufbau (`server/`)
 ```
 index.mjs          Start: update.mjs anwenden → Server → Twitch-Verbindung → Hintergrundjobs
