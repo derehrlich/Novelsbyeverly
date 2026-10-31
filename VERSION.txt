@@ -1,1 +1,1 @@
-1.5.1 – Stream-Panel mit Reitern Pomodoro und Aufgaben (schnell hinzufügen und abhaken)
+1.5.2 – Overlay-Studio: Positionsfelder (X/Y) und OBS-Hinweis für das Kamerafenster

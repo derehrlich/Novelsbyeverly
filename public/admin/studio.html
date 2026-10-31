@@ -24,10 +24,12 @@
       <div class="reihe" id="editorPanel">
         <b id="editorName">Nichts ausgewählt</b>
         <label><input type="checkbox" id="edAn"> sichtbar</label>
+        <label>X <input type="number" id="edX" step="4" style="width:80px"></label><label>Y <input type="number" id="edY" step="4" style="width:80px"></label>
         <label>Größe <input type="range" id="edGroesse" min="0.5" max="2" step="0.05" style="width:140px"></label>
         <span id="edKamera" hidden><label>Seitenlänge (1:1) <input type="number" id="edW" min="160" max="1080" step="10"></label></span>
         <button class="hell" id="layoutZurueck">Standard-Positionen</button>
       </div>
+      <p class="leise" id="edObs" hidden></p>
       <div class="reihe"><label>Wachstum in der Vorschau <input type="range" id="vorschauFortschritt" min="0" max="100" value="55" style="width:180px"></label><output id="vorschauFortschrittWert" class="leise">echter Stand</output><button class="hell" id="vorschauReset">Echter Stand</button></div>
     </section>
 

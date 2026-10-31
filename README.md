@@ -56,6 +56,8 @@ Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmc
 
 **Kamerafenster (1:1).** Ein quadratischer Rahmen mit durchsichtigem Ausschnitt. **In OBS die Kamera unter das Overlay legen**, dann schaut sie durch das Fenster. Position und Seitenlänge stellst du in der Anordnung ein.
 
+  *Kamera in OBS passend einstellen:* Kamera in der Quellenliste **unter** das Overlay legen. Im Admin unter **Overlay → Kamera** anklicken, dort stehen X, Y und die Seitenlänge (z. B. X 1470, Y 290, 420 × 420) und ein Hinweis „Für OBS“. In OBS die Kamera mit Rechtsklick → *Transformieren → Transformation bearbeiten* auf genau diese Position und Größe stellen: Begrenzungsrahmen-Typ „Auf äußere Begrenzung skalieren“, Größe z. B. 420 × 420, Ausrichtung Mitte, und bei einer 16:9-Kamera „Zuschneiden“ oder „Auf Begrenzung zuschneiden“ aktivieren, damit das Bild quadratisch ausgefüllt wird.
+
 **Zimmer-Modus (pausiert).** Die Szenen mit Tischen, an denen Zuschauer als Chibi-Figuren sitzen (Café, Garten, Park, mit Rängen und freischaltbaren Gegenständen), bleiben im Code erhalten. Unter *Einstellungen → Darstellung* lassen sie sich wieder einschalten. In der Landschaft sind die Befehle dafür ausgeschaltet.
 
 ## Musik anzeigen (YouTube Music)

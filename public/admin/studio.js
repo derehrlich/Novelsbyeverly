@@ -97,6 +97,7 @@ function renderBoxen() {
     el.style.left = `${g.x * editScale}px`; el.style.top = `${g.y * editScale}px`; el.style.width = `${g.w * editScale}px`; el.style.height = `${g.h * editScale}px`;
     el.classList.toggle('aktiv', id === gewaehlt); el.classList.toggle('aus', !layoutState[id].on);
   }
+  zeigeZahlen();
 }
 function startDrag(e, id, el) {
   e.preventDefault(); select(id);
@@ -126,8 +127,17 @@ function fitEditor() {
   if (layoutState) renderBoxen();
 }
 
-const edChange = () => { if (!gewaehlt) return; const l = layoutState[gewaehlt]; l.on = $('edAn').checked; if (gewaehlt !== 'kamera') l.s = Number($('edGroesse').value); else { l.w = Number($('edW').value); l.h = l.w; } layoutState = normalizeLayout(layoutState); renderBoxen(); aendern(); };
-for (const id of ['edAn', 'edGroesse', 'edW']) $(id).oninput = edChange;
+const edChange = () => { if (!gewaehlt) return; const l = layoutState[gewaehlt]; l.on = $('edAn').checked; if ($('edX').value !== '') l.x = Number($('edX').value); if ($('edY').value !== '') l.y = Number($('edY').value); if (gewaehlt !== 'kamera') l.s = Number($('edGroesse').value); else { l.w = Number($('edW').value); l.h = l.w; } layoutState = normalizeLayout(layoutState); renderBoxen(); aendern(); };
+for (const id of ['edAn', 'edGroesse', 'edW', 'edX', 'edY']) $(id).oninput = edChange;
+// Zahlen der gewählten Box anzeigen (nicht in ein Feld schreiben, in dem gerade getippt wird); für die Kamera mit Hinweis für OBS
+function zeigeZahlen() {
+  if (!gewaehlt) return;
+  const l = layoutState[gewaehlt];
+  if (document.activeElement !== $('edX')) $('edX').value = l.x;
+  if (document.activeElement !== $('edY')) $('edY').value = l.y;
+  $('edObs').hidden = gewaehlt !== 'kamera';
+  if (gewaehlt === 'kamera') $('edObs').innerHTML = `<b>Für OBS:</b> Kamera auf Position X <b>${l.x}</b>, Y <b>${l.y}</b>, Größe <b>${l.w} × ${l.w}</b> stellen (Leinwand 1920 × 1080, Overlay darüber).`;
+}
 addEventListener('resize', fitEditor);
 $('layoutZurueck').onclick = () => { layoutState = normalizeLayout(structuredClone(DEFAULT_LAYOUT)); if (gewaehlt) select(gewaehlt); else renderBoxen(); aendern(); };
 $('vorschauFortschritt').oninput = () => { vorschauFortschritt = Number($('vorschauFortschritt').value) / 100; $('vorschauFortschrittWert').textContent = `${$('vorschauFortschritt').value} %`; pushVorschau(); };
