@@ -94,18 +94,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .modul small { color: var(--leise); font-weight: 500; font-size: 14px; margin-right: 6px; }
 @keyframes rein { from { transform: translateY(-140px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes raus { to { transform: translateY(-120px); opacity: 0; } }
-
 /* Buch-Alert: Sprite-Streifen public/alerts/buch-aufklappen.png (8 Bilder à 220×280, Anker = Buchrücken unten) */
 #buch { --s: 2.4; position: absolute; left: 50%; top: 30px; width: calc(220px * var(--s)); height: calc(240px * var(--s)); margin-left: calc(-110px * var(--s)); pointer-events: none; opacity: 0; will-change: transform, opacity; }
 #buch .sprite { position: absolute; inset: 0; background: url(alerts/buch-aufklappen.png) 0 calc(-40px * var(--s)) / calc(1760px * var(--s)) calc(280px * var(--s)) no-repeat; }
 #buch .glow { position: absolute; left: calc(40px * var(--s)); top: calc(40px * var(--s)); width: calc(140px * var(--s)); height: calc(120px * var(--s)); background: radial-gradient(ellipse at 50% 85%, rgba(255, 224, 140, .95), rgba(255, 200, 110, .45) 45%, rgba(255, 200, 110, 0) 72%); filter: blur(calc(4px * var(--s))); opacity: 0; mix-blend-mode: screen; }
-#buch .seite { position: absolute; top: calc(83px * var(--s)); width: calc(66px * var(--s)); height: calc(104px * var(--s)); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text); opacity: 0; transition: opacity .5s ease; overflow: hidden; }
+#buch .seite { position: absolute; top: calc(83px * var(--s)); width: calc(66px * var(--s)); height: calc(104px * var(--s)); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #4d4236; opacity: 0; transition: opacity .5s ease; overflow: hidden; }
 #buch .seite.l { left: calc(50px * var(--s)); transform: rotate(-1.5deg); }
 #buch .seite.r { left: calc(123px * var(--s)); transform: rotate(1.2deg); }
 #buch .seite.an { opacity: 1; }
-#buch .label { font-size: calc(9px * var(--s)); font-weight: 600; color: var(--akzent); letter-spacing: .02em; line-height: 1.15; }
+#buch .label { font-size: calc(9px * var(--s)); font-weight: 600; color: #b0745a; letter-spacing: .02em; line-height: 1.15; }
 #buch .name { position: static; width: auto; margin: 0; transform: none; font-size: calc(14px * var(--s)); font-weight: 700; line-height: 1.1; max-width: 100%; overflow-wrap: anywhere; }
-#buch .sub { font-size: calc(8.5px * var(--s)); font-weight: 500; color: var(--leise); line-height: 1.2; margin-top: calc(4px * var(--s)); }
+#buch .sub { font-size: calc(8.5px * var(--s)); font-weight: 500; color: #7a6b57; line-height: 1.2; margin-top: calc(4px * var(--s)); }
 #buch .zier { width: calc(30px * var(--s)); height: 2px; background: #c9a45f; border-radius: 2px; margin: calc(5px * var(--s)) 0; opacity: .8; }
 #konfetti { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
 [hidden] { display: none !important; }
@@ -228,8 +227,8 @@ function stepConfetti() {
 // ---- Banner
 const queue = [];
 let showing = false;
-function banner(icon, titel, sub = '', { gold = false, confetti = 0 } = {}) {
-  queue.push({ icon, titel, sub, gold, confetti });
+function banner(icon, titel, sub = '', { gold = false, confetti = 0, buch = null } = {}) {
+  queue.push({ icon, titel, sub, gold, confetti, buch });
   if (!showing) nextBanner();
 }
 function nextBanner() {
@@ -247,7 +246,6 @@ function nextBanner() {
   setTimeout(() => el.classList.add('raus'), 5200);
   setTimeout(() => { el.remove(); nextBanner(); }, 5700);
 }
-
 
 // ---- Buch-Alert: aufklappen, Name auf die Seiten, kurz zeigen, wieder zuklappen
 const BUCH_FRAMES = 8, BUCH_W = 220;
@@ -272,7 +270,6 @@ async function playBook({ label, name, sub = '', hold = 4200 }, b = {}) {
     // 1) hereingleiten (geschlossen)
     el.style.opacity = 0;
     await tween(520, (x) => { const e = easeOut(x); el.style.opacity = Math.min(1, x * 2.2); el.style.transform = `translateY(${(1 - e) * -160}px) scale(${.85 + .15 * e})`; });
-    if (b.sound !== false) chime([523, 659, 784, 1047], .13);
     await wait(150);
     // 2) aufklappen: Bild 0 → 6, Mitte etwas zögerlicher
     await tween(900, (x) => setFrame(easeInOut(x) * 6));

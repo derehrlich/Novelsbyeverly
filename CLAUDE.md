@@ -49,6 +49,10 @@ api/               overlay, admin (Dispatcher) + admin/*, auth, system (Update/S
 `npm test`: Ende-zu-Ende-Tests ohne Netzwerk (simulierte Twitch-API, simulierter WebSocket, Dateispeicher im Temp-Ordner, Update in einer Kopie des Programms). Vor jedem Release alle Tests, dann `VERSION.txt` erhöhen und `npm run zip`.
 - Optische Prüfung: `ADMIN_PASSWORD=geheim DATA_DIR=/tmp/x PORT=8899 node server/index.mjs` und mit Playwright Screenshots machen; Overlay-Vorschau ohne Server: `/overlay.html?demo=1&modus=fenster&blick=see&tageszeit=abend`.
 
+## Alerts (Buch)
+- `public/alerts/buch-aufklappen.png`: Sprite-Streifen, 8 Bilder à 220×280, Anker = Buchrücken unten (freigestellt aus Magenta-Vorlage). `playBook()` in `overlay.html` klappt auf (Bild 0→6), zeigt Bild 7 mit eigenem Glühen und Text auf den Seiten, klappt rückwärts zu. Läuft in der Banner-Warteschlange (`banner(…, { buch: { label, name, sub, hold } })`), bleibt still (Töne nur `start`/`ende`).
+- Ereignisse im Overlay: `follow`, `sub` (`months`), `giftsub` (`count`), `cheer` (`bits`, `message`), `raid` (`viewers`), jeweils mit `name`. Test: `/overlay.html?demo=1&ereignis=raid&name=Lena` oder Knöpfe in `docs/vorschau.html`. **Noch nicht an Twitch angeschlossen** (EventSub-Abos und Berechtigungen fehlen).
+
 ## Overlay-Geschwindigkeit
 - Zwei Ebenen: `Szene.basis` (eigener Canvas dahinter) trägt den ruhenden Hintergrund (Landschaft/Fenster-Ansicht samt Vignette und Kamerarahmen) und wird nur bei Änderungen gemalt (`vorbereiten()` liefert einen Schlüssel); der Canvas davor zeigt nur das Bewegte (`animiere()`), bis zu 60 Bilder pro Sekunde. `glow()` kopiert zwischengespeicherte Bilder statt Verläufe neu aufzubauen. Neue bewegte Dinge nur in `animiere()`/`living()`/`live()`, nie in die Basis. Messen: `/overlay.html?demo=1&perf=1`, dann `window.__perf`.
 - OBS: In den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate verwenden“ auf 60 stellen (Standard ist 30).

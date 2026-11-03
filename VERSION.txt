@@ -1,1 +1,1 @@
-1.6.0 – Landschaft und Baum im illustrierten Stil nach Vorlage: Konturen, große Laubbüschel, gepflügte Felder, Büsche, Dunst, Gras
+1.7.0 – Buch-Alerts: aufklappendes Buch mit Namen auf den Seiten für Follow, Abo, Geschenk-Abos, Bits und Raid (Vorschau mit Testknöpfen)
