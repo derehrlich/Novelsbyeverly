@@ -1,1 +1,1 @@
-1.7.0 – Buch-Alerts: aufklappendes Buch mit Namen auf den Seiten für Follow, Abo, Geschenk-Abos, Bits und Raid (Vorschau mit Testknöpfen)
+1.8.0 – Alerts mit eigener OBS-Quelle und Admin-Seite: Texte, Schrift, Größe, Farben, Position, Testknöpfe, Vorschau

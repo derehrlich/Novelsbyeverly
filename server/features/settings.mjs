@@ -3,6 +3,7 @@ import { notify } from '../core/live.mjs';
 import { MAX_PLAETZE, SZENEN } from '../../public/js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
 import { DEFAULT_DESIGN, normalizeDesign } from '../../public/js/design.mjs';
+import { DEFAULT_ALERTS, normalizeAlerts } from '../../public/js/alerts.mjs';
 
 export const DEFAULTS = {
   // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'fenster' = gemütliche Leseecke oder Arbeitsplatz mit großem Fenster;
@@ -26,6 +27,7 @@ export const DEFAULTS = {
   musikUrl: 'http://localhost:1608/',
   layout: DEFAULT_LAYOUT,
   design: DEFAULT_DESIGN, // Farben, Rundung, Schrift der Karten (siehe public/js/design.mjs)
+  alerts: DEFAULT_ALERTS, // Buch-Alerts: Texte, Schrift, Größe, Position (siehe public/js/alerts.mjs), eigene OBS-Quelle /alerts
   // Wann erscheint die Figur: 'sit' = Chatbefehl !sitzen, 'checkin' = Kanalpunkte-Reward "Check-in", 'both' = beides
   appearOn: 'sit',
   scene: 'cafe',
@@ -95,6 +97,7 @@ export function normalize(input, base = DEFAULTS) {
     if (!(key in DEFAULTS)) continue;
     if (key === 'layout') { out.layout = normalizeLayout(value, out.layout); continue; }
     if (key === 'design') { out.design = normalizeDesign(value, out.design); continue; }
+    if (key === 'alerts') { out.alerts = normalizeAlerts(value, out.alerts); continue; }
     if (key === 'musikUrl') {
       const u = String(value ?? '').trim();
       if (u && !/^https?:\/\/[^\s]+$/i.test(u)) return { error: 'Die Musik-Adresse muss mit http:// oder https:// beginnen' };
@@ -127,7 +130,7 @@ export function normalize(input, base = DEFAULTS) {
 
 export async function getSettings() {
   const stored = (await db.get('config/settings')) ?? {};
-  return { ...DEFAULTS, ...stored, layout: normalizeLayout(stored.layout), design: normalizeDesign(stored.design) };
+  return { ...DEFAULTS, ...stored, layout: normalizeLayout(stored.layout), design: normalizeDesign(stored.design), alerts: normalizeAlerts(stored.alerts) };
 }
 
 export async function saveSettings(input) {

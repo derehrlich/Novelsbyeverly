@@ -842,4 +842,33 @@ await test('Live-Kanal: Änderungen gehen sofort ans Overlay', async () => {
   await saveSettings({ jahreszeit: 'auto' });
 });
 
+await test('Alerts: Einstellungen werden geprüft, Texte gefüllt, Test-Ereignis kommt im Overlay-Stand an', async () => {
+  const al = await import('../public/js/alerts.mjs');
+  const cookie = await einlogg();
+  // Eingaben prüfen: Größen begrenzen, Farben und Schrift kontrollieren, Unbekanntes verwerfen
+  const r = await adminCall('PUT', 'settings', { alerts: { schrift: 'gibtsnicht', groesseName: 9999, textFarbe: 'rot', x: -5000, eigeneSchrift: "Lobster'; evil", arten: { follow: { label: 'Hallo {name}!', dauer: 99, an: false }, quatsch: { an: true } } } }, cookie);
+  assert.equal(r.status, 200);
+  const a = r.body.settings.alerts;
+  assert.equal(a.schrift, 'rund'); assert.equal(a.groesseName, 250); assert.equal(a.textFarbe, DEFAULTS.alerts.textFarbe); assert.equal(a.x, -960);
+  assert.equal(a.eigeneSchrift, 'Lobster evil'); // Sonderzeichen fallen weg
+  assert.equal(a.arten.follow.dauer, 30); assert.equal(a.arten.follow.an, false); assert.equal(a.arten.quatsch, undefined);
+  assert.equal(a.arten.raid.label, 'Raid'); // Rest bleibt Standard
+  // Texte: Platzhalter, Verlängerung beim Abo, ausgeschaltete Art
+  assert.equal(al.alertTexte({ type: 'follow', name: 'Lena' }, a), null);
+  assert.equal(al.alertTexte({ type: 'follow', name: 'Lena', test: true }, a, { test: true }).label, 'Hallo Lena!');
+  assert.equal(al.alertTexte({ type: 'sub', name: 'Lena', monate: 3 }, al.DEFAULT_ALERTS).label, '3 Monate dabei');
+  assert.equal(al.alertTexte({ type: 'sub', name: 'Lena', monate: 1 }, al.DEFAULT_ALERTS).label, 'Neues Abo');
+  assert.equal(al.alertTexte({ type: 'giftsub', name: 'Lena', anzahl: 5 }, al.DEFAULT_ALERTS).name, '5×');
+  assert.equal(al.alertTexte({ type: 'sprint' }, al.DEFAULT_ALERTS), null); // kein Alert
+  // Der Overlay-Stand enthält die Alert-Einstellungen, ein Test-Ereignis mit eigenem Namen kommt an
+  const jetzt = (await (await overlay(new Request('https://x/api/overlay'))).json());
+  assert.equal(jetzt.alerts.groesseName, 250);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'raid', name: 'Mondschein', zuschauer: '77' }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'quatsch' }, cookie)).status, 400);
+  const neu = (await (await overlay(new Request(`https://x/api/overlay?since=${encodeURIComponent(jetzt.cursor)}`))).json());
+  const ev = neu.events.find((e) => e.type === 'raid');
+  assert.deepEqual([ev.name, ev.zuschauer, ev.test], ['Mondschein', 77, true]);
+  await saveSettings({ alerts: al.DEFAULT_ALERTS });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

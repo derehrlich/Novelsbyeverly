@@ -80,6 +80,7 @@ export async function buildView(settings, since, now = Date.now()) {
     fenster: { ort: settings.fensterOrt, blick: settings.fensterBlick, wetter: resolveWeather(settings, resolveSeason(settings, new Date(now))) },
     layout: settings.layout,
     design: settings.design,
+    alerts: settings.alerts,
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),

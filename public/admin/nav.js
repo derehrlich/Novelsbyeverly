@@ -4,6 +4,7 @@ const SEITEN = [
   ['index', '🏠', 'Übersicht', '/admin/'],
   ['pomodoro', '⏱️', 'Pomodoro & Ziele', '/admin/pomodoro.html'],
   ['studio', '🎨', 'Overlay', '/admin/studio.html'],
+  ['alerts', '🔔', 'Alerts', '/admin/alerts.html'],
   ['musik', '🎵', 'Musik', '/admin/musik.html'],
   ['chat', '💬', 'Chat & Zimmer', '/admin/chat.html'],
   ['system', '⚙️', 'System', '/admin/system.html'],
@@ -21,6 +22,7 @@ export function baueRahmen() {
       ${SEITEN.map(([id, sym, name, href]) => `<a href="${href}" class="${id === aktiv ? 'aktiv' : ''}"><span class="sym">${sym}</span>${name}</a>`).join('')}
       <a href="/admin/panel.html"><span class="sym">📱</span>Stream-Panel</a>
       <a href="/overlay" target="_blank" rel="noopener"><span class="sym">📺</span>Overlay öffnen</a>
+      <a href="/alerts" target="_blank" rel="noopener"><span class="sym">🔔</span>Alerts öffnen</a>
       <div class="abstand"></div>
       <button class="hell" id="abmelden">Abmelden</button>
     </aside>

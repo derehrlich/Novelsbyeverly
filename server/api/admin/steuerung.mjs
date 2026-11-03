@@ -11,6 +11,7 @@ import { clearMusik, getMusik, setMusik } from '../../features/musik.mjs';
 import { addPages, getPages, setPages } from '../../features/pages.mjs';
 import { fmtHM, startStream, stopStream, streamInfo } from '../../features/streamzeit.mjs';
 import { json } from '../../core/http.mjs';
+import { ARTEN } from '../../../public/js/alerts.mjs';
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : null);
 
@@ -109,6 +110,12 @@ export async function tests({ route, method, body }) {
       tonende: { type: 'tontest', art: 'ende' },
       taskdone: { type: 'taskdone', name: 'Lena', text: 'Kapitel 3 überarbeiten' },
     };
+    if (ARTEN[body.kind]) { // Alert-Test für die OBS-Quelle: mit Beispielwerten, einzelne Werte dürfen überschrieben werden; „test“ spielt auch ab, wenn die Art ausgeschaltet ist
+      const ev = { type: body.kind, ...ARTEN[body.kind].beispiel, test: true };
+      for (const k of Object.keys(ev)) if (k !== 'type' && k !== 'test' && body[k] !== undefined && body[k] !== '') ev[k] = typeof ev[k] === 'number' ? (num(body[k]) ?? ev[k]) : String(body[k]).slice(0, 100);
+      await pushEvent(ev);
+      return json({ ok: true });
+    }
     if (!kinds[body.kind]) return json({ error: 'Unbekannter Test' }, 400);
     await pushEvent(kinds[body.kind]);
     return json({ ok: true });
