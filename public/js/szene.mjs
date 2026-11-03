@@ -2,6 +2,7 @@
 // Stil: weiche, gemalte Flächen in gedeckten Tönen, runde Chibi-Figuren, viele Zimmerpflanzen.
 import { FARBEN, HAUT } from './katalog.mjs';
 import { Wachstum } from './wachstum.mjs';
+import { Fenster } from './fenster.mjs';
 import { STYLE, drawChair, drawDesk, drawFigure, drawTable } from './figur.mjs';
 import { H, TAU, W, alpha, blossoms, clamp01, cloud, ell, fern, glow, grassStrokes, lg, leaf, monstera, monsteraLeaf, palm, path, pot, rg, rng, rr, shade, snakePlant, tree, vine } from './malerei.mjs';
 
@@ -18,10 +19,11 @@ export function seatPos(slot) {
 
 // Regalbrett für die Module im Zimmer-Modus (Oberkante) und Verteilung der Module darauf
 export const REGAL = { x0: 560, x1: 1360, y: 404 };
-// Wo die Module stehen: im Wachstums-Modus frei nach Anordnung (layout), im Zimmer auf dem Regalbrett.
+// Wo die Module stehen: in Landschaft und Fenster-Ansicht frei nach Anordnung (layout), im Zimmer auf dem Regalbrett.
 export function moduleLayout(modules = {}, layout = null, modus = 'zimmer') {
-  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id] && (modus !== 'wachstum' || layout?.[id]?.on !== false));
-  if (modus === 'wachstum' && layout) return ids.map((id) => ({ id, x: layout[id].x, y: layout[id].y, s: layout[id].s ?? 1 }));
+  const frei = modus !== 'zimmer';
+  const ids = ['blume', 'kerze', 'buecher'].filter((id) => modules[id] && (!frei || layout?.[id]?.on !== false));
+  if (frei && layout) return ids.map((id) => ({ id, x: layout[id].x, y: layout[id].y, s: layout[id].s ?? 1 }));
   const xs = ids.length === 1 ? [960] : ids.length === 2 ? [860, 1060] : [760, 960, 1160];
   return ids.map((id, i) => ({ id, x: xs[i], y: REGAL.y, s: 1 }));
 }
@@ -100,7 +102,7 @@ function cafe(c) {
   pendant(c, 640, 150, '#cdb98a'); pendant(c, 1280, 150, '#c3cfb0');
   // Pflanzen
   vine(c, 592, REGAL.y + 18, 250, 5, 1.1); vine(c, 1334, REGAL.y + 18, 300, 9, 1.15);
-  for (const [px, col] of [[596, '#d8c7a8'], [1330, '#c9a08a']]) { for (const [a, l] of [[-0.7, 44], [0.1, 54], [0.8, 46]]) leaf(c, px, REGAL.y - 40, l, l * 0.38, a, '#7f9d6f'); pot(c, px, REGAL.y, 62, 46, col); }
+  for (const [px, col] of [[596, '#d8c7a8'], [1330, '#c9a08a']]) { pot(c, px, REGAL.y, 62, 46, col); for (const [a, l] of [[-0.7, 44], [0.1, 54], [0.8, 46]]) leaf(c, px, REGAL.y - 44, l, l * 0.38, a, '#7f9d6f'); }
   monstera(c, 118, 842, 1.25, 3); snakePlant(c, 1790, 838, 1.15, 4); fern(c, 1688, 760, 0.7, 5);
   for (const wx of [348, 1568]) { pot(c, wx - 60, 476 - 4, 54, 40, '#cbb28a'); leaf(c, wx - 60, 440, 54, 18, -0.5, '#8aa67e'); leaf(c, wx - 60, 440, 62, 20, 0.2, '#7a9a74'); leaf(c, wx - 60, 440, 50, 17, 0.8, '#97b189'); }
 }
@@ -284,14 +286,16 @@ function plank(c, w) {
   c.fillStyle = alpha('#fff6e0', 0.3); c.fillRect(-w / 2 + 12, 1, w - 24, 3);
 }
 
-// Rahmen um das Kamerabild. Das Innere wird durchsichtig geschnitten: In OBS liegt die Kamera unter dem Overlay.
-function cameraFrame(c, k) {
+// Rahmen um das Kamerabild und das durchsichtige Loch darin: In OBS liegt die Kamera unter dem Overlay.
+function kameraRahmen(c, k) {
   const { x, y, w, h } = k;
   rr(c, x - 22, y - 22, w + 44, h + 44, 34, lg(c, x, y - 22, x, y + h + 22, [[0, '#d9bf94'], [1, '#a88660']]), alpha('#2b2118', 0.3), 3);
   rr(c, x - 12, y - 12, w + 24, h + 24, 26, null, alpha('#fff6e0', 0.35), 3);
   for (const [lx, ly, a] of [[x - 14, y + 30, -0.4], [x - 8, y + 56, -0.9], [x + w + 14, y + h - 30, 2.7], [x + w + 8, y + h - 56, 2.2], [x + w * 0.3, y - 18, 0.9], [x + w * 0.7, y + h + 18, 3.9]]) leaf(c, lx, ly, 48, 17, a, '#7f9d6f');
+}
+function kameraLoch(c, k) {
   c.globalCompositeOperation = 'destination-out';
-  rr(c, x, y, w, h, 20, '#000000');
+  rr(c, k.x, k.y, k.w, k.h, 20, '#000000');
   c.globalCompositeOperation = 'source-over';
 }
 
@@ -303,7 +307,14 @@ export class Szene {
     this.cache = document.createElement('canvas'); this.cache.width = W; this.cache.height = H;
     this.cacheKey = '';
     this.finish = finishLayer();
+    // Zwei Ebenen: Die ruhende Basis (Hintergrund) liegt in einem eigenen Canvas dahinter und wird nur bei Änderungen gemalt,
+    // der Canvas davor (this.canvas) zeigt nur das Bewegte. So muss nicht in jedem Bild ein ganzes Full-HD-Bild kopiert werden.
+    this.basis = document.createElement('canvas'); this.basis.width = W; this.basis.height = H;
+    this.basis.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:1080px';
+    canvas.parentNode?.insertBefore(this.basis, canvas);
+    this.bc = this.basis.getContext('2d'); this.basisKey = '';
     this.wachstum = new Wachstum();
+    this.fenster = new Fenster();
     this.view = { scene: 'cafe', deco: [], seats: [], timer: { phase: 'idle' }, modules: {} };
     this.seen = new Map();
     this.effects = [];
@@ -341,11 +352,21 @@ export class Szene {
   draw(t = performance.now()) {
     const { c } = this;
     const { scene, deco, seats, timer, modules, modus, layout } = this.view;
-    const wachs = modus === 'wachstum';
+    const wachs = modus !== 'zimmer';
     c.clearRect(0, 0, W, H);
+    this.basis.hidden = this.canvas.hidden;
+    const kam = layout?.kamera?.on ? layout.kamera : null;
     if (wachs) {
-      this.wachstum.draw(c, this.view, t);
+      const quelle = modus === 'fenster' ? this.fenster : this.wachstum;
+      const key = `${modus}|${quelle.vorbereiten(this.view, this.finish)}|${kam ? `${kam.x},${kam.y},${kam.w}` : ''}`;
+      if (key !== this.basisKey) { // nur bei Änderungen: Basis (und Kamerarahmen) neu auf die hintere Ebene malen
+        this.basisKey = key;
+        this.bc.clearRect(0, 0, W, H); this.bc.drawImage(quelle.base ?? quelle.cache, 0, 0);
+        if (kam) { kameraRahmen(this.bc, kam); kameraLoch(this.bc, kam); }
+      }
+      quelle.animiere(c, t);
     } else {
+      if (this.basisKey !== 'zimmer') { this.basisKey = 'zimmer'; this.bc.clearRect(0, 0, W, H); }
       this.background();
       c.drawImage(this.cache, 0, 0);
       this.rays(c, t);
@@ -355,8 +376,8 @@ export class Szene {
     if (!wachs) this.drawSeats(c, t, scene, seats, timer);
     this.drawEffects(c, t);
     if (!wachs) this.particles(c, t);
-    c.drawImage(this.finish, 0, 0);
-    if (layout?.kamera?.on) cameraFrame(c, layout.kamera);
+    if (!wachs) c.drawImage(this.finish, 0, 0); // Landschaft und Fenster-Ansicht haben sie schon in ihrer Basis
+    if (kam) { if (!wachs) kameraRahmen(c, kam); kameraLoch(c, kam); } // das Loch muss auch aus dem Bewegten herausgeschnitten sein
   }
 
   drawSeats(c, t, scene, seats, timer) {
@@ -435,7 +456,7 @@ export class Szene {
 
   drawModules(c, t, modules, timer) {
     const view = this.view;
-    const wachs = view.modus === 'wachstum';
+    const wachs = view.modus !== 'zimmer';
     for (const m of moduleLayout(modules, view.layout, view.modus)) {
       c.save(); c.translate(m.x, m.y); c.scale(m.s, m.s);
       if (wachs) plank(c, m.id === 'buecher' ? 230 : 210);

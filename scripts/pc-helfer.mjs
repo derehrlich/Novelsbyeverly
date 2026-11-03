@@ -1,7 +1,7 @@
 // Kleines Hilfsprogramm für den PC der Streamerin (braucht Node 20 oder neuer). Es schickt alle paar Sekunden an die Seite,
 // was gerade in der Musik-App läuft (über Tuna oder eine andere lokale Adresse). Später kann hier auch die Wortzahl aus Papyrus dazukommen.
 //
-//   SITE_URL=https://DEINE-SEITE.netlify.app INGEST_TOKEN=dein-schluessel node scripts/pc-helfer.mjs
+//   SITE_URL=http://casaos-ip:8888 INGEST_TOKEN=dein-schluessel node scripts/pc-helfer.mjs
 //   optional: MUSIK_URL=http://localhost:1608/  (Standard, Adresse von Tuna)  und  INTERVALL=5 (Sekunden)
 import { nowPlaying } from '../public/js/jetztlaeuft.mjs';
 

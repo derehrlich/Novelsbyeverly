@@ -1,0 +1,37 @@
+# Co-Working-Overlay auf CasaOS. Das Programm liegt im Ordner „app“ und wird über Admin → System per ZIP aktualisiert,
+# deshalb braucht es kein eigenes Image. Zugangsdaten stehen in data/novelsbyeverly.env (siehe ANLEITUNG_UPDATE.md), nicht hier.
+name: novelsbyeverly
+services:
+  overlay:
+    image: node:22-alpine
+    container_name: novelsbyeverly
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "server/index.mjs"]
+    environment:
+      TZ: Europe/Berlin
+      DATA_DIR: /data
+    ports:
+      - "8888:8888"      # Admin: http://<NAS-IP>:8888/admin/  ·  Overlay: http://<NAS-IP>:8888/overlay
+    volumes:
+      - /DATA/AppData/novelsbyeverly/app:/app
+      - /DATA/AppData/novelsbyeverly/data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+    x-casaos:
+      title:
+        de_de: Co-Working-Overlay
+      description:
+        de_de: Stream-Overlay, Admin-Oberfläche und Twitch-Bot für Schreib- und Co-Working-Streams.
+      port_map: "8888"
+      index: /admin/
+x-casaos:
+  architectures: [amd64, arm64]
+  main: overlay
+  author: derehrlich
+  category: Media
+  title:
+    de_de: Co-Working-Overlay

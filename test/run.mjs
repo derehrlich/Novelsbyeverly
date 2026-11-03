@@ -1,14 +1,12 @@
 // Ende-zu-Ende-Test der Functions mit simulierter Twitch-API und Dateispeicher.  npm test
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 process.env.LOCAL_STORE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-test-'));
 Object.assign(process.env, {
-  TWITCH_CLIENT_ID: 'cid', TWITCH_CLIENT_SECRET: 'csecret', EVENTSUB_SECRET: 'hooksecret1234',
-  ADMIN_PASSWORD: 'geheim', SITE_URL: 'https://beispiel.netlify.app', INGEST_TOKEN: 'ingest-geheim',
+  TWITCH_CLIENT_ID: 'cid', ADMIN_PASSWORD: 'geheim', INGEST_TOKEN: 'ingest-geheim',
 });
 
 // ---- Twitch simulieren
@@ -17,12 +15,21 @@ let rewards = [];
 let subs = [];
 const failSubTypes = new Set();
 let liveStart = null; // simulierter Twitch-Stream (ISO-Zeit) oder null
+let devicePending = false;
+let lastSocket = null; // simulierte EventSub-WebSocket-Verbindung
+globalThis.WebSocket = class {
+  constructor(url) { this.url = url; lastSocket = this; setTimeout(() => this.onmessage?.({ data: JSON.stringify({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'sess1', keepalive_timeout_seconds: 10 } } }) }), 5); }
+  close() { this.closed = true; }
+};
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const entry = { method: init.method || 'GET', path: u.pathname, query: Object.fromEntries(u.searchParams), auth: init.headers?.Authorization, body: init.body && !String(init.body).includes('=') ? JSON.parse(init.body) : init.body };
+  entry.raw = String(init.body ?? '');
   calls.push(entry);
   const ok = (data, status = 200) => new Response(JSON.stringify(data), { status });
   if (u.host === 'id.twitch.tv') {
+    if (u.pathname.endsWith('/device')) return ok({ device_code: 'dc', user_code: 'ABCD', verification_uri: 'https://www.twitch.tv/activate', interval: 5, expires_in: 600 });
+    if (u.pathname.endsWith('/token') && entry.raw.includes('device_code') && devicePending) return ok({ message: 'authorization_pending' }, 400);
     if (u.pathname.endsWith('/validate')) return ok({ user_id: '999', login: 'streamerin', scopes: [] });
     return ok({ access_token: 'tok', refresh_token: 'ref', expires_in: 3600 });
   }
@@ -46,25 +53,25 @@ globalThis.fetch = async (url, init = {}) => {
 const chatSent = () => calls.filter((c) => c.path.endsWith('/chat/messages')).map((c) => c.body);
 const lastChat = () => chatSent().at(-1);
 
-const mod = (rel) => import(`../netlify/${rel}`);
-const { db } = await mod('lib/store.mjs');
-const { getSettings, saveSettings, DEFAULTS, normalize } = await mod('lib/settings.mjs');
-const webhook = (await mod('functions/twitch-webhook.mjs')).default;
-const overlay = (await mod('functions/overlay.mjs')).default;
-const admin = (await mod('functions/admin.mjs')).default;
-const ingest = (await mod('functions/words-ingest.mjs')).default;
-const auth = (await mod('functions/auth.mjs')).default;
-const people = await mod('lib/people.mjs');
-const timerLib = await mod('lib/timer.mjs');
-const wordsLib = await mod('lib/words.mjs');
-const tasksLib = await mod('lib/tasks.mjs');
-const { ensureCheckinReward } = await mod('lib/twitch.mjs');
-const musikIngest = (await mod('functions/musik-ingest.mjs')).default;
-const { resolveSeason, resolveTime } = await mod('lib/zeiten.mjs');
-const { getMusik } = await mod('lib/musik.mjs');
+const mod = (rel) => import(`../server/${rel}`);
+const { db } = await mod('core/store.mjs');
+const { getSettings, saveSettings, DEFAULTS, normalize } = await mod('features/settings.mjs');
+const eventsub = await mod('twitch/eventsub.mjs');
+const overlay = (await mod('api/overlay.mjs')).default;
+const admin = (await mod('api/admin.mjs')).default;
+const ingest = (await mod('api/ingest-words.mjs')).default;
+const auth = (await mod('api/auth.mjs')).default;
+const people = await mod('features/people.mjs');
+const timerLib = await mod('features/timer.mjs');
+const wordsLib = await mod('features/words.mjs');
+const tasksLib = await mod('features/tasks.mjs');
+const { ensureCheckinReward } = await mod('twitch/api.mjs');
+const musikIngest = (await mod('api/ingest-musik.mjs')).default;
+const { resolveSeason, resolveTime } = await mod('features/zeiten.mjs');
+const { getMusik } = await mod('features/musik.mjs');
 const layoutLib = await import('../public/js/layout.mjs');
-const pagesLib = await mod('lib/pages.mjs');
-const streamLib = await mod('lib/streamzeit.mjs');
+const pagesLib = await mod('features/pages.mjs');
+const streamLib = await mod('features/streamzeit.mjs');
 const kat = await import('../public/js/katalog.mjs');
 
 let passed = 0;
@@ -74,14 +81,11 @@ const test = async (name, fn) => {
 
 // ---- Hilfen
 let n = 0;
-const sign = (body, type = 'notification', extra = {}) => {
-  const raw = JSON.stringify(body);
-  const id = `m${(n += 1)}`; const ts = extra.ts ?? new Date().toISOString();
-  const sig = 'sha256=' + crypto.createHmac('sha256', extra.secret ?? process.env.EVENTSUB_SECRET).update(id + ts + raw).digest('hex');
-  return new Request('https://x/api/twitch-webhook', { method: 'POST', body: raw, headers: { 'twitch-eventsub-message-id': id, 'twitch-eventsub-message-timestamp': ts, 'twitch-eventsub-message-signature': sig, 'twitch-eventsub-message-type': type } });
-};
+// Twitch-Nachricht direkt zustellen (wie sie über die WebSocket-Verbindung ankäme)
+const webhook = (msg) => eventsub.handleNotification(msg.subscription.type, msg.event);
+const sign = (msg) => msg;
 const chatEvent = (uid, name, text, extra = {}) => ({ subscription: { type: 'channel.chat.message' }, event: { broadcaster_user_id: '999', chatter_user_id: uid, chatter_user_name: name, message_id: `c${(n += 1)}`, message: { text }, badges: [], ...extra } });
-const say = async (uid, name, text, extra) => { const res = await webhook(sign(chatEvent(uid, name, text, extra))); assert.equal(res.status, 204); return lastChat(); };
+const say = async (uid, name, text, extra) => { await webhook(chatEvent(uid, name, text, extra)); return lastChat(); };
 const adminCall = async (method, p, body, cookie) => {
   const res = await admin(new Request(`https://x/api/admin/${p}`, { method, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }));
   return { status: res.status, body: res.headers.get('content-type')?.includes('json') ? await res.json() : await res.text(), headers: res.headers };
@@ -115,16 +119,6 @@ await test('Einstellungen werden geprüft', async () => {
   assert.match(normalize({ commandPrefix: 'ab c' }).error, /Befehlszeichen/);
 });
 
-console.log('Webhook');
-await test('falsche Signatur und altes Datum werden abgelehnt', async () => {
-  assert.equal((await webhook(sign(chatEvent('1', 'A', '!hilfe'), 'notification', { secret: 'falsch' }))).status, 403);
-  assert.equal((await webhook(sign(chatEvent('1', 'A', '!hilfe'), 'notification', { ts: new Date(Date.now() - 3_600_000).toISOString() }))).status, 403);
-});
-await test('Verifizierung gibt die Challenge zurück', async () => {
-  const res = await webhook(sign({ challenge: 'abc123' }, 'webhook_callback_verification'));
-  assert.equal(await res.text(), 'abc123');
-});
-
 console.log('Platz und Figur');
 await test('!sitzen setzt eine Figur hin, antwortet als Bot und als Antwort auf die Nachricht', async () => {
   const before = calls.length;
@@ -142,8 +136,8 @@ await test('doppeltes !sitzen setzt niemanden doppelt hin', async () => {
 });
 await test('Zustellungen mit derselben Nachrichten-ID werden nur einmal beantwortet', async () => {
   const ev = chatEvent('2', 'Jonas', '!sitzen');
-  await webhook(sign(ev)); const sent = chatSent().length;
-  await webhook(sign(ev));
+  await webhook(ev); const sent = chatSent().length;
+  await webhook(ev);
   assert.equal(chatSent().length, sent);
   assert.equal((await people.activeSeats(await getSettings())).length, 2);
 });
@@ -188,9 +182,9 @@ await test('nur Mods dürfen den Timer steuern', async () => {
 await test('!sprint startet, am Ende bekommen Sitzende Arbeitszeit, Rang und Gegenstand', async () => {
   const s = await getSettings();
   await db.set('seat/1', { ...(await db.get('seat/1')), since: Date.now() - 120_000 });
-  const msg = await say('999', 'Streamerin', '!sprint 1', { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] });
+  const msg = await say('999', 'Streamerin', '!sprint 1 5 1', { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] });
   assert.equal(msg.sender_id, '555');
-  assert.match(msg.message, /Pomodoro startet: 1 Minuten/);
+  assert.match(msg.message, /Pomodoro 1 von 1 startet: 1 Minuten/);
   const t = await timerLib.getTimer();
   assert.equal(t.phase, 'focus');
   await timerLib.tick(s, t.endsAt + 500);
@@ -245,15 +239,6 @@ await test('Module: Schalter, Sprint-Zähler im Overlay, Deko abschaltbar', asyn
   assert.equal(v2.modules.blume, false); assert.deepEqual(v2.deco, []);
   await saveSettings({ moduleBlume: true, moduleDeko: true });
 });
-await test('automatische Runden, wenn aktiviert', async () => {
-  const s = { ...(await getSettings()), autoCycle: true, focusMinutes: 1, breakMinutes: 1 };
-  await timerLib.stopTimer(s);
-  const t = await timerLib.startFocus(s, 1, Date.now() - 125_000);
-  const after = await timerLib.tick(s, Date.now());
-  assert.equal(after.phase, 'focus'); assert.equal(after.round, t.round + 1);
-  await timerLib.stopTimer(s);
-});
-
 console.log('Wörter und Aufgaben');
 await test('Wortzähler: Stand aus Papyrus, Dazugeschriebenes, Tagesbeginn', async () => {
   const s = await getSettings();
@@ -304,7 +289,7 @@ await test('appearOn=checkin: !sitzen verweist auf den Reward, die Einlösung se
   assert.match((await say('20', 'Emma', '!sitzen')).message, /per Kanalpunkte-Reward „Check-in“/);
   const reward = await ensureCheckinReward(await getSettings(), true);
   assert.equal(reward.title, 'Check-in');
-  const redeem = (id, uid, name) => webhook(sign({ subscription: { type: 'channel.channel_points_custom_reward_redemption.add' }, event: { id, user_id: uid, user_name: name, reward: { id: reward.id } } }));
+  const redeem = (id, uid, name) => webhook(({ subscription: { type: 'channel.channel_points_custom_reward_redemption.add' }, event: { id, user_id: uid, user_name: name, reward: { id: reward.id } } }));
   await redeem('r1', '20', 'Emma');
   assert.match(lastChat().message, /Emma ist eingecheckt – Besuch #1/);
   assert.ok(calls.some((c) => c.path.endsWith('/redemptions') && c.body.status === 'FULFILLED'));
@@ -312,7 +297,7 @@ await test('appearOn=checkin: !sitzen verweist auf den Reward, die Einlösung se
   await redeem('r2', '20', 'Emma'); // schon da: Punkte zurück
   assert.match(lastChat().message, /sitzt schon.*Punkte/);
   assert.ok(calls.some((c) => c.path.endsWith('/redemptions') && c.body.status === 'CANCELED'));
-  await webhook(sign({ subscription: { type: 'x' }, event: { id: 'r3', user_id: '21', user_name: 'X', reward: { id: 'fremd' } } }));
+  await webhook(({ subscription: { type: 'x' }, event: { id: 'r3', user_id: '21', user_name: 'X', reward: { id: 'fremd' } } }));
   assert.equal(await db.get('seat/21'), null); // fremder Reward
 });
 await test('appearOn=both erlaubt beides, appearOn=sit schaltet den Reward in Twitch aus', async () => {
@@ -354,6 +339,8 @@ await test('Admin: Login, Zustand, Einstellungen, Timer, Tests', async () => {
   const chatSub = subs.find((x) => x.type === 'channel.chat.message');
   assert.deepEqual(chatSub.condition, { broadcaster_user_id: '999', user_id: '555' }); // der Bot liest mit
   assert.ok(subs.find((x) => x.type.includes('redemption')));
+  assert.deepEqual(chatSub.transport, { method: 'websocket', session_id: 'sess1' }); // Verbindung per WebSocket, kein Webhook
+  assert.equal((await adminCall('GET', 'state', null, cookie)).body.eventsub.state, 'verbunden');
   assert.equal((await adminCall('POST', 'timer/focus', { minutes: 20 }, cookie)).body.timer.phase, 'focus');
   assert.equal((await adminCall('POST', 'timer/stop', {}, cookie)).body.timer.phase, 'idle');
   assert.equal((await adminCall('POST', 'words', { mode: 'absolute', value: 'abc' }, cookie)).status, 400);
@@ -387,18 +374,32 @@ await test('Wortzähler-Schnittstelle: nur mit Schlüssel', async () => {
   const res = await (await post({ delta: 10 }, 'ingest-geheim')).json();
   assert.equal(res.ok, true); assert.equal((await wordsLib.getWords(s)).abs, base + 10);
 });
-await test('OAuth: Bot-Rolle fordert nur Bot-Berechtigungen, Callback speichert getrennt', async () => {
+await test('Twitch verbinden per Device-Code: Bot-Rolle fordert nur Bot-Berechtigungen, Tokens werden getrennt gespeichert', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const res = await auth(new Request('https://x/api/auth/login?role=bot', { headers: { cookie } }));
-  const loc = new URL(res.headers.get('location'));
-  assert.equal(loc.searchParams.get('scope'), 'user:write:chat user:read:chat user:bot');
-  const state = loc.searchParams.get('state'); assert.ok(state.endsWith('.bot'));
+  const post = (p, body, ck = cookie) => auth(new Request(`https://x/api/auth/device/${p}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(ck ? { cookie: ck } : {}) }, body: JSON.stringify(body) }));
+  assert.equal((await post('start', { role: 'bot' }, null)).status, 401); // nur mit Admin-Login
+  const start = await (await post('start', { role: 'bot' })).json();
+  assert.equal(start.user_code, 'ABCD');
+  assert.equal(new URLSearchParams(calls.findLast((c) => c.path.endsWith('/oauth2/device')).raw).get('scopes'), 'user:write:chat user:read:chat user:bot');
+  devicePending = true;
+  assert.equal((await (await post('poll', { role: 'bot', device_code: 'dc' })).json()).pending, true);
+  devicePending = false;
   await db.delete('config/bot-tokens');
-  const cb = await auth(new Request(`https://x/api/auth/callback?code=abc&state=${encodeURIComponent(state)}`, { headers: { cookie: `${cookie}; oauth_state=${encodeURIComponent(state)}` } }));
-  assert.equal(cb.status, 302); assert.match(cb.headers.get('location'), /verbunden=bot/);
+  const done = await (await post('poll', { role: 'bot', device_code: 'dc' })).json();
+  assert.equal(done.ok, true);
   assert.equal((await db.get('config/bot-tokens')).login, 'streamerin'); // Mock liefert immer denselben Nutzer
   assert.equal((await db.get('config/tokens')).access_token, 'tokB');
+});
+await test('EventSub-WebSocket: Chat-Nachrichten kommen über die Verbindung an', async () => {
+  await eventsub.startEventSub();
+  assert.equal(eventsub.info.state, 'verbunden');
+  const before = chatSent().length;
+  lastSocket.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_keepalive' }, payload: {} }) });
+  lastSocket.onmessage({ data: JSON.stringify({ metadata: { message_type: 'notification' }, payload: { subscription: { type: 'channel.chat.message' }, event: chatEvent('77', 'Ws', '!hilfe').event } }) });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(chatSent().length, before + 1);
+  eventsub.stopEventSub();
 });
 
 console.log('Landschaft, Pomodoro, Layout, Musik');
@@ -406,8 +407,8 @@ await saveSettings({ szeneModus: 'wachstum', appearOn: 'sit', scene: 'cafe', mod
 const viewNow = async () => (await overlay(new Request('https://x/api/overlay'))).json();
 await test('Wachstums-Modus: Platz-Befehle sind pausiert, keine Figuren im Overlay', async () => {
   const before = chatSent().length;
-  await webhook(sign(chatEvent('31', 'Neu', '!sitzen')));
-  await webhook(sign(chatEvent('31', 'Neu', '!figur haare rot')));
+  await webhook((chatEvent('31', 'Neu', '!sitzen')));
+  await webhook((chatEvent('31', 'Neu', '!figur haare rot')));
   assert.equal(chatSent().length, before);
   assert.equal(await db.get('seat/31'), null);
   const v = await viewNow();
@@ -439,25 +440,82 @@ await test('Einstellungen: neue Auswahlfelder werden geprüft', () => {
   assert.ok(normalize({ jahreszeit: 'regenzeit' }).error);
   assert.ok(normalize({ musikUrl: 'javascript:alert(1)' }).error);
   assert.equal(normalize({ pomodoroGoal: 999 }).settings.pomodoroGoal, 30);
-  assert.equal(normalize({ longBreakEvery: -3 }).settings.longBreakEvery, 0);
+  assert.equal(normalize({ repeats: -3 }).settings.repeats, 1); assert.equal(normalize({ repeats: 99 }).settings.repeats, 20);
+  assert.equal(normalize({ soundLautstaerke: 500 }).settings.soundLautstaerke, 100);
 });
-await test('Pomodoro: lange Pause nach der eingestellten Anzahl, Ziel im Chattext', async () => {
-  await saveSettings({ longBreakEvery: 2, longBreakMinutes: 15, breakMinutes: 5, focusMinutes: 1, pomodoroGoal: 6, autoBreak: true, autoCycle: false });
-  const s = await getSettings();
-  await timerLib.stopTimer(s);
-  const key = `stats/sprints-${(await mod('lib/util.mjs')).streamDay(s)}`;
-  const start = (await db.get(key))?.n ?? 0;
-  await db.set(key, { n: start + (2 - ((start) % 2)) - 1 }); // eine Runde vor der langen Pause
-  const t0 = Date.now() - 200_000;
-  await timerLib.startFocus(s, 1, t0);
-  const t = await timerLib.getTimer();
-  await timerLib.tick(s, t.endsAt + 500);
-  const brk = await timerLib.getTimer();
-  assert.equal(brk.phase, 'break'); assert.equal(brk.minutes, 15);
-  assert.ok(chatSent().some((m) => /Lange Pause! 15 Minuten/.test(m.message)));
+const phasen = async () => { const out = []; for (const k of await db.list('event/')) { const ev = await db.get(k); if (ev?.type === 'phase' || ev?.type === 'hold') out.push(ev); } return out; };
+await test('Fester Ablauf: Pomodoro → Pause, bei Wiederholungen 1 ist danach Schluss', async () => {
+  await saveSettings({ focusMinutes: 20, breakMinutes: 5, repeats: 1, pomodoroGoal: 6, announceSprint: true });
+  const s = await getSettings(); await timerLib.stopTimer(s);
+  const t0 = Date.now() - 2_000_000; // lange her, damit alles fällig ist
+  const t = await timerLib.startFocus(s, undefined, t0);
+  assert.equal(t.phase, 'focus'); assert.deepEqual(t.cycle, { total: 1, index: 1, focusMin: 20, breakMin: 5 }); assert.equal(t.endsAt - t.startedAt, 20 * 60_000);
+  assert.match(lastChat().message, /Pomodoro 1 von 1 startet: 20 Minuten/);
+  let st = await timerLib.tick(s, t0 + 20 * 60_000 + 500);
+  assert.equal(st.phase, 'break'); assert.equal(st.minutes, 5);
   assert.ok(chatSent().some((m) => /Pomodoro \d+ von 6 geschafft/.test(m.message)));
+  st = await timerLib.tick(s, t0 + 25 * 60_000 + 500);
+  assert.equal(st.phase, 'idle'); // ein Pomodoro, eine Pause, Ende
+  assert.match(lastChat().message, /Geschafft! 1 Pomodoros am Stück/);
+  const ev = (await phasen()).filter((e) => e.type === 'phase').slice(-3);
+  assert.deepEqual(ev.map((e) => [e.phase, e.vorher ?? null]), [['focus', null], ['break', 'focus'], ['idle', 'break']]); // „vorher“ löst im Overlay den Endton aus
+  assert.equal(ev[2].sessionEnde, true);
+});
+await test('Fester Ablauf mit mehreren Wiederholungen, Werte nur für diesen Durchlauf überschreibbar', async () => {
+  const s = { ...(await getSettings()), repeats: 3 };
   await timerLib.stopTimer(s);
-  await db.set(key, { n: start });
+  const t0 = Date.now() - 5_000_000;
+  const t = await timerLib.startFocus(s, 10, t0, { breakMinutes: 2, repeats: 2 });
+  assert.deepEqual(t.cycle, { total: 2, index: 1, focusMin: 10, breakMin: 2 });
+  let st = await timerLib.tick(s, t0 + 10 * 60_000 + 1);
+  assert.equal(st.phase, 'break'); assert.equal(st.minutes, 2);
+  st = await timerLib.tick(s, t0 + 12 * 60_000 + 1);
+  assert.equal(st.phase, 'focus'); assert.equal(st.cycle.index, 2); assert.equal(st.round, t.round + 1);
+  assert.equal((await getSettings()).focusMinutes, 20); // die Einstellung bleibt unverändert
+  st = await timerLib.tick(s, t0 + 22 * 60_000 + 1); assert.equal(st.phase, 'break');
+  st = await timerLib.tick(s, t0 + 24 * 60_000 + 1); assert.equal(st.phase, 'idle');
+  // alles auf einmal nachholen (Server war aus)
+  await timerLib.startFocus(s, 5, Date.now() - 10_000_000, { breakMinutes: 1, repeats: 3 });
+  assert.equal((await timerLib.tick(s, Date.now())).phase, 'idle');
+});
+await test('Anhalten und Fortsetzen: Zeit steht still, Rest läuft weiter', async () => {
+  const s = await getSettings(); await timerLib.stopTimer(s);
+  const t0 = Date.now() - 600_000; // 10 Minuten vergangen
+  const t = await timerLib.startFocus(s, 25, t0, { repeats: 1 });
+  const h = await timerLib.holdTimer(s, t0 + 600_000);
+  assert.equal(h.paused.remaining, 15 * 60_000);
+  assert.equal((await timerLib.tick(s, t0 + 3 * 3_600_000)).phase, 'focus'); // auch Stunden später nichts passiert
+  assert.equal((await viewNow()).timer.paused.remaining, 15 * 60_000);
+  const later = t0 + 3_600_000; // 50 Minuten Pause
+  const r = await timerLib.resumeTimer(s, later);
+  assert.equal(r.paused, null); assert.equal(r.endsAt, later + 15 * 60_000); assert.equal(r.startedAt, t.startedAt + (later - (t0 + 600_000)));
+  assert.equal((await timerLib.tick(s, later + 14 * 60_000)).phase, 'focus');
+  assert.equal((await timerLib.tick(s, later + 15 * 60_000 + 1)).phase, 'break');
+  assert.ok((await phasen()).some((e) => e.type === 'hold' && e.on === true) && (await phasen()).some((e) => e.type === 'hold' && e.on === false));
+  assert.equal((await timerLib.holdTimer(s)).phase, 'break'); // Anhalten gilt auch in der Pause
+  await timerLib.stopTimer(s);
+  assert.equal((await timerLib.holdTimer(s)).phase, 'idle'); // im Leerlauf gibt es nichts anzuhalten
+});
+await test('Chat und Admin: !pomodoro 25 5 3, !anhalten, !weiter (nur Moderation)', async () => {
+  const mod = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  await say('999', 'Streamerin', '!pomodoro 25 5 3', mod);
+  let st = await timerLib.getTimer();
+  assert.deepEqual(st.cycle, { total: 3, index: 1, focusMin: 25, breakMin: 5 });
+  await say('1', 'Lena', '!anhalten'); assert.equal((await timerLib.getTimer()).paused, null); // Zuschauer dürfen das nicht
+  await say('999', 'Streamerin', '!anhalten', mod); assert.ok((await timerLib.getTimer()).paused);
+  await say('999', 'Streamerin', '!weiter', mod); assert.equal((await timerLib.getTimer()).paused, null);
+  await say('999', 'Streamerin', '!pomodoro', mod); // ohne Zahlen: Einstellungen
+  st = await timerLib.getTimer(); assert.equal(st.cycle.total, (await getSettings()).repeats);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const r = await adminCall('POST', 'timer/focus', { minutes: 30, breakMinutes: 10, repeats: 2 }, cookie);
+  assert.deepEqual(r.body.timer.cycle, { total: 2, index: 1, focusMin: 30, breakMin: 10 });
+  assert.ok((await adminCall('POST', 'timer/hold', {}, cookie)).body.timer.paused);
+  assert.equal((await adminCall('POST', 'timer/resume', {}, cookie)).body.timer.paused, null);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'tonstart' }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'tonende' }, cookie)).status, 200);
+  const v = await viewNow(); assert.deepEqual({ ...v.ton, dateien: undefined }, { an: true, start: true, ende: true, lautstaerke: 60, dateien: undefined }); assert.equal(v.timer.cycle.total, 2);
+  await timerLib.stopTimer(await getSettings());
 });
 await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
@@ -469,7 +527,7 @@ await test('Pomodoro von Hand zählen und Chat-Befehle', async () => {
   assert.match((await say('999', 'Streamerin', '!pomodoros 8', bc)).message, /Ziel heute: 8 Pomodoros/);
   assert.equal((await getSettings()).pomodoroGoal, 8);
   await saveSettings({ pomodoroGoal: 6 });
-  assert.match((await say('999', 'Streamerin', '!pomodoro 20', bc)).message, /Pomodoro startet: 20 Minuten/);
+  assert.match((await say('999', 'Streamerin', '!pomodoro 20', bc)).message, /Pomodoro 1 von \d+ startet: 20 Minuten/);
   await timerLib.stopTimer(await getSettings());
 });
 await test('Layout: wird geprüft, begrenzt und mit Standard ergänzt', async () => {
@@ -507,7 +565,7 @@ await test('Musik: Schnittstelle mit Schlüssel, Chatbefehl, Veralten und Quelle
   await saveSettings({ musikQuelle: 'aus' }); assert.equal((await viewNow()).musik, null);
 });
 
-console.log('Ziel-Karte, Streamzeit, Stefanie');
+console.log('Ziel-Karte, Streamzeit, Fenster-Ansicht');
 await test('Kamerafenster ist immer quadratisch', async () => {
   assert.equal(layoutLib.DEFAULT_LAYOUT.kamera.w, layoutLib.DEFAULT_LAYOUT.kamera.h);
   const l = layoutLib.normalizeLayout({ kamera: { w: 500, h: 200 } });
@@ -573,21 +631,20 @@ await test('Ziel-Karte und Wachstum: Wörter, Seiten, Streamzeit, Pomodoros', as
   await saveSettings({ zielArt: 'woerter', wachstumQuelle: 'ziel', pomodoroGoal: 6, streamGoalMinutes: 180 });
   await streamLib.stopStream();
 });
-await test('Stefanie im Pavillon: Figur und Tätigkeit (automatisch nach Phase)', async () => {
+await test('Fenster-Ansicht: Ort, Blick und Wetter (Einstellungen und Ansicht)', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const saved = await adminCall('PUT', 'settings', { stefanieFigur: { haare: 'rot', frisur: 'zopf', gesicht: 'brille', tisch: 'buch', haut: '9' }, stefanieTaetigkeit: 'auto' }, cookie);
-  assert.equal(saved.body.settings.stefanieFigur.haare, 'rot'); assert.equal(saved.body.settings.stefanieFigur.tisch, 'laptop'); assert.equal(saved.body.settings.stefanieFigur.haut, '2');
-  await timerLib.stopTimer(await getSettings());
+  const saved = await adminCall('PUT', 'settings', { szeneModus: 'fenster', fensterOrt: 'arbeit', fensterBlick: 'see', fensterWetter: 'auto', jahreszeit: 'winter' }, cookie);
+  assert.equal(saved.body.settings.szeneModus, 'fenster'); assert.equal(saved.body.settings.fensterBlick, 'see');
   let v = await viewNow();
-  assert.equal(v.stefanie.taetigkeit, 'laptop'); assert.equal(v.stefanie.figur.frisur, 'zopf');
-  await timerLib.startBreak(await getSettings(), 5);
-  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'buch');
-  await saveSettings({ stefanieTaetigkeit: 'laptop' });
-  v = await viewNow(); assert.equal(v.stefanie.taetigkeit, 'laptop');
-  await saveSettings({ stefanieTaetigkeit: 'auto' });
-  await timerLib.stopTimer(await getSettings());
-  assert.ok((await adminCall('PUT', 'settings', { stefanieTaetigkeit: 'fliegen' }, cookie)).status === 400);
+  assert.equal(v.modus, 'fenster'); assert.deepEqual(v.fenster, { ort: 'arbeit', blick: 'see', wetter: 'schnee' }); assert.deepEqual(v.seats, []);
+  assert.equal(v.stefanie, undefined);
+  await saveSettings({ jahreszeit: 'sommer', fensterWetter: 'auto', fensterOrt: 'lese', fensterBlick: 'wald' });
+  v = await viewNow(); assert.deepEqual(v.fenster, { ort: 'lese', blick: 'wald', wetter: 'klar' });
+  await saveSettings({ fensterWetter: 'regen' });
+  v = await viewNow(); assert.equal(v.fenster.wetter, 'regen');
+  for (const bad of [{ fensterBlick: 'mond' }, { fensterOrt: 'keller' }, { fensterWetter: 'hagel' }, { szeneModus: 'kino' }]) assert.ok((await adminCall('PUT', 'settings', bad, cookie)).status === 400, JSON.stringify(bad));
+  await saveSettings({ szeneModus: 'wachstum', jahreszeit: 'auto', fensterWetter: 'auto' });
 });
 await test('Admin: Seiten und Streamzeit', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
@@ -597,6 +654,192 @@ await test('Admin: Seiten und Streamzeit', async () => {
   assert.equal((await adminCall('POST', 'pages', { value: 'x' }, cookie)).status, 400);
   assert.equal((await adminCall('POST', 'stream/start', {}, cookie)).body.quelle, 'hand');
   assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
+});
+
+console.log('Design und Zugangsdaten-Datei');
+await test('Design: wird geprüft, begrenzt, mit Standard ergänzt und im Overlay mitgeschickt', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const r = await adminCall('PUT', 'settings', { design: { theme: 'nacht', farben: { akzent: '#FF00AA', text: 'rot', gibtEsNicht: '#000000' }, radius: 999, deckkraft: 1, schrift: 'comic', randBreite: 'x' } }, cookie);
+  const d = r.body.settings.design;
+  assert.equal(d.theme, 'nacht'); assert.deepEqual(d.farben, { akzent: '#ff00aa' }); assert.equal(d.radius, 44); assert.equal(d.deckkraft, 40);
+  assert.equal(d.schrift, 'rund'); assert.equal(d.randBreite, 3); assert.equal(d.schatten, true);
+  assert.equal((await viewNow()).design.theme, 'nacht');
+  const { designVars } = await import('../public/js/design.mjs');
+  const vars = designVars(d); assert.equal(vars['--akzent'], '#ff00aa'); assert.equal(vars['--radius'], '44px'); assert.match(vars['--papier'], /^rgba\(44, 42, 58, 0\.4\)$/);
+  await adminCall('PUT', 'settings', { design: { theme: 'warm', farben: null } }, cookie); // Farben zurücksetzen
+  assert.deepEqual((await viewNow()).design.farben, {});
+});
+await test('novelsbyeverly.env: Werte werden geladen, echte Umgebungsvariablen haben Vorrang', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-env-'));
+  fs.writeFileSync(path.join(dir, 'novelsbyeverly.env'), '# Kommentar\nADMIN_PASSWORD="aus datei"\nTWITCH_CLIENT_ID = abc123\nPORT=9999\n');
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, ['-e', "import('./server/core/config.mjs').then(() => console.log(JSON.stringify([process.env.ADMIN_PASSWORD, process.env.TWITCH_CLIENT_ID, process.env.PORT])))"], { env: { PATH: process.env.PATH, DATA_DIR: dir, PORT: '1234' }, encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(r.stdout), ['aus datei', 'abc123', '1234']);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+await test('Eigene Töne: nur echte Audiodateien, Abruf ohne Login, Upload und Löschen nur mit Login, Hauptschalter', async () => {
+  const sounds = (await mod('api/sounds.mjs')).default;
+  const call = (method, art, { body, type = 'audio/wav', cookie, name } = {}) => sounds(new Request(`https://x/api/sound${art ? `/${art}` : ''}`, { method, headers: { ...(type ? { 'content-type': type } : {}), ...(cookie ? { cookie } : {}), ...(name ? { 'x-dateiname': encodeURIComponent(name) } : {}) }, body }));
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.from([1, 2, 3, 4]), Buffer.from('WAVE'), Buffer.alloc(40)]);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await call('PUT', 'start', { body: wav })).status, 401); // ohne Login
+  assert.equal((await call('PUT', 'start', { body: Buffer.from('<html>kein ton</html>'.repeat(5)), cookie })).status, 400); // sieht nicht nach Audio aus
+  assert.equal((await call('PUT', 'start', { body: wav, type: 'text/html', cookie })).status, 415);
+  assert.equal((await call('PUT', 'quatsch', { body: wav, cookie })).status, 400);
+  assert.equal((await call('PUT', 'start', { body: Buffer.alloc(5 * 1024 * 1024, 1), cookie })).status, 400); // zu groß
+  const ok = await call('PUT', 'start', { body: wav, cookie, name: 'Mein Gong (1).wav' });
+  assert.equal(ok.status, 200); const info = await ok.json(); assert.equal(info.start.name, 'Mein Gong (1).wav'); assert.match(info.start.url, /^\/api\/sound\/start\?v=\d+$/); assert.equal(info.ende, null);
+  const get = await call('GET', 'start', { type: null }); // das Overlay darf ohne Login abrufen
+  assert.equal(get.status, 200); assert.equal(get.headers.get('content-type'), 'audio/wav'); assert.equal(Buffer.from(await get.arrayBuffer()).length, wav.length);
+  assert.equal((await call('GET', 'ende', { type: null })).status, 404);
+  assert.equal((await viewNow()).ton.dateien.start.name, 'Mein Gong (1).wav');
+  assert.equal((await call('GET', '', { type: null })).status, 401);
+  assert.equal((await call('DELETE', 'start', { cookie, type: null })).status, 200);
+  assert.equal((await viewNow()).ton.dateien.start, null);
+  await saveSettings({ soundAn: false }); assert.equal((await viewNow()).ton.an, false); await saveSettings({ soundAn: true });
+});
+console.log('System: ZIP, Update, Sicherung');
+const { readZip, writeZip } = await mod('core/zip.mjs');
+const sicherung = await mod('core/sicherung.mjs');
+const updateMod = await mod('update.mjs');
+const system = await mod('api/system.mjs');
+const { DATA_DIR: dataDir, BACKUP_DIR: backupDir } = await mod('core/config.mjs');
+const zipOf = (files) => writeZip(Object.entries(files).map(([name, text]) => ({ name, data: Buffer.from(text) })));
+await test('ZIP: schreiben und lesen, Umlaute und Unterordner', async () => {
+  const z = readZip(zipOf({ 'server/ü.txt': 'Grüße', 'a/b/c.txt': 'x'.repeat(5000) }));
+  assert.deepEqual(z.map((e) => e.name), ['server/ü.txt', 'a/b/c.txt']);
+  assert.equal(z[0].data().toString(), 'Grüße'); assert.equal(z[1].data().length, 5000);
+  assert.throws(() => readZip(Buffer.from('kein zip')), /keine gültige ZIP/);
+});
+await test('Update-ZIP: umschließender Ordner wird abgestreift, Fremdes ignoriert, Pflichtdateien geprüft', async () => {
+  const gut = { 'server/index.mjs': '1', 'server/main.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': 'x', 'README.md': 'egal', 'docker-compose.yml': 'egal' };
+  const e = updateMod.programmEintraege(readZip(zipOf(Object.fromEntries(Object.entries(gut).map(([k, v]) => [`novelsbyeverly/${k}`, v])))));
+  assert.deepEqual([...e.keys()].sort(), ['VERSION.txt', 'public/overlay.html', 'server/index.mjs', 'server/main.mjs', 'server/update.mjs']);
+  assert.equal(updateMod.programmEintraege(readZip(zipOf(gut))).size, 5);
+  assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ 'server/index.mjs': '1' }))), /kein Update für dieses Programm/);
+  assert.throws(() => updateMod.programmEintraege(readZip(zipOf({ ...gut, 'server/../../x.mjs': '1' }))), /Unzulässiger Pfad/);
+});
+await test('Datensicherung: ohne Twitch-Zugänge, Wiederherstellung ersetzt die Daten', async () => {
+  await db.set('config/settings', { marker: 'vorher' }); await db.set('config/tokens', { access_token: 'geheim' });
+  const name = sicherung.sichereDaten('test');
+  const inhalt = readZip(fs.readFileSync(path.join(backupDir, name))).map((e) => e.name);
+  assert.ok(inhalt.includes('cowork/config%2Fsettings')); assert.ok(inhalt.includes('INFO.txt'));
+  assert.ok(!inhalt.some((n) => n.includes('tokens')), 'Zugänge dürfen nicht in der Sicherung stehen');
+  await db.set('config/settings', { marker: 'nachher' }); await db.set('config/tokens', { access_token: 'neu' });
+  sicherung.stelleDatenWiederHer(path.join(backupDir, name));
+  assert.equal((await db.get('config/settings')).marker, 'vorher');
+  assert.equal((await db.get('config/tokens')).access_token, 'neu'); // Zugänge bleiben unberührt
+  assert.ok(sicherung.liste().daten.some((b) => b.name === name));
+  assert.ok(sicherung.liste().daten.some((b) => b.name.endsWith('_vor_wiederherstellung.zip')));
+});
+await test('Update einspielen: neues Programm, Sicherung des alten, fehlerhaftes Update ändert nichts', async () => {
+  // Kopie des Programms in einem Hilfsordner, damit das echte Projekt unangetastet bleibt
+  const app = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-app-')), data = fs.mkdtempSync(path.join(os.tmpdir(), 'cowork-data-'));
+  fs.cpSync('server', path.join(app, 'server'), { recursive: true }); fs.mkdirSync(path.join(app, 'public')); fs.writeFileSync(path.join(app, 'public/overlay.html'), 'alt');
+  fs.writeFileSync(path.join(app, 'VERSION.txt'), '1.0 alt'); fs.writeFileSync(path.join(app, 'package.json'), '{}');
+  const { spawnSync } = await import('node:child_process');
+  const lauf = () => spawnSync(process.execPath, ['-e', "import('./server/update.mjs').then((m) => console.log('NEUSTART=' + m.wendeAnstehendesAn()))"], { cwd: app, env: { ...process.env, DATA_DIR: data, LOCAL_STORE_DIR: '' }, encoding: 'utf8' });
+  const programm = { 'server/index.mjs': 'export {};', 'server/main.mjs': 'export {};', 'server/update.mjs': fs.readFileSync('server/update.mjs', 'utf8'), 'server/core/config.mjs': fs.readFileSync('server/core/config.mjs', 'utf8'), 'server/core/zip.mjs': fs.readFileSync('server/core/zip.mjs', 'utf8'), 'server/core/sicherung.mjs': fs.readFileSync('server/core/sicherung.mjs', 'utf8'), 'public/overlay.html': 'neu', 'VERSION.txt': '2.0 neu', 'package.json': '{}' };
+  // 1) fehlerhaft: Syntaxfehler
+  fs.writeFileSync(path.join(data, 'update.zip'), zipOf({ ...programm, 'server/kaputt.mjs': 'const = ;' }));
+  let r = lauf(); assert.match(r.stdout, /NEUSTART=false/);
+  assert.equal(fs.readFileSync(path.join(app, 'VERSION.txt'), 'utf8'), '1.0 alt'); assert.ok(fs.existsSync(path.join(data, 'update_fehlerhaft.zip')));
+  assert.match(fs.readFileSync(path.join(data, 'update_status.txt'), 'utf8'), /Syntaxfehler in server\/kaputt\.mjs/);
+  assert.ok(!fs.existsSync(path.join(app, 'server/kaputt.mjs')));
+  // 2) gut
+  fs.writeFileSync(path.join(data, 'update.zip'), zipOf(Object.fromEntries(Object.entries(programm).map(([k, v]) => [`novelsbyeverly/${k}`, v]))));
+  r = lauf(); assert.match(r.stdout, /NEUSTART=true/, r.stderr);
+  assert.equal(fs.readFileSync(path.join(app, 'VERSION.txt'), 'utf8'), '2.0 neu'); assert.equal(fs.readFileSync(path.join(app, 'public/overlay.html'), 'utf8'), 'neu');
+  assert.ok(!fs.existsSync(path.join(data, 'update.zip'))); assert.match(fs.readFileSync(path.join(data, 'update_status.txt'), 'utf8'), /erfolgreich/);
+  const backups = fs.readdirSync(path.join(data, 'backups')).filter((n) => n.startsWith('programm_vor_update_'));
+  assert.equal(backups.length, 1);
+  assert.equal(readZip(fs.readFileSync(path.join(data, 'backups', backups[0]))).find((e) => e.name === 'VERSION.txt').data().toString(), '1.0 alt');
+  fs.rmSync(app, { recursive: true, force: true }); fs.rmSync(data, { recursive: true, force: true });
+});
+await test('System-API: nur mit Login, Update-Upload wird geprüft und vorgemerkt, Rückrollen und Sicherungen', async () => {
+  let neustarts = 0; system.hooks.neustart = () => { neustarts += 1; };
+  const call = (method, p, { body, type = 'application/json', cookie } = {}) => system.default(new Request(`https://x/api/system/${p}`, { method, headers: { ...(type ? { 'content-type': type } : {}), ...(cookie ? { cookie } : {}) }, body }));
+  assert.equal((await call('GET', '')).status, 401);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const info = await (await call('GET', '', { cookie })).json();
+  assert.match(info.version, /^1\./); assert.ok(Array.isArray(info.daten) && Array.isArray(info.programm));
+  assert.equal((await call('POST', 'update', { body: 'x', type: 'application/zip' })).status, 401);
+  assert.equal((await call('POST', 'update', { body: 'x', type: 'text/plain', cookie })).status, 415);
+  assert.equal((await call('POST', 'update', { body: 'kein zip', type: 'application/zip', cookie })).status, 400);
+  assert.equal((await call('POST', 'update', { body: zipOf({ 'foo.txt': 'x' }), type: 'application/zip', cookie })).status, 400); // kein Programm
+  assert.equal(neustarts, 0);
+  const gut = zipOf({ 'server/index.mjs': '1', 'server/main.mjs': '1', 'server/update.mjs': '1', 'public/overlay.html': '1', 'VERSION.txt': '9.9 test' });
+  assert.equal((await call('POST', 'update', { body: gut, type: 'application/zip', cookie })).status, 200);
+  assert.ok(fs.existsSync(path.join(dataDir, 'update.zip'))); assert.equal(neustarts, 1);
+  fs.rmSync(path.join(dataDir, 'update.zip'));
+  assert.ok((await (await call('GET', '', { cookie })).json()).daten.some((b) => b.name.endsWith('_vor_update.zip'))); // Daten wurden vorher gesichert
+  assert.equal((await call('POST', 'zurueck', { body: JSON.stringify({ name: '../../etc/passwd' }), cookie })).status, 400);
+  // Datensicherung: anlegen, herunterladen, löschen
+  const neu = await (await call('POST', 'sicherung', { body: '{}', cookie })).json();
+  const dl = await call('GET', `sicherung/${neu.name}`, { cookie, type: null }); assert.equal(dl.headers.get('content-type'), 'application/zip');
+  assert.equal((await call('POST', 'wiederherstellen', { body: JSON.stringify({ name: neu.name }), cookie })).status, 200); assert.equal(neustarts, 2);
+  fs.rmSync(path.join(dataDir, 'restore.zip'), { force: true });
+  assert.equal((await call('DELETE', `sicherung/${neu.name}`, { body: '{}', cookie })).status, 200);
+  assert.equal((await call('GET', `sicherung/${neu.name}`, { cookie, type: null })).status, 404);
+});
+
+console.log('Twitch-App im Admin und Live-Kanal');
+const zugang = await mod('twitch/zugang.mjs');
+const live = await mod('core/live.mjs');
+const einlogg = async () => (await adminCall('POST', 'login', { password: 'geheim' })).headers.get('set-cookie').split(';')[0];
+const eigeneId = 'cid' + 'a'.repeat(20);
+
+await test('Twitch-App: Client-ID und Secret im Admin, Secret bleibt geheim und aus Sicherungen', async () => {
+  const cookie = await einlogg();
+  assert.equal((await adminCall('GET', 'twitch-app')).status, 401);
+  const a = (await adminCall('GET', 'twitch-app', null, cookie)).body;
+  assert.equal(a.clientId, 'cid'); assert.equal(a.idQuelle, 'env'); assert.equal(a.hasSecret, false);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientId: 'zu kurz!' }, cookie)).status, 400);
+  assert.equal((await adminCall('PUT', 'twitch-app', { clientSecret: 'x' }, cookie)).status, 400);
+  const neu = await adminCall('PUT', 'twitch-app', { clientId: eigeneId }, cookie);
+  assert.equal(neu.status, 200); assert.equal(neu.body.disconnected, true); // andere ID: alte Anmeldungen gelten nicht mehr
+  assert.equal(await db.get('config/tokens'), null); assert.equal(await db.get('config/bot-tokens'), null);
+  const mitSecret = await adminCall('PUT', 'twitch-app', { clientSecret: 's'.repeat(30) }, cookie);
+  assert.equal(mitSecret.body.hasSecret, true); assert.equal(mitSecret.body.disconnected, false);
+  assert.ok(!JSON.stringify(mitSecret.body).includes('ssssss')); // das Secret verlässt den Server nie
+  assert.ok(!JSON.stringify((await adminCall('GET', 'state', null, cookie)).body).includes('ssssss'));
+  // Twitch-Aufrufe nehmen die gespeicherten Angaben
+  const { tokenRequest } = await mod('twitch/api.mjs');
+  await tokenRequest({ grant_type: 'client_credentials' });
+  const gesendet = new URLSearchParams(calls.at(-1).raw);
+  assert.equal(gesendet.get('client_id'), eigeneId); assert.equal(gesendet.get('client_secret'), 's'.repeat(30));
+  assert.equal((await adminCall('POST', 'twitch-app/test', {}, cookie)).body.ok, true);
+  const start = await auth(new Request('https://x/api/auth/device/start', { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: '{}' }));
+  assert.equal(start.status, 200); assert.equal(new URLSearchParams(calls.at(-1).raw).get('client_id'), eigeneId);
+  // Sicherungen enthalten weder Client-ID noch Secret
+  const name = sicherung.sichereDaten('app');
+  assert.ok(!readZip(fs.readFileSync(path.join(backupDir, name))).some((e) => e.name.includes('twitch-app')));
+  sicherung.stelleDatenWiederHer(path.join(backupDir, name));
+  await zugang.ladeTwitchApp();
+  assert.equal(zugang.twitchApp().clientId, eigeneId); // die Wiederherstellung lässt die Zugangsdaten stehen
+  assert.equal((await adminCall('PUT', 'twitch-app', { clearSecret: true }, cookie)).body.hasSecret, false);
+  await adminCall('PUT', 'twitch-app', { clientId: '' }, cookie); // zurück auf den Ersatzwert aus der Umgebung
+  assert.equal(zugang.twitchApp().clientId, 'cid');
+});
+
+// Anmeldungen für die folgenden Tests wiederherstellen
+await db.set('config/tokens', { access_token: 'tokB', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '999', login: 'streamerin', scopes: ['channel:read:redemptions', 'channel:manage:redemptions', 'user:write:chat', 'user:read:chat', 'user:bot', 'channel:bot'] });
+
+await test('Live-Kanal: Änderungen gehen sofort ans Overlay', async () => {
+  const gesehen = [];
+  const listeners = [];
+  live.attach({ on: (e, f) => listeners.push([e, f]) }, { writeHead() {}, write: (t) => gesehen.push(t) });
+  await saveSettings({ jahreszeit: 'herbst' });
+  await adminCall('POST', 'test/event', { kind: 'goal' }, await einlogg());
+  assert.ok(gesehen.some((t) => t.startsWith('event: settings')) && gesehen.some((t) => t.startsWith('event: event')));
+  assert.equal(live.listeners(), 1);
+  listeners.find(([e]) => e === 'close')[1]();
+  assert.equal(live.listeners(), 0);
+  await saveSettings({ jahreszeit: 'auto' });
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

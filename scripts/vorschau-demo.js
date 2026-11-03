@@ -1,5 +1,5 @@
 // ---- Vorschau: Beispieldaten und Bedienelemente (nur in der Vorschau-Datei, nicht im echten Overlay)
-const cfg = { zielArt: 'woerter', taetigkeit: 'laptop', jahreszeit: 'fruehling', tageszeit: 'mittag', phase: 'focus', progress: 55, sprintPct: 28, done: 3, goal: 6, words: 1100, mod: { blume: true, kerze: true, buecher: true, musik: true, kamera: true }, since: Date.now() - 7 * 60000 };
+const cfg = { zielArt: 'woerter', modus: 'wachstum', ort: 'lese', blick: 'stadt', wetter: 'klar', jahreszeit: 'fruehling', tageszeit: 'mittag', phase: 'focus', progress: 55, sprintPct: 28, done: 3, goal: 6, words: 1100, mod: { blume: true, kerze: true, buecher: true, musik: true, kamera: true }, since: Date.now() - 7 * 60000 };
 
 function ziel() {
   const f = cfg.progress / 100;
@@ -13,12 +13,12 @@ function mk() {
   layout.kamera.on = cfg.mod.kamera;
   const length = cfg.phase === 'break' ? 5 : 25, idle = cfg.phase === 'idle';
   return {
-    now: Date.now(), modus: 'wachstum', jahreszeit: cfg.jahreszeit, tageszeit: cfg.tageszeit, progress: cfg.progress / 100,
+    now: Date.now(), modus: cfg.modus, fenster: { ort: cfg.ort, blick: cfg.blick, wetter: cfg.wetter }, jahreszeit: cfg.jahreszeit, tageszeit: cfg.tageszeit, progress: cfg.progress / 100,
     scene: 'cafe', deco: [], modules: { blume: cfg.mod.blume, kerze: cfg.mod.kerze, buecher: cfg.mod.buecher }, sprintsToday: cfg.done, layout,
     pomodoro: { done: cfg.done, goal: cfg.goal, minutes: 25 },
     musik: cfg.mod.musik ? { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } } : null,
     timer: { phase: cfg.phase, round: cfg.done + 1, startedAt: idle ? null : cfg.since, endsAt: idle ? null : cfg.since + length * 60000, wordsAtStart: 640 },
-    words: { today: cfg.words, goal: 2000, chat: 0 }, communityHours: 0, ziel: ziel(), stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: cfg.taetigkeit },
+    words: { today: cfg.words, goal: 2000, chat: 0 }, communityHours: 0, ziel: ziel(),
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }, { id: 'd', text: 'Exposé an Lektorin', done: false }],
     seats: [], events: [], cursor: 'x',
   };
@@ -28,7 +28,7 @@ const mark = (box, attr, value) => { for (const b of $(box).children) b.classLis
 const setSince = () => { const len = cfg.phase === 'break' ? 5 : 25; cfg.since = Date.now() - (cfg.phase === 'break' ? 0.2 : cfg.sprintPct / 100) * len * 60000; };
 
 refresh();
-mark('k-ziel', 'a', cfg.zielArt); mark('k-tat', 't', cfg.taetigkeit);
+mark('k-ziel', 'a', cfg.zielArt); mark('k-modus', 'm', cfg.modus); mark('k-ort', 'o', cfg.ort); mark('k-blick', 'b', cfg.blick); mark('k-wetter', 'w', cfg.wetter);
 mark('k-jahr', 'j', cfg.jahreszeit); mark('k-zeit', 'z', cfg.tageszeit); mark('k-phase', 'p', cfg.phase);
 
 $('k-jahr').onclick = (e) => { const v = e.target.dataset?.j; if (!v) return; cfg.jahreszeit = v; mark('k-jahr', 'j', v); refresh(); };
@@ -49,4 +49,4 @@ $('k-event').onclick = (e) => {
   handleEvent({ type: kind, n: cfg.done + 1, goal: cfg.goal, writers: 0, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', bits: 500, viewers: 42, count: 5, months: 3, rank: 'Federkiel', item: 'Katze' });
 };
 $('k-ziel').onclick = (e) => { const v = e.target.dataset?.a; if (!v) return; cfg.zielArt = v; mark('k-ziel', 'a', v); refresh(); };
-$('k-tat').onclick = (e) => { const v = e.target.dataset?.t; if (!v) return; cfg.taetigkeit = v; mark('k-tat', 't', v); refresh(); };
+for (const [box, attr, key] of [['k-modus', 'm', 'modus'], ['k-ort', 'o', 'ort'], ['k-blick', 'b', 'blick'], ['k-wetter', 'w', 'wetter']]) $(box).onclick = (e) => { const v = e.target.dataset?.[attr]; if (!v) return; cfg[key] = v; mark(box, attr, v); refresh(); };
