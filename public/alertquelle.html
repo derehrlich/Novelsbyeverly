@@ -14,26 +14,28 @@
 * { box-sizing: border-box; margin: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
-/* Buch-Sprites: public/alerts/buch-aufklappen.png (8 Bilder à 220×280, Anker = Buchrücken unten) */
-#buch { --s: 2.4; --schrift: Fredoka, system-ui, sans-serif; --gn: 1; --gl: 1; --gs: 1; --cname: #4d4236; --clabel: #b0745a; --csub: #7a6b57;
-  position: absolute; left: 960px; top: 30px; width: calc(220px * var(--s)); height: calc(240px * var(--s)); margin-left: calc(-110px * var(--s)); pointer-events: none; opacity: 0; will-change: transform, opacity; font-family: var(--schrift); }
-#buch .sprite { position: absolute; inset: 0; background: url(alerts/buch-aufklappen.png) 0 calc(-40px * var(--s)) / calc(1760px * var(--s)) calc(280px * var(--s)) no-repeat; }
-#buch .glow { position: absolute; left: calc(40px * var(--s)); top: calc(40px * var(--s)); width: calc(140px * var(--s)); height: calc(120px * var(--s)); background: radial-gradient(ellipse at 50% 85%, rgba(255, 224, 140, .95), rgba(255, 200, 110, .45) 45%, rgba(255, 200, 110, 0) 72%); filter: blur(calc(4px * var(--s))); opacity: 0; mix-blend-mode: screen; }
-#buch .seite { position: absolute; top: calc(83px * var(--s)); width: calc(66px * var(--s)); height: calc(104px * var(--s)); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; transition: opacity .5s ease; overflow: hidden; }
-#buch .seite.l { left: calc(50px * var(--s)); transform: rotate(-1.5deg); }
-#buch .seite.r { left: calc(123px * var(--s)); transform: rotate(1.2deg); }
+/* Buch-Sprites: public/alerts/buch-aufklappen.png = 5 Bilder à 1000×660 px nebeneinander (geschlossen → ganz offen).
+   Alle Maße unten sind Pixel im Sprite-Bild, mal --u (Anzeigegröße je Sprite-Pixel). Anker = Buchrücken unten (500, 560). */
+#buch { --u: .62; --schrift: Fredoka, system-ui, sans-serif; --gn: 1; --gl: 1; --gs: 1; --cname: #4d4236; --clabel: #b0745a; --csub: #7a6b57;
+  position: absolute; left: 960px; top: 0; width: calc(1000px * var(--u)); height: calc(660px * var(--u)); margin-left: calc(-500px * var(--u)); pointer-events: none; opacity: 0; will-change: transform, opacity; font-family: var(--schrift); }
+#buch .sprite { position: absolute; inset: 0; background: url(alerts/buch-aufklappen.png) 0 0 / calc(5000px * var(--u)) calc(660px * var(--u)) no-repeat; }
+#buch .sprite.b { opacity: 0; }
+#buch .glow { position: absolute; left: calc(170px * var(--u)); top: calc(10px * var(--u)); width: calc(660px * var(--u)); height: calc(400px * var(--u)); background: radial-gradient(ellipse at 50% 80%, rgba(255, 224, 140, .9), rgba(255, 200, 110, .4) 45%, rgba(255, 200, 110, 0) 72%); filter: blur(calc(14px * var(--u))); opacity: 0; mix-blend-mode: screen; }
+#buch .seite { position: absolute; top: calc(150px * var(--u)); width: calc(310px * var(--u)); height: calc(330px * var(--u)); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; transition: opacity .5s ease; overflow: hidden; }
+#buch .seite.l { left: calc(158px * var(--u)); transform: rotate(-1deg); }
+#buch .seite.r { left: calc(540px * var(--u)); transform: rotate(.8deg); }
 #buch .seite.an { opacity: 1; }
-#buch .label { font-size: calc(9px * var(--s) * var(--gl) * var(--fl, 1)); font-weight: 600; color: var(--clabel); line-height: 1.15; max-width: 100%; overflow-wrap: anywhere; }
-#buch .name { font-size: calc(14px * var(--s) * var(--gn) * var(--lang, 1)); font-weight: 700; color: var(--cname); line-height: 1.1; max-width: 100%; overflow-wrap: normal; }
-#buch .sub { font-size: calc(8.5px * var(--s) * var(--gs) * var(--fl, 1)); font-weight: 500; color: var(--csub); line-height: 1.2; max-width: 100%; overflow-wrap: anywhere; }
-#buch .zier { width: calc(30px * var(--s)); height: 2px; background: #c9a45f; border-radius: 2px; margin: calc(5px * var(--s)) 0; opacity: .8; }
+#buch .label { font-size: calc(44px * var(--u) * var(--gl) * var(--fl, 1)); font-weight: 600; color: var(--clabel); line-height: 1.15; max-width: 100%; overflow-wrap: anywhere; }
+#buch .name { font-size: calc(68px * var(--u) * var(--gn) * var(--lang, 1)); font-weight: 700; color: var(--cname); line-height: 1.1; max-width: 100%; overflow-wrap: normal; }
+#buch .sub { font-size: calc(40px * var(--u) * var(--gs) * var(--fl, 1)); font-weight: 500; color: var(--csub); line-height: 1.2; max-width: 100%; overflow-wrap: anywhere; }
+#buch .zier { width: calc(140px * var(--u)); height: 2px; background: #c9a45f; border-radius: 2px; margin: calc(22px * var(--u)) 0; opacity: .8; }
 #buch .zier + .sub { margin-top: 0; }
 #konfetti { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
 </style>
 </head>
 <body>
 <div id="stage">
-  <div id="buch"><div class="glow"></div><div class="sprite"></div><div class="seite l"></div><div class="seite r"></div></div>
+  <div id="buch"><div class="glow"></div><div class="sprite a"></div><div class="sprite b"></div><div class="seite l"></div><div class="seite r"></div></div>
   <canvas id="konfetti" width="1920" height="1080"></canvas>
 </div>
 
@@ -73,26 +75,29 @@ function stepConfetti() {
 (function loop() { requestAnimationFrame(loop); stepConfetti(); })();
 
 // ---- Das Buch: hereingleiten, aufklappen, Text auf die Seiten, zeigen, zuklappen, hinausgleiten
-const BUCH_W = 220;
+const BILDER = 5, BUCH_W = 1000, ANKER = 500, MITTE = 135; // MITTE: das geschlossene Buch sitzt rechts vom Rücken, so weit (Sprite-Pixel) wird es zur Mitte geschoben
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const easeOut = (x) => 1 - (1 - x) ** 3, easeInOut = (x) => (x < .5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2);
 const tween = (ms, fn) => new Promise((res) => { const t0 = performance.now(); (function step(now) { const x = Math.min(1, (now - t0) / ms); fn(x); x < 1 ? requestAnimationFrame(step) : res(); })(t0); });
 
 function anwenden(c) { // Schrift, Größen, Farben und Position aus den Einstellungen
-  const el = $('buch'), s = 2.4 * c.groesseBuch / 100;
-  el.style.setProperty('--s', s); el.style.setProperty('--schrift', alertSchrift(c));
+  const el = $('buch'), s = 0.62 * c.groesseBuch / 100; // s = Anzeigegröße je Sprite-Pixel
+  el.style.setProperty('--u', s); el.style.setProperty('--schrift', alertSchrift(c));
   el.style.setProperty('--gn', c.groesseName / 100); el.style.setProperty('--gl', c.groesseLabel / 100); el.style.setProperty('--gs', c.groesseSub / 100);
   el.style.setProperty('--cname', c.textFarbe); el.style.setProperty('--clabel', c.labelFarbe); el.style.setProperty('--csub', c.subFarbe);
-  el.style.left = `${960 + c.x}px`; el.style.top = `${30 + c.y}px`;
+  el.style.left = `${960 + c.x}px`; el.style.top = `${40 + c.y}px`;
   return s;
 }
 
 async function playBook({ label, name, sub, dauer, konfetti }) {
   const c = cfg, s = anwenden(c);
-  const el = $('buch'), sprite = el.querySelector('.sprite'), glow = el.querySelector('.glow');
+  const el = $('buch'), glow = el.querySelector('.glow');
   const [L, R] = el.querySelectorAll('.seite');
-  const setFrame = (f) => { // der Buchrücken bleibt fest, das geschlossene Buch sitzt rechts davon: beim Öffnen sanft zur Mitte schieben
-    sprite.style.backgroundPositionX = `${-Math.round(f) * BUCH_W * s}px`; el.style.marginLeft = `${-(110 + 38 * (1 - Math.min(f, 6) / 6)) * s}px`;
+  const A = el.querySelector('.sprite.a'), B = el.querySelector('.sprite.b');
+  const setFrame = (f) => { // f = 0 (geschlossen) bis 4 (offen); Zwischenwerte blenden weich zwischen zwei Bildern über
+    f = Math.max(0, Math.min(BILDER - 1, f)); const i = Math.min(Math.floor(f), BILDER - 2), t = f - i;
+    A.style.backgroundPositionX = `${-i * BUCH_W * s}px`; B.style.backgroundPositionX = `${-(i + 1) * BUCH_W * s}px`; B.style.opacity = t; A.style.opacity = t < .5 ? 1 : (1 - t) * 2; // altes Bild blendet in der zweiten Hälfte aus, damit nichts durchscheint oder stehen bleibt
+    el.style.marginLeft = `${-(ANKER + MITTE * (1 - easeInOut(f / (BILDER - 1)))) * s}px`; // der Buchrücken wandert beim Öffnen zur Mitte
   };
   L.innerHTML = '<div class="label"></div><div class="zier"></div><div class="sub"></div>';
   L.querySelector('.label').textContent = label; L.querySelector('.sub').textContent = sub;
@@ -109,15 +114,15 @@ async function playBook({ label, name, sub, dauer, konfetti }) {
     el.style.opacity = 0;
     await tween(520, (x) => { const e = easeOut(x); el.style.opacity = Math.min(1, x * 2.2); el.style.transform = `translateY(${(1 - e) * -160}px) scale(${.85 + .15 * e})`; });
     await wait(150);
-    await tween(900, (x) => setFrame(easeInOut(x) * 6));
-    setFrame(7);
+    await tween(1100, (x) => setFrame(easeInOut(x) * (BILDER - 1)));
+    setFrame(BILDER - 1);
     tween(600, (x) => { glow.style.opacity = easeOut(x); });
-    if (konfetti) burst(cx, 270 + c.y, konfetti, 1.1);
+    if (konfetti) burst(cx, 230 + c.y, konfetti, 1.1);
     await wait(250); L.classList.add('an'); await wait(180); R.classList.add('an');
     await wait(dauer);
     L.classList.remove('an'); R.classList.remove('an'); tween(500, (x) => { glow.style.opacity = 1 - x; });
     await wait(420);
-    await tween(800, (x) => setFrame((1 - easeInOut(x)) * 6));
+    await tween(900, (x) => setFrame((1 - easeInOut(x)) * (BILDER - 1)));
     setFrame(0);
     await tween(420, (x) => { const e = x * x; el.style.opacity = 1 - e; el.style.transform = `translateY(${e * -120}px) scale(${1 - .08 * e})`; });
   } finally { el.style.opacity = 0; }

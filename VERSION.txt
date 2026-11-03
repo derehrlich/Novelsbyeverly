@@ -1,1 +1,1 @@
-1.8.1 – Alerts: sauberer Rand am aufgeklappten Buch (kein rosa/grüner Saum, runde Seitenkanten oben)
+1.9.0 – Alerts: neues blaues Buch in hoher Auflösung (5 Bilder à 1000×660), weiche Übergänge, sauberer Rand
