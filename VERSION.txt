@@ -1,1 +1,1 @@
-1.8.0 – Alerts mit eigener OBS-Quelle und Admin-Seite: Texte, Schrift, Größe, Farben, Position, Testknöpfe, Vorschau
+1.8.1 – Alerts: sauberer Rand am aufgeklappten Buch (kein rosa/grüner Saum, runde Seitenkanten oben)
