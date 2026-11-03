@@ -46,7 +46,7 @@ $('tonAn').onchange = (e) => { ton = e.target.checked; if (ton) chime([660, 880]
 $('k-event').onclick = (e) => {
   const kind = e.target.dataset?.e; if (!kind) return;
   if (kind === 'woerter') { cfg.words = Math.min(2400, cfg.words + 150); cfg.progress = Math.min(100, Math.round((cfg.words / 2000) * 100)); $('wachsRegler').value = cfg.progress; $('wachsWert').textContent = `${cfg.progress} %`; refresh(); return; }
-  handleEvent({ type: kind, n: cfg.done + 1, goal: cfg.goal, writers: 0, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' });
+  handleEvent({ type: kind, n: cfg.done + 1, goal: cfg.goal, writers: 0, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', bits: 500, viewers: 42, count: 5, months: 3, rank: 'Federkiel', item: 'Katze' });
 };
 $('k-ziel').onclick = (e) => { const v = e.target.dataset?.a; if (!v) return; cfg.zielArt = v; mark('k-ziel', 'a', v); refresh(); };
 $('k-tat').onclick = (e) => { const v = e.target.dataset?.t; if (!v) return; cfg.taetigkeit = v; mark('k-tat', 't', v); refresh(); };

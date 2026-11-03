@@ -22,6 +22,8 @@ for (const w of [400, 500, 600, 700]) {
   css = css.replace(`url(fonts/fredoka-latin-${w}-normal.woff2)`, `url(data:font/woff2;base64,${b64})`);
 }
 if (css.includes('url(fonts/')) throw new Error('Schrift nicht eingebettet');
+// Buch-Sprites einbetten (Alerts)
+css = must(css, 'url(alerts/buch-aufklappen.png)', `url(data:image/png;base64,${fs.readFileSync(path.join(root, 'public/alerts/buch-aufklappen.png')).toString('base64')})`);
 
 // Module einbinden (ohne import/export)
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
@@ -84,7 +86,8 @@ const controls = `<section id="steuerung" aria-label="Vorschau steuern">
     <label for="mKamera"><input type="checkbox" id="mKamera" checked> Kamerafenster</label>
   </div>
   <div class="gruppe"><h2>Ereignisse</h2><div class="knoepfe" id="k-event">
-    <button data-e="sprint">Pomodoro-Ende</button><button data-e="goal">Tagesziel</button><button data-e="taskdone">Aufgabe erledigt</button><button data-e="woerter">+150 Wörter</button></div>
+    <button data-e="sprint">Pomodoro-Ende</button><button data-e="goal">Tagesziel</button><button data-e="taskdone">Aufgabe erledigt</button><button data-e="woerter">+150 Wörter</button>
+    <button data-e="follow">Follow</button><button data-e="sub">Abo</button><button data-e="giftsub">Geschenk-Abos</button><button data-e="cheer">Bits</button><button data-e="raid">Raid</button></div>
     <label for="tonAn" style="margin-top:10px"><input type="checkbox" id="tonAn"> Glockenton</label></div>
 </section>
 <p class="fuss">Im Admin lassen sich Karten, Module und das Kamerafenster frei verschieben, Module einzeln abschalten und Jahres- und Tageszeit festlegen. Alles hier sind Beispieldaten.</p>`;
