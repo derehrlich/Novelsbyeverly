@@ -8,7 +8,7 @@ import { attach } from './live.mjs';
 
 const PUBLIC = path.join(APP_DIR, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json' };
-const ADRESSEN = { '/': '/admin/', '/overlay': '/overlay.html', '/alerts': '/alertquelle.html' }; // kurze Adressen
+const ADRESSEN = { '/': '/admin/', '/overlay': '/overlay.html', '/alerts': '/alertquelle.html', '/gaming': '/gaming.html' }; // kurze Adressen
 const STANDARD_MAX = 1_000_000;
 
 // Der Body wird als Strom durchgereicht und erst von der Route gelesen (bei Uploads erst nach der Anmeldeprüfung).

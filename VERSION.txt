@@ -1,1 +1,1 @@
-1.9.0 – Alerts: neues blaues Buch in hoher Auflösung (5 Bilder à 1000×660), weiche Übergänge, sauberer Rand
+1.10.0 – Gaming-Szene: eigene OBS-Quelle /gaming mit 16:9-Spielfenster, Kamerafenstern in den Ecken, Designs Gemütlich und Glas, unscharfem Rand und Deathcounter (Chat, Admin, Hotkey)

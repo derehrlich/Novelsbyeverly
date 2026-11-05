@@ -10,6 +10,7 @@ import { fill, fmtDuration, fmtNumber, pushEvent } from '../core/util.mjs';
 import { storedTokens } from '../twitch/api.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
 import { addPages, getPages, setPages } from './pages.mjs';
+import { getTode, todeAktion, zeigeTode } from './tode.mjs';
 import { fmtHM, startStream, stopStream, streamInfo } from './streamzeit.mjs';
 
 const MAX_VIEWER_WORDS = 3000;
@@ -35,9 +36,10 @@ const COMMANDS = {
   anhalten: 'hold', halt: 'hold', hold: 'hold',
   weiter: 'resume', fortsetzen: 'resume', resume: 'resume',
   szene: 'scene', ort: 'scene',
+  tod: 'tod', tot: 'tod', death: 'tod', tode: 'tode', deaths: 'tode',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'hold', 'resume', 'scene', 'song', 'stream']);
+const MOD_ONLY = new Set(['tod', 'sprint', 'pause', 'stop', 'hold', 'resume', 'scene', 'song', 'stream']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -187,6 +189,22 @@ async function run(action, ctx) {
       if (!key) return `Szenen: ${Object.values(SZENEN).map((s) => s.label).join(', ')} – z. B. ${pre(settings)}szene garten`;
       await saveSettings({ scene: key });
       return `🎬 Neue Szene: ${SZENEN[key].label}.`;
+    }
+    case 'tod': { // Moderation/Streamerin: !tod (+1) · !tod - · !tod 12 · !tod reset
+      if (!settings.gamingTode) return null;
+      const sub = norm(args[0] ?? '');
+      let r;
+      if (!sub || sub === '+') r = await todeAktion('plus');
+      else if (sub === '-') r = await todeAktion('minus');
+      else if (sub === 'reset' || sub === 'null') { if (!ctx.isBroadcaster) return null; r = await todeAktion('reset'); }
+      else if (num(sub) != null && num(sub) >= 0) r = await todeAktion('set', num(sub));
+      else return `${pre(settings)}tod · ${pre(settings)}tod - · ${pre(settings)}tod 12 · ${pre(settings)}tod reset`;
+      return settings.gamingTodeChat ? fill(settings.gamingTodeTemplate, { n: fmtNumber(r.n), label: settings.gamingTodeLabel }) : null;
+    }
+    case 'tode': {
+      if (!settings.gamingTode) return null;
+      const t = await zeigeTode(); // blendet die Karte wieder ein
+      return fill(settings.gamingTodeTemplate, { n: fmtNumber(t.n), label: settings.gamingTodeLabel });
     }
     case 'help': {
       const p = pre(settings);

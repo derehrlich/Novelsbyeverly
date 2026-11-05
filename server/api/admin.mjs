@@ -3,14 +3,14 @@ import { adminEnabled, checkPassword, cookie, hasSession, json, makeSession } fr
 import { status } from './admin/status.mjs';
 import { config as settingsRoute } from './admin/einstellungen.mjs';
 import { setup } from './admin/setup.mjs';
-import { musik, pages, seats, stream, tasks, tests, timer, words } from './admin/steuerung.mjs';
+import { musik, pages, seats, stream, tasks, tests, timer, tode, words } from './admin/steuerung.mjs';
 import { exportCsv, users } from './admin/nutzer.mjs';
 import { twitchAppRoute } from './admin/twitch-app.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, 'twitch-app': twitchAppRoute };
+const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, tode, test: tests, users, 'export.csv': exportCsv, 'twitch-app': twitchAppRoute };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);

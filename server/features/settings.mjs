@@ -28,6 +28,18 @@ export const DEFAULTS = {
   layout: DEFAULT_LAYOUT,
   design: DEFAULT_DESIGN, // Farben, Rundung, Schrift der Karten (siehe public/js/design.mjs)
   alerts: DEFAULT_ALERTS, // Buch-Alerts: Texte, Schrift, Größe, Position (siehe public/js/alerts.mjs), eigene OBS-Quelle /alerts
+  // Gaming-Szene (/gaming): Design, Rand, Kamerafenster in den Ecken des Spielrahmens und der Deathcounter
+  gamingDesign: 'gemuetlich', // gemuetlich (Landschaft, Holzrahmen) | glas (schlicht, durchscheinendes Glas, an Apples Liquid Glass angelehnt)
+  gamingHintergrund: 'design', // design (Landschaft bzw. Glasverlauf) | obs (Rand bleibt durchsichtig: darunter liegt in OBS eine unscharfe Kopie des Spiels)
+  gamingAbdunkeln: 25, // bei Hintergrund obs: Rand um so viel Prozent abdunkeln (0–80)
+  gamingKameraOL: false, gamingKameraOR: true, gamingKameraUL: false, gamingKameraUR: false,
+  gamingKameraGroesse: 340, // Seitenlänge der quadratischen Kamera in Pixeln
+  gamingTode: false, // Deathcounter anzeigen
+  gamingTodeLabel: 'Tode',
+  gamingTodePos: 'unten-links', // oben-links | oben-mitte | oben-rechts | unten-links | unten-mitte | unten-rechts
+  gamingTodeSekunden: 10, // Karte blendet nach so vielen Sekunden wieder aus (0 = bleibt sichtbar)
+  gamingTodeChat: true, // Bot schreibt bei jeder Änderung die aktuelle Zahl in den Chat
+  gamingTodeTemplate: '💀 {n} {label}', // Chat-Antwort bei Änderung und bei !tode
   // Wann erscheint die Figur: 'sit' = Chatbefehl !sitzen, 'checkin' = Kanalpunkte-Reward "Check-in", 'both' = beides
   appearOn: 'sit',
   scene: 'cafe',
@@ -79,9 +91,9 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['soundAn', 'soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
-const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
+const INT = { gamingAbdunkeln: [0, 80], gamingKameraGroesse: [160, 700], gamingTodeSekunden: [0, 3600], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
+const BOOL = ['gamingKameraOL', 'gamingKameraOR', 'gamingKameraUL', 'gamingKameraUR', 'gamingTode', 'gamingTodeChat', 'soundAn', 'soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const ENUM = { gamingDesign: ['gemuetlich', 'glas'], gamingHintergrund: ['design', 'obs'], gamingTodePos: ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'], appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';

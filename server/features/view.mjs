@@ -12,6 +12,7 @@ import { soundInfo } from './sounds.mjs';
 import { resolveSeason, resolveTime, resolveWeather } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
+import { getTode } from './tode.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -79,6 +80,14 @@ export async function buildView(settings, since, now = Date.now()) {
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     fenster: { ort: settings.fensterOrt, blick: settings.fensterBlick, wetter: resolveWeather(settings, resolveSeason(settings, new Date(now))) },
     layout: settings.layout,
+    gaming: {
+      design: settings.gamingDesign,
+      hintergrund: settings.gamingHintergrund,
+      abdunkeln: settings.gamingAbdunkeln,
+      kameras: [['oben-links', settings.gamingKameraOL], ['oben-rechts', settings.gamingKameraOR], ['unten-links', settings.gamingKameraUL], ['unten-rechts', settings.gamingKameraUR]].filter(([, on]) => on).map(([k]) => k),
+      groesse: settings.gamingKameraGroesse,
+      tode: settings.gamingTode ? await (async () => { const t = await getTode(); return { n: t.n, at: t.at ?? 0, sekunden: settings.gamingTodeSekunden, label: settings.gamingTodeLabel, pos: settings.gamingTodePos }; })() : null,
+    },
     design: settings.design,
     alerts: settings.alerts,
     musik,

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gaming · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+<style>#formular .feld { min-width: 0; } #formular select, #formular input[type=text] { width: 100%; max-width: 100%; }</style>
+</head>
+<body data-seite="gaming" data-titel="Gaming-Szene">
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>✍️ Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <section class="karte">
+      <h2>OBS-Quelle</h2>
+      <div class="reihe"><code id="gamingUrl"></code><button class="hell" id="kopieren">Kopieren</button><a class="knopf hell" href="/gaming?platzhalter=1" target="_blank" rel="noopener">Mit Platzhaltern öffnen</a></div>
+      <p class="leise">Zusätzliche Browser-Quelle 1920×1080 neben dem normalen Overlay. In OBS liegt die Spielaufnahme ganz unten (auf 16:9 gezogen), darüber die Kamera, ganz oben diese Browser-Quelle. Spiel und Kamera scheinen durch die ausgeschnittenen Fenster.</p>
+    </section>
+
+    <section class="karte">
+      <h2>Deathcounter</h2>
+      <div class="reihe"><b style="font-size:40px" id="todeZahl">–</b><button id="todeMinus" class="hell">−1</button><button id="todePlus">+1 💀</button><button id="todeZeigen" class="hell">Einblenden</button><input id="todeWert" type="number" min="0" placeholder="Zahl" style="width:90px"><button id="todeSetzen" class="hell">Setzen</button><button id="todeReset" class="hell">Auf 0</button></div>
+      <p class="leise"><b>Chat</b> (Moderation und Streamerin): <code>!tod</code> = +1, <code>!tod -</code> = −1, <code>!tod 12</code> = auf 12 setzen, <code>!tod reset</code> = auf 0 (nur Streamerin). Alle sehen mit <code>!tode</code> den Stand, die Karte blendet dabei kurz ein. Nach der eingestellten Zeit blendet sie wieder aus (0 = bleibt sichtbar).</p>
+      <p class="leise"><b>Hotkey:</b> Eine Browser-Quelle in OBS bekommt keine Tasten, solange du im Spiel bist. Darum ruft ein kleines Programm auf deinem PC eine Adresse auf, zum Beispiel ein Stream Deck („Website öffnen“, im Hintergrund) oder das AutoHotkey-Skript für Windows (F9 = +1, F10 = −1), das du <a href="/tode-hotkey.ahk" download>hier herunterladen</a> und oben mit Adresse und INGEST_TOKEN ausfüllen kannst. Adresse für andere Programme:</p>
+      <div class="reihe"><code id="todeUrl"></code><button class="hell" id="todeKopieren">Kopieren</button></div>
+      <p class="leise" id="tokenHinweis"></p>
+    </section>
+
+    <section class="karte">
+      <h2>Einstellungen</h2>
+      <div id="formular"></div>
+      <div class="reihe"><button class="gruen" id="speichern">Speichern</button></div>
+    </section>
+  </div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="gaming.js"></script>
+</body>
+</html>

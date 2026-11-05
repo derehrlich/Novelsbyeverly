@@ -5,6 +5,7 @@ const SEITEN = [
   ['pomodoro', '⏱️', 'Pomodoro & Ziele', '/admin/pomodoro.html'],
   ['studio', '🎨', 'Overlay', '/admin/studio.html'],
   ['alerts', '🔔', 'Alerts', '/admin/alerts.html'],
+  ['gaming', '🎮', 'Gaming', '/admin/gaming.html'],
   ['musik', '🎵', 'Musik', '/admin/musik.html'],
   ['chat', '💬', 'Chat & Zimmer', '/admin/chat.html'],
   ['system', '⚙️', 'System', '/admin/system.html'],
@@ -23,6 +24,7 @@ export function baueRahmen() {
       <a href="/admin/panel.html"><span class="sym">📱</span>Stream-Panel</a>
       <a href="/overlay" target="_blank" rel="noopener"><span class="sym">📺</span>Overlay öffnen</a>
       <a href="/alerts" target="_blank" rel="noopener"><span class="sym">🔔</span>Alerts öffnen</a>
+      <a href="/gaming" target="_blank" rel="noopener"><span class="sym">🎮</span>Gaming öffnen</a>
       <div class="abstand"></div>
       <button class="hell" id="abmelden">Abmelden</button>
     </aside>

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const strip = (code) => code.replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const modules = ['katalog', 'malerei', 'figur', 'wachstum', 'gaming', 'gaming-ui'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
+const modules = ['malerei', 'wachstum', 'design', 'gaming', 'gaming-ui'].map((n) => strip(read(`public/js/${n}.mjs`))).join('\n');
 const font = (w) => `url(data:font/woff2;base64,${fs.readFileSync(path.join(root, `public/fonts/fredoka-latin-${w}-normal.woff2`)).toString('base64')}) format('woff2')`;
 
 const css = `
@@ -89,6 +89,7 @@ const body = `
     </section>
     <section class="gruppe">
       <h2>Design und Landschaft</h2>
+      <label class="feld">Karten-Farbschema<select id="schema"><option value="warm">Warm (Standard)</option><option value="nacht">Nacht</option><option value="mint">Mint</option><option value="rosa">Rosa</option><option value="klar">Klar und schlicht</option></select></label>
       <label class="feld">Design<select id="design"><option value="gemuetlich">Gemütlich (Landschaft, Holz)</option><option value="glas">Glas (schlicht, an Apple angelehnt)</option></select></label>
       <label class="feld">Hintergrund am Rand<select id="hintergrund"><option value="design">Landschaft / Glasverlauf</option><option value="obs">Unscharfes Spielbild (OBS)</option></select></label>
       <label class="feld"><span>Abdunkeln: <span id="dunkelWert">25</span> %</span><input type="range" id="dunkel" min="0" max="80" value="25"></label>
@@ -135,11 +136,11 @@ function current() {
   const kameras = [['oben-links', 'kOL'], ['oben-rechts', 'kOR'], ['unten-links', 'kUL'], ['unten-rechts', 'kUR']].filter(([, id]) => $(id).checked).map(([k]) => k);
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
-    stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
     gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {
+  applyDesign(stage, { theme: $('schema').value }); // wie im Overlay: Farben, Rundung, Schrift der Karten
   $('groesseWert').textContent = $('groesse').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
   const v = current(); ov.update(v); renderFake(v);
 }
