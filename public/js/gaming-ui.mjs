@@ -89,7 +89,10 @@ export class GamingOverlay {
     this.last = t;
     const { c, view } = this;
     c.clearRect(0, 0, 1920, 1080);
-    if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
+    const g = view?.gaming ?? {};
+    if (g.hintergrund === 'obs') { // Rand bleibt durchsichtig: in OBS liegt darunter das unscharfe Spiel, hier nur leicht abgedunkelt
+      if (g.abdunkeln > 0) { c.fillStyle = `rgba(8,10,16,${Math.min(0.8, g.abdunkeln / 100)})`; c.fillRect(0, 0, 1920, 1080); }
+    } else if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
     else if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
     this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
     drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA, this.design);

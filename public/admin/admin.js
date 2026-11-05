@@ -151,6 +151,7 @@ const OPT = {
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
   gamingDesign: [['gemuetlich', 'Gemütlich (Landschaft, Holzrahmen)'], ['glas', 'Glas (schlicht, durchscheinend, an Apple angelehnt)']],
+  gamingHintergrund: [['design', 'Landschaft bzw. Glasverlauf (je nach Design)'], ['obs', 'Unscharfes Spielbild (Rand durchsichtig, Unschärfe in OBS)']],
   gamingTodePos: [['oben-links', 'Oben links'], ['oben-mitte', 'Oben Mitte'], ['oben-rechts', 'Oben rechts'], ['unten-links', 'Unten links'], ['unten-mitte', 'Unten Mitte'], ['unten-rechts', 'Unten rechts']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
@@ -161,6 +162,8 @@ const SCHEMA = [
   ]],
   ['Gaming-Szene (/gaming)', [
     ['gamingDesign', 'Design', 'select', 'Glas: ruhiger Farbverlauf nach Tageszeit, durchscheinende Rahmen mit feiner Lichtkante, Deathcounter als Glaskapsel.'],
+    ['gamingHintergrund', 'Hintergrund am Rand', 'select', 'Unscharfes Spielbild: In OBS die Spielaufnahme kopieren („Als Referenz einfügen“), auf Vollbild ziehen (Strg+F), Filter „Unschärfe“ hinzufügen und diese Kopie UNTER das scharfe Spiel legen. Reihenfolge von unten: unscharfe Kopie, Spiel, Kamera, Overlay.'],
+    ['gamingAbdunkeln', 'Rand abdunkeln in % (nur bei unscharfem Spielbild, 0–80)', 'number'],
     ['gamingKameraOL', 'Kamerafenster oben links', 'bool', 'Nicht angehakte Fenster fehlen ganz. Das Kamerabild ist quadratisch und ragt über die Ecke des Spielrahmens.'],
     ['gamingKameraOR', 'Kamerafenster oben rechts', 'bool'], ['gamingKameraUL', 'Kamerafenster unten links', 'bool'], ['gamingKameraUR', 'Kamerafenster unten rechts', 'bool'],
     ['gamingKameraGroesse', 'Kamera: Seitenlänge in Pixeln (160–700)', 'number'],

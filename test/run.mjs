@@ -608,7 +608,10 @@ await test('Gaming-Szene: Einstellungen landen im Overlay, Rand ist 16:9', async
   await saveSettings({ gamingKameraOR: false, gamingKameraOL: true, gamingKameraGroesse: 9999, gamingTode: false });
   let v = await viewNow();
   assert.deepEqual(v.gaming.kameras, ['oben-links']); assert.equal(v.gaming.groesse, 700); assert.equal(v.gaming.tode, null);
-  assert.equal(v.gaming.design, 'gemuetlich');
+  assert.equal(v.gaming.design, 'gemuetlich'); assert.equal(v.gaming.hintergrund, 'design');
+  await saveSettings({ gamingHintergrund: 'obs', gamingAbdunkeln: 500 }); const vo = (await viewNow()).gaming; assert.equal(vo.hintergrund, 'obs'); assert.equal(vo.abdunkeln, 80);
+  assert.equal(normalize({ gamingHintergrund: 'x' }).error, 'gamingHintergrund: unbekannter Wert');
+  await saveSettings({ gamingHintergrund: 'design', gamingAbdunkeln: 25 });
   await saveSettings({ gamingDesign: 'glas' }); assert.equal((await viewNow()).gaming.design, 'glas');
   assert.equal(normalize({ gamingDesign: 'neon' }).error, 'gamingDesign: unbekannter Wert');
   await saveSettings({ gamingDesign: 'gemuetlich' });

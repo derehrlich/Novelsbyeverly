@@ -48,6 +48,14 @@ Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmc
 
 **Design der Gaming-Szene.** Unter *Einstellungen → Gaming-Szene → Design* wählst du zwischen *Gemütlich* (Landschaft, Holzrahmen mit Blättern) und *Glas*: schlicht, an Apples Liquid Glass angelehnt, mit ruhigem Farbverlauf nach Tageszeit (Morgen, Mittag, Abend), durchscheinenden Rahmen mit feiner Lichtkante, großen Rundungen und dem Deathcounter als Glaskapsel. Zum Ausprobieren: `/gaming?design=glas`. Die Schrift im Glas-Design ist die Systemschrift (auf dem Mac SF Pro, unter Windows Segoe UI).
 
+**Unscharfes Spielbild am Rand.** Unter *Einstellungen → Gaming-Szene → Hintergrund am Rand* lässt sich statt Landschaft oder Glasverlauf das Spiel selbst als unscharfer Vollbild-Hintergrund zeigen. Ein Browser-Overlay kann das Spiel nicht selbst sehen, deshalb lässt das Overlay den Rand durchsichtig (optional leicht abgedunkelt) und die Unschärfe entsteht in OBS:
+1. Spielaufnahme-Quelle kopieren und als **Referenz** einfügen (Rechtsklick → Kopieren, dann Rechtsklick in der Quellenliste → Als Referenz einfügen), damit die Aufnahme nur einmal läuft.
+2. Die Kopie auf Vollbild ziehen (Rechtsklick → Transformieren → Auf Bildschirmgröße anpassen, oder Strg+F).
+3. Bei der Kopie einen **Unschärfe-Filter** hinzufügen (Effektfilter, je nach OBS-Version „Unschärfe“ bzw. „Composite Blur“, etwa Größe 40 bis 80).
+4. Reihenfolge von unten nach oben: unscharfe Kopie, scharfes Spiel, Kamera, Gaming-Overlay.
+
+Zum Ausprobieren: `/gaming?hintergrund=obs&abdunkeln=25`. Die Schritte in OBS habe ich nicht selbst nachgeprüft, die Menüwörter können je nach Version leicht abweichen.
+
 **Deathcounter.** Optional (*Einstellungen → Gaming-Szene → Deathcounter anzeigen*), im Stil der anderen Karten: Totenkopf, Beschriftung und Zahl, mit kleiner Animation bei jeder Änderung. Sie erscheint bei jeder Änderung und blendet nach einer einstellbaren Zeit (Standard 10 Sekunden, 0 = bleibt sichtbar) wieder aus; `!tode`, der Knopf *Einblenden* im Admin und `aktion=zeigen` an der Schnittstelle blenden sie ein, ohne zu zählen. Position wählbar (sechs Plätze im Spielfenster, steht dort eine Kamera, rückt die Karte daneben). Die Zahl bleibt über Streams hinweg, bis du sie zurücksetzt. Steuerung:
 - **Chat** (Moderation und Streamerin): `!tod` = +1, `!tod -` = −1, `!tod 12` = auf 12 setzen, `!tod reset` = auf 0 (nur Streamerin). Alle sehen mit `!tode` den Stand (die Karte blendet dabei kurz ein). Der Bot antwortet mit dem Text aus den Einstellungen (`{n}`, `{label}`), das Antworten bei jeder Änderung lässt sich abschalten.
 - **Admin:** Knöpfe −1, +1, Setzen, Auf 0 unter *Gaming-Szene: Deathcounter*.

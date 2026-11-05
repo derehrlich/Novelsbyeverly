@@ -90,6 +90,8 @@ const body = `
     <section class="gruppe">
       <h2>Design und Landschaft</h2>
       <label class="feld">Design<select id="design"><option value="gemuetlich">Gemütlich (Landschaft, Holz)</option><option value="glas">Glas (schlicht, an Apple angelehnt)</option></select></label>
+      <label class="feld">Hintergrund am Rand<select id="hintergrund"><option value="design">Landschaft / Glasverlauf</option><option value="obs">Unscharfes Spielbild (OBS)</option></select></label>
+      <label class="feld"><span>Abdunkeln: <span id="dunkelWert">25</span> %</span><input type="range" id="dunkel" min="0" max="80" value="25"></label>
       <label class="feld">Jahreszeit (nur Gemütlich)<select id="jahr"><option value="fruehling">Frühling</option><option value="sommer">Sommer</option><option value="herbst">Herbst</option><option value="winter">Winter</option></select></label>
       <label class="feld">Tageszeit<select id="tag"><option value="morgen">Morgengrauen</option><option value="mittag" selected>Mittag</option><option value="abend">Abend</option></select></label>
       <label class="feld"><span>Wachstum (nur Gemütlich): <span id="wachsWert">55</span> %</span><input type="range" id="wachs" min="0" max="100" value="55"></label>
@@ -112,6 +114,10 @@ const AVATAR = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy
 function renderFake(view) {
   fake.textContent = '';
   if (!$('beispiel').checked) return;
+  if (view.gaming.hintergrund === 'obs') { // so liegt die unscharfe Kopie in OBS unter dem scharfen Spiel
+    const u = document.createElement('div'); u.className = 'fake-spiel';
+    Object.assign(u.style, { left: '0', top: '0', width: '1920px', height: '1080px', filter: 'blur(40px)', transform: 'scale(1.15)' }); fake.append(u);
+  }
   const s = document.createElement('div'); s.className = 'fake-spiel';
   Object.assign(s.style, { left: SPIEL.x + 'px', top: SPIEL.y + 'px', width: SPIEL.w + 'px', height: SPIEL.h + 'px' });
   s.innerHTML = '<i style="left:760px;top:520px;width:70px;height:110px;border-radius:12px"></i><i style="left:1180px;top:560px;width:90px;height:70px;background:#e07a5f;border-radius:50%"></i><b>Dein Spiel</b>';
@@ -130,11 +136,11 @@ function current() {
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
     stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-    gaming: { design: $('design').value, kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {
-  $('groesseWert').textContent = $('groesse').value; $('wachsWert').textContent = $('wachs').value;
+  $('groesseWert').textContent = $('groesse').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
   const v = current(); ov.update(v); renderFake(v);
 }
 for (const el of document.querySelectorAll('input, select')) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); }
