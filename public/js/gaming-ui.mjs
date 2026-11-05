@@ -1,12 +1,16 @@
 // Gaming-Szene als wiederverwendbares Bauteil: Landschaft + Rahmen auf dem Canvas, Deathcounter als Karte.
 // Wird vom echten Overlay (gaming.html) und von der Demo benutzt.
 import { Wachstum } from './wachstum.mjs';
-import { KAMERA, RAHMEN, SPIEL, drawGamingFrames, kameraRect } from './gaming.mjs';
+import { KAMERA, RADIUS, RAHMEN, SPIEL, drawGamingFrames, glasHintergrund, kameraRect } from './gaming.mjs';
 
 export const GAMING_CSS = `
 .g-platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-weight: 600; font-family: Fredoka, system-ui, sans-serif; text-align: center; }
 .g-platzhalter .g-platz { display: flex; }
 .g-tode { position: absolute; transition: opacity .6s ease, translate .6s ease; display: flex; align-items: center; gap: 16px; background: rgba(251, 246, 235, .92); border: 3px solid #bba98a; border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 10px 26px 10px 20px; font-family: Fredoka, system-ui, sans-serif; color: #4d4236; }
+.g-tode[data-design="glas"] { background: rgba(26, 30, 44, .5); border: 1px solid rgba(255, 255, 255, .38); border-radius: 999px; box-shadow: 0 12px 34px rgba(6, 10, 24, .4), inset 0 1px 0 rgba(255, 255, 255, .5), inset 0 -1px 0 rgba(255, 255, 255, .08); -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); padding: 8px 30px 8px 22px; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "Segoe UI", system-ui, sans-serif; }
+.g-tode[data-design="glas"] .label { color: rgba(255, 255, 255, .72); font-size: 16px; letter-spacing: .08em; font-weight: 600; }
+.g-tode[data-design="glas"] .zahl { font-weight: 600; font-size: 56px; letter-spacing: -.02em; }
+.g-tode[data-design="glas"] .icon { font-size: 40px; }
 .g-tode.weg { opacity: 0; translate: 0 14px; pointer-events: none; }
 .g-tode .icon { font-size: 46px; line-height: 1; }
 .g-tode .label { font-size: 20px; font-weight: 600; color: #8a7b66; letter-spacing: .06em; text-transform: uppercase; }
@@ -53,13 +57,15 @@ export class GamingOverlay {
     this.view = view;
     const g = view.gaming ?? {};
     const size = g.groesse ?? KAMERA;
-    const key = `${(g.kameras ?? []).join(',')}|${size}`;
+    const design = g.design === 'glas' ? 'glas' : 'gemuetlich', rad = RADIUS[design];
+    this.design = design; this.tode.dataset.design = design;
+    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}`;
     if (key !== this.key) {
       this.key = key;
       const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
-      place(this.spielBox, SPIEL, 10); this.spielBox.style.fontSize = '34px';
+      place(this.spielBox, SPIEL, rad.spiel); this.spielBox.style.fontSize = '34px';
       this.kamBox.textContent = '';
-      for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), 18); this.kamBox.append(el); }
+      for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), rad.kamera); this.kamBox.append(el); }
     }
     const t = g.tode;
     this.tode.hidden = !t;
@@ -83,9 +89,10 @@ export class GamingOverlay {
     this.last = t;
     const { c, view } = this;
     c.clearRect(0, 0, 1920, 1080);
-    if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
+    if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
+    else if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
     this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
-    drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA);
+    drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA, this.design);
   }
 }
 

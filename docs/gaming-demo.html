@@ -82,10 +82,11 @@ code { background: var(--soft); padding: 1px 6px; border-radius: 5px; font-size:
       <div class="antwort" id="antwort" aria-live="polite">Antwort des Bots erscheint hier.</div>
     </section>
     <section class="gruppe">
-      <h2>Landschaft</h2>
-      <label class="feld">Jahreszeit<select id="jahr"><option value="fruehling">Frühling</option><option value="sommer">Sommer</option><option value="herbst">Herbst</option><option value="winter">Winter</option></select></label>
+      <h2>Design und Landschaft</h2>
+      <label class="feld">Design<select id="design"><option value="gemuetlich">Gemütlich (Landschaft, Holz)</option><option value="glas">Glas (schlicht, an Apple angelehnt)</option></select></label>
+      <label class="feld">Jahreszeit (nur Gemütlich)<select id="jahr"><option value="fruehling">Frühling</option><option value="sommer">Sommer</option><option value="herbst">Herbst</option><option value="winter">Winter</option></select></label>
       <label class="feld">Tageszeit<select id="tag"><option value="morgen">Morgengrauen</option><option value="mittag" selected>Mittag</option><option value="abend">Abend</option></select></label>
-      <label class="feld"><span>Wachstum: <span id="wachsWert">55</span> %</span><input type="range" id="wachs" min="0" max="100" value="55"></label>
+      <label class="feld"><span>Wachstum (nur Gemütlich): <span id="wachsWert">55</span> %</span><input type="range" id="wachs" min="0" max="100" value="55"></label>
       <label><input type="checkbox" id="beispiel" checked> Beispielspiel und Kamerabild zeigen</label>
     </section>
   </div>
@@ -1204,6 +1205,7 @@ const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
 const SPIEL = { x: 104, y: 58, w: 1712, h: 963 }; // 1712 : 963 = 16 : 9 (schmaler Rand)
 const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
 const ABSTAND = 44; // Abstand zwischen Bildrand und Kamerabild (der Holzrahmen liegt darin, 30 px bis zum Rahmen)
+const DESIGNS = ['gemuetlich', 'glas'];
 const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
 const TODE_POS = ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'];
 
@@ -1230,16 +1232,42 @@ function holzrahmen(c, { x, y, w, h }, r, blaetter) {
 
 const BLAETTER_KAMERA = { links: [[0, 0.5, -1.2, 40], [0.2, 1, 3.9, 34]], rechts: [[1, 0.5, 2.2, 40], [0.8, 1, 3.9, 34]] };
 
-function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA) {
-  holzrahmen(c, SPIEL, 10, [[0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40], [0.5, 1, 3.4, 34]]);
+// ---- Design „Glas“ (angelehnt an Apples Liquid Glass): ruhiger Farbverlauf, durchscheinende Rahmen mit feiner Lichtkante
+const RADIUS = { gemuetlich: { spiel: 10, kamera: 18 }, glas: { spiel: 24, kamera: 40 } };
+const GLAS_D = 10; // Dicke des Glasrahmens
+const PALETTEN = { // je Tageszeit: Grundverlauf oben/unten und drei weiche Lichtflecken
+  morgen: { top: '#a99bb8', bot: '#5f7399', flecken: ['#f0cbc0', '#c9b1d6', '#86a3cb'] },
+  mittag: { top: '#8498b2', bot: '#4b5e77', flecken: ['#c9d8ec', '#8fa7c8', '#5d7594'] },
+  abend: { top: '#3d4170', bot: '#1b2040', flecken: ['#7b60aa', '#3f5ca3', '#c47b90'] },
+};
+function glasHintergrund(c, tageszeit, t = 0) {
+  const p = PALETTEN[tageszeit] ?? PALETTEN.mittag;
+  c.fillStyle = lg(c, 0, 0, 0, 1080, [[0, p.top], [1, p.bot]]); c.fillRect(0, 0, 1920, 1080);
+  p.flecken.forEach((col, i) => { // langsam wandernde, weiche Flecken
+    const x = 480 + i * 480 + Math.sin(t / 9000 + i * 2.1) * 220, y = 300 + (i % 2) * 460 + Math.cos(t / 11000 + i) * 130;
+    c.fillStyle = rg(c, x, y, 0, 620, [[0, alpha(col, 0.55)], [1, alpha(col, 0)]]); c.fillRect(0, 0, 1920, 1080);
+  });
+}
+function glasrahmen(c, { x, y, w, h }, r) {
+  const d = GLAS_D, X = x - d, Y = y - d, W = w + 2 * d, H = h + 2 * d;
+  c.save(); c.shadowColor = 'rgba(8,14,30,0.38)'; c.shadowBlur = 38; c.shadowOffsetY = 14;
+  rr(c, X, Y, W, H, r + d, lg(c, X, Y, X + W, Y + H, [[0, 'rgba(255,255,255,0.40)'], [0.5, 'rgba(255,255,255,0.14)'], [1, 'rgba(255,255,255,0.26)']]));
+  c.restore();
+  rr(c, X, Y, W, H, r + d, null, lg(c, X, Y, X + W, Y + H, [[0, 'rgba(255,255,255,0.95)'], [0.35, 'rgba(255,255,255,0.2)'], [0.65, 'rgba(255,255,255,0.12)'], [1, 'rgba(255,255,255,0.7)']]), 1.8); // Lichtkante außen
+  rr(c, x - 1, y - 1, w + 2, h + 2, r + 1, null, 'rgba(255,255,255,0.42)', 1.2); // feine Kante innen
+}
+
+function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich') {
+  const glas = design === 'glas', rad = RADIUS[glas ? 'glas' : 'gemuetlich'];
+  if (glas) glasrahmen(c, SPIEL, rad.spiel); else holzrahmen(c, SPIEL, rad.spiel, [[0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40], [0.5, 1, 3.4, 34]]);
   c.globalCompositeOperation = 'destination-out';
-  rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, 10, '#000000');
+  rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, rad.spiel, '#000000');
   c.globalCompositeOperation = 'source-over';
   for (const e of ecken) { // Kamera liegt über dem Spielrahmen
     const k = kameraRect(e, size);
-    holzrahmen(c, k, 18, BLAETTER_KAMERA[e.endsWith('links') ? 'links' : 'rechts']);
+    if (glas) glasrahmen(c, k, rad.kamera); else holzrahmen(c, k, rad.kamera, BLAETTER_KAMERA[e.endsWith('links') ? 'links' : 'rechts']);
     c.globalCompositeOperation = 'destination-out';
-    rr(c, k.x, k.y, k.w, k.h, 18, '#000000');
+    rr(c, k.x, k.y, k.w, k.h, rad.kamera, '#000000');
     c.globalCompositeOperation = 'source-over';
   }
 }
@@ -1253,6 +1281,10 @@ const GAMING_CSS = `
 .g-platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-weight: 600; font-family: Fredoka, system-ui, sans-serif; text-align: center; }
 .g-platzhalter .g-platz { display: flex; }
 .g-tode { position: absolute; transition: opacity .6s ease, translate .6s ease; display: flex; align-items: center; gap: 16px; background: rgba(251, 246, 235, .92); border: 3px solid #bba98a; border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 10px 26px 10px 20px; font-family: Fredoka, system-ui, sans-serif; color: #4d4236; }
+.g-tode[data-design="glas"] { background: rgba(26, 30, 44, .5); border: 1px solid rgba(255, 255, 255, .38); border-radius: 999px; box-shadow: 0 12px 34px rgba(6, 10, 24, .4), inset 0 1px 0 rgba(255, 255, 255, .5), inset 0 -1px 0 rgba(255, 255, 255, .08); -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); padding: 8px 30px 8px 22px; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "Segoe UI", system-ui, sans-serif; }
+.g-tode[data-design="glas"] .label { color: rgba(255, 255, 255, .72); font-size: 16px; letter-spacing: .08em; font-weight: 600; }
+.g-tode[data-design="glas"] .zahl { font-weight: 600; font-size: 56px; letter-spacing: -.02em; }
+.g-tode[data-design="glas"] .icon { font-size: 40px; }
 .g-tode.weg { opacity: 0; translate: 0 14px; pointer-events: none; }
 .g-tode .icon { font-size: 46px; line-height: 1; }
 .g-tode .label { font-size: 20px; font-weight: 600; color: #8a7b66; letter-spacing: .06em; text-transform: uppercase; }
@@ -1299,13 +1331,15 @@ class GamingOverlay {
     this.view = view;
     const g = view.gaming ?? {};
     const size = g.groesse ?? KAMERA;
-    const key = `${(g.kameras ?? []).join(',')}|${size}`;
+    const design = g.design === 'glas' ? 'glas' : 'gemuetlich', rad = RADIUS[design];
+    this.design = design; this.tode.dataset.design = design;
+    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}`;
     if (key !== this.key) {
       this.key = key;
       const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
-      place(this.spielBox, SPIEL, 10); this.spielBox.style.fontSize = '34px';
+      place(this.spielBox, SPIEL, rad.spiel); this.spielBox.style.fontSize = '34px';
       this.kamBox.textContent = '';
-      for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), 18); this.kamBox.append(el); }
+      for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), rad.kamera); this.kamBox.append(el); }
     }
     const t = g.tode;
     this.tode.hidden = !t;
@@ -1329,9 +1363,10 @@ class GamingOverlay {
     this.last = t;
     const { c, view } = this;
     c.clearRect(0, 0, 1920, 1080);
-    if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
+    if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
+    else if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
     this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
-    drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA);
+    drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA, this.design);
   }
 }
 
@@ -1366,7 +1401,7 @@ function current() {
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
     stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-    gaming: { kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { design: $('design').value, kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {

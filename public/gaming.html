@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- OBS: Browser-Quelle 1920×1080 mit /gaming. Darunter (von unten): Spiel-Aufnahme (16:9), darüber die Kamera (quadratisch zugeschnitten).
      Kamerafenster, Größe und Deathcounter stellst du im Admin ein (Gaming-Szene). Zum Ausprobieren in der Adresse:
-     ?kamera=oben-links,unten-rechts (oder aus) · &groesse=340 · ?platzhalter=1 zeigt die Fenster · ?demo=1 Beispieldaten ohne Bot. -->
+     ?kamera=oben-links,unten-rechts (oder aus) · &groesse=340 · &design=glas · ?platzhalter=1 zeigt die Fenster · ?demo=1 Beispieldaten ohne Bot. -->
 <style>
 @font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 700; src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
@@ -32,6 +32,7 @@ const ov = new GamingOverlay(stage, { platzhalter: q.has('platzhalter') || demo 
 function mix(view) {
   const g = { ...(view.gaming ?? {}) };
   if (q.has('kamera')) g.kameras = q.get('kamera').split(',').map((s) => s.trim()).filter((s) => ECKEN.includes(s));
+  if (q.has('design')) g.design = q.get('design');
   if (q.get('groesse')) g.groesse = Math.min(700, Math.max(160, Number(q.get('groesse')) || 340));
   return { ...view, gaming: g };
 }

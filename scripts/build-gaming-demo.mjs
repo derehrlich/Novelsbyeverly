@@ -88,10 +88,11 @@ const body = `
       <div class="antwort" id="antwort" aria-live="polite">Antwort des Bots erscheint hier.</div>
     </section>
     <section class="gruppe">
-      <h2>Landschaft</h2>
-      <label class="feld">Jahreszeit<select id="jahr"><option value="fruehling">Frühling</option><option value="sommer">Sommer</option><option value="herbst">Herbst</option><option value="winter">Winter</option></select></label>
+      <h2>Design und Landschaft</h2>
+      <label class="feld">Design<select id="design"><option value="gemuetlich">Gemütlich (Landschaft, Holz)</option><option value="glas">Glas (schlicht, an Apple angelehnt)</option></select></label>
+      <label class="feld">Jahreszeit (nur Gemütlich)<select id="jahr"><option value="fruehling">Frühling</option><option value="sommer">Sommer</option><option value="herbst">Herbst</option><option value="winter">Winter</option></select></label>
       <label class="feld">Tageszeit<select id="tag"><option value="morgen">Morgengrauen</option><option value="mittag" selected>Mittag</option><option value="abend">Abend</option></select></label>
-      <label class="feld"><span>Wachstum: <span id="wachsWert">55</span> %</span><input type="range" id="wachs" min="0" max="100" value="55"></label>
+      <label class="feld"><span>Wachstum (nur Gemütlich): <span id="wachsWert">55</span> %</span><input type="range" id="wachs" min="0" max="100" value="55"></label>
       <label><input type="checkbox" id="beispiel" checked> Beispielspiel und Kamerabild zeigen</label>
     </section>
   </div>
@@ -129,7 +130,7 @@ function current() {
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
     stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-    gaming: { kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { design: $('design').value, kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {

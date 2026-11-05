@@ -82,6 +82,7 @@ export async function buildView(settings, since, now = Date.now()) {
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     gaming: {
+      design: settings.gamingDesign,
       kameras: [['oben-links', settings.gamingKameraOL], ['oben-rechts', settings.gamingKameraOR], ['unten-links', settings.gamingKameraUL], ['unten-rechts', settings.gamingKameraUR]].filter(([, on]) => on).map(([k]) => k),
       groesse: settings.gamingKameraGroesse,
       tode: settings.gamingTode ? await (async () => { const t = await getTode(); return { n: t.n, at: t.at ?? 0, sekunden: settings.gamingTodeSekunden, label: settings.gamingTodeLabel, pos: settings.gamingTodePos }; })() : null,
