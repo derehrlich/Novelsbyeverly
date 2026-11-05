@@ -1,5 +1,5 @@
 // Schnittstelle für einen Hotkey (Stream Deck, AutoHotkey, OBS-Skript …), um den Deathcounter zu steuern.
-//   POST /api/tod   Authorization: Bearer <INGEST_TOKEN>   { "aktion": "plus" | "minus" | "reset" | "set", "wert": 12 }
+//   POST /api/tod   Authorization: Bearer <INGEST_TOKEN>   { "aktion": "plus" | "minus" | "reset" | "set" | "zeigen", "wert": 12 }
 //   GET  /api/tod?aktion=plus&token=<INGEST_TOKEN>        (für Programme, die nur Adressen aufrufen können)
 import { todeAktion, getTode } from '../lib/tode.mjs';
 import { json, safeEqual } from '../lib/http.mjs';
@@ -16,5 +16,5 @@ export default async (req) => {
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : Object.fromEntries(url.searchParams);
   if (!body.aktion) return json({ n: (await getTode()).n });
   const r = await todeAktion(body.aktion, body.wert);
-  return r ? json({ ok: true, n: r.n }) : json({ error: 'aktion: plus, minus, reset oder set (mit wert)' }, 400);
+  return r ? json({ ok: true, n: r.n }) : json({ error: 'aktion: plus, minus, reset, zeigen oder set (mit wert)' }, 400);
 };

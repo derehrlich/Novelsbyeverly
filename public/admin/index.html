@@ -120,8 +120,8 @@
     <section class="karte">
       <h2>Gaming-Szene: Deathcounter</h2>
       <p class="leise">Die Anzeige und die Kamerafenster schaltest du weiter unten unter <b>Einstellungen → Gaming-Szene</b> ein. Die Adresse des Overlays steht oben bei den Links.</p>
-      <div class="reihe"><b style="font-size:40px" id="todeZahl">–</b><button id="todeMinus" class="hell">−1</button><button id="todePlus">+1 💀</button><input id="todeWert" type="number" min="0" placeholder="Zahl" style="width:90px"><button id="todeSetzen" class="hell">Setzen</button><button id="todeReset" class="hell">Auf 0</button></div>
-      <p class="leise"><b>Chat</b> (Moderation und Streamerin): <code>!tod</code> = +1, <code>!tod -</code> = −1, <code>!tod 12</code> = auf 12 setzen, <code>!tod reset</code> = auf 0 (nur Streamerin). Alle sehen mit <code>!tode</code> den Stand.</p>
+      <div class="reihe"><b style="font-size:40px" id="todeZahl">–</b><button id="todeMinus" class="hell">−1</button><button id="todePlus">+1 💀</button><button id="todeZeigen" class="hell">Einblenden</button><input id="todeWert" type="number" min="0" placeholder="Zahl" style="width:90px"><button id="todeSetzen" class="hell">Setzen</button><button id="todeReset" class="hell">Auf 0</button></div>
+      <p class="leise"><b>Chat</b> (Moderation und Streamerin): <code>!tod</code> = +1, <code>!tod -</code> = −1, <code>!tod 12</code> = auf 12 setzen, <code>!tod reset</code> = auf 0 (nur Streamerin). Alle sehen mit <code>!tode</code> den Stand und blenden die Karte kurz ein. Nach der eingestellten Zeit blendet sie wieder aus (0 = bleibt sichtbar).</p>
       <p class="leise"><b>Hotkey:</b> Browser-Quellen in OBS empfangen keine Tasten, wenn du im Spiel bist. Darum ruft ein kleines Programm auf deinem PC die Adresse <code id="todeUrl">…</code> auf: Stream Deck („Website öffnen“), oder das mitgelieferte AutoHotkey-Skript <code>scripts/tode-hotkey.ahk</code> (F9 = +1, F10 = −1). Dazu muss <code>INGEST_TOKEN</code> in Netlify gesetzt sein. Anleitung im README.</p>
     </section>
 

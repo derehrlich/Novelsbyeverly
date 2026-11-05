@@ -6,13 +6,14 @@ import { KAMERA, RAHMEN, SPIEL, drawGamingFrames, kameraRect } from './gaming.mj
 export const GAMING_CSS = `
 .g-platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-weight: 600; font-family: Fredoka, system-ui, sans-serif; text-align: center; }
 .g-platzhalter .g-platz { display: flex; }
-.g-tode { position: absolute; display: flex; align-items: center; gap: 16px; background: rgba(251, 246, 235, .92); border: 3px solid #bba98a; border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 10px 26px 10px 20px; font-family: Fredoka, system-ui, sans-serif; color: #4d4236; }
+.g-tode { position: absolute; transition: opacity .6s ease, translate .6s ease; display: flex; align-items: center; gap: 16px; background: rgba(251, 246, 235, .92); border: 3px solid #bba98a; border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 10px 26px 10px 20px; font-family: Fredoka, system-ui, sans-serif; color: #4d4236; }
+.g-tode.weg { opacity: 0; translate: 0 14px; pointer-events: none; }
 .g-tode .icon { font-size: 46px; line-height: 1; }
 .g-tode .label { font-size: 20px; font-weight: 600; color: #8a7b66; letter-spacing: .06em; text-transform: uppercase; }
 .g-tode .zahl { font-weight: 700; font-size: 64px; line-height: 1; font-variant-numeric: tabular-nums; min-width: 1.2ch; }
 .g-tode.pop { animation: g-pop .6s cubic-bezier(.2, 1.4, .4, 1); }
 @keyframes g-pop { 0% { transform: scale(1); } 30% { transform: scale(1.18) rotate(-2deg); background: #f3d9d2; } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .g-tode.pop { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .g-tode.pop { animation: none; } .g-tode { transition: opacity .6s ease; } }
 `;
 
 const INSET = 28;
@@ -70,6 +71,9 @@ export class GamingOverlay {
       this.tode.style.left = `${p.left}px`; this.tode.style.top = `${p.top}px`;
       if (this.todeN !== null && t.n !== this.todeN) { this.tode.classList.remove('pop'); void this.tode.offsetWidth; this.tode.classList.add('pop'); }
       this.todeN = t.n;
+      // Sichtbar bis zum Ablauf der Zeit seit der letzten Aktion (Serverzeit); 0 Sekunden = dauerhaft
+      const rest = t.sekunden > 0 ? t.sekunden * 1000 - ((view.now ?? Date.now()) - (t.at ?? 0)) : Infinity;
+      this.bis = performance.now() + rest;
     } else this.todeN = null;
   }
 
@@ -80,6 +84,7 @@ export class GamingOverlay {
     const { c, view } = this;
     c.clearRect(0, 0, 1920, 1080);
     if (view) this.wachstum.draw(c, view, t); else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
+    this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
     drawGamingFrames(c, view?.gaming?.kameras ?? [], view?.gaming?.groesse ?? KAMERA);
   }
 }

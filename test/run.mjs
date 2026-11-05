@@ -611,6 +611,9 @@ await test('Gaming-Szene: Einstellungen landen im Overlay, Rand ist 16:9', async
   assert.equal(normalize({ gamingTodePos: 'mitte' }).error, 'gamingTodePos: unbekannter Wert');
   await saveSettings({ gamingTode: true, gamingTodeLabel: 'Tode', gamingTodePos: 'unten-mitte' });
   v = await viewNow(); assert.equal(v.gaming.tode.pos, 'unten-mitte'); assert.equal(v.gaming.tode.n, 0);
+  assert.equal(v.gaming.tode.sekunden, 10);
+  await saveSettings({ gamingTodeSekunden: 99999 }); assert.equal((await viewNow()).gaming.tode.sekunden, 3600);
+  await saveSettings({ gamingTodeSekunden: 10 });
 });
 await test('Deathcounter: Chat (Moderation), Reset nur Streamerin, Anzeige für alle', async () => {
   const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
@@ -640,6 +643,9 @@ await test('Deathcounter: Hotkey-Schnittstelle braucht den INGEST_TOKEN', async 
   assert.equal((await call('?aktion=minus&token=ingest-geheim')).status, 200);
   assert.equal((await call('?aktion=unsinn&token=ingest-geheim')).status, 400);
   assert.equal((await (await call('?token=ingest-geheim')).json()).n, 4);
+  const alt = (await viewNow()).gaming.tode.at; await new Promise((r) => setTimeout(r, 15));
+  assert.equal((await (await call('?aktion=zeigen&token=ingest-geheim')).json()).n, 4);
+  const neu = (await viewNow()).gaming.tode; assert.ok(neu.at > alt); assert.equal(neu.n, 4);
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

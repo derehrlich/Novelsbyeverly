@@ -10,7 +10,7 @@ import { fill, fmtDuration, fmtNumber, pushEvent } from './util.mjs';
 import { storedTokens } from './twitch.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
 import { addPages, getPages, setPages } from './pages.mjs';
-import { todeAktion, getTode } from './tode.mjs';
+import { todeAktion, getTode, zeigeTode } from './tode.mjs';
 import { fmtHM, startStream, stopStream, streamInfo } from './streamzeit.mjs';
 
 const MAX_VIEWER_WORDS = 3000;
@@ -199,7 +199,8 @@ async function run(action, ctx) {
     }
     case 'tode': {
       if (!settings.gamingTode) return null;
-      return fill(settings.gamingTodeTemplate, { n: fmtNumber((await getTode()).n), label: settings.gamingTodeLabel });
+      const t = await zeigeTode(); // blendet die Karte wieder ein
+      return fill(settings.gamingTodeTemplate, { n: fmtNumber(t.n), label: settings.gamingTodeLabel });
     }
     case 'help': {
       const p = pre(settings);

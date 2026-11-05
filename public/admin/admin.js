@@ -164,6 +164,7 @@ const SCHEMA = [
     ['gamingKameraGroesse', 'Kamera: Seitenlänge in Pixeln (160–700)', 'number'],
     ['gamingTode', 'Deathcounter anzeigen', 'bool', 'Steuerung im Chat (!tod), per Hotkey oder oben bei „Gaming-Szene“.'],
     ['gamingTodeLabel', 'Deathcounter: Beschriftung', 'text'], ['gamingTodePos', 'Deathcounter: Position im Spielfenster', 'select', 'Steht in derselben Ecke ein Kamerafenster, rückt die Karte daneben.'],
+    ['gamingTodeSekunden', 'Deathcounter blendet nach … Sekunden aus (0 = bleibt sichtbar)', 'number', 'Er erscheint bei jedem Zählen, bei !tode und mit „Einblenden“ im Admin und verschwindet nach dieser Zeit wieder.'],
     ['gamingTodeChat', 'Bot schreibt die Zahl bei jeder Änderung in den Chat', 'bool'],
     ['gamingTodeTemplate', 'Chat-Text', 'area', '{n} {label}'],
   ]],
@@ -343,6 +344,7 @@ start().catch(() => show(false));
 async function loadTode() { const r = await api('GET', 'tode'); $('todeZahl').textContent = r.n; }
 const todeAktion = (aktion, wert) => run(async () => { const r = await api('POST', 'tode', { aktion, wert }); $('todeZahl').textContent = r.n; });
 $('todePlus').onclick = todeAktion('plus'); $('todeMinus').onclick = todeAktion('minus');
+$('todeZeigen').onclick = todeAktion('zeigen');
 $('todeReset').onclick = run(async () => { if (confirm('Deathcounter auf 0 setzen?')) { const r = await api('POST', 'tode', { aktion: 'reset' }); $('todeZahl').textContent = r.n; } });
 $('todeSetzen').onclick = run(async () => { const r = await api('POST', 'tode', { aktion: 'set', wert: $('todeWert').value }); $('todeZahl').textContent = r.n; $('todeWert').value = ''; });
 loadTode().catch(() => {});

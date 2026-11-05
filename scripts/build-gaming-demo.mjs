@@ -73,11 +73,12 @@ const body = `
       <h2>Deathcounter</h2>
       <label><input type="checkbox" id="todeAn" checked> Anzeigen</label>
       <label class="feld">Beschriftung<input type="text" id="todeLabel" value="Tode" maxlength="20"></label>
+      <label class="feld">Ausblenden nach (Sekunden, 0 = nie)<input type="number" id="todeSek" min="0" max="3600" value="8"></label>
       <label class="feld">Position<select id="todePos">
         <option value="oben-links">Oben links</option><option value="oben-mitte">Oben Mitte</option><option value="oben-rechts">Oben rechts</option>
         <option value="unten-links" selected>Unten links</option><option value="unten-mitte">Unten Mitte</option><option value="unten-rechts">Unten rechts</option></select></label>
-      <div class="reihe"><button id="todeMinus">−1</button><button class="haupt" id="todePlus">+1 Tod</button><button id="todeNull">Auf 0</button></div>
-      <p class="hinweis">Im echten Overlay zählt dasselbe per Chat oder Hotkey.</p>
+      <div class="reihe"><button id="todeMinus">−1</button><button class="haupt" id="todePlus">+1 Tod</button><button id="todeZeigen">Einblenden</button><button id="todeNull">Auf 0</button></div>
+      <p class="hinweis">Im echten Overlay zählt dasselbe per Chat oder Hotkey. Die Karte blendet nach der Zeit aus und bei jedem Zählen wieder ein.</p>
     </section>
     <section class="gruppe">
       <h2>Chat ausprobieren</h2>
@@ -121,14 +122,14 @@ function renderFake(view) {
 }
 
 const ov = new GamingOverlay(stage);
-let tode = 7;
+let tode = 7, todeAt = Date.now();
 const pad = (n) => new Intl.NumberFormat('de-DE').format(n);
 function current() {
   const kameras = [['oben-links', 'kOL'], ['oben-rechts', 'kOR'], ['unten-links', 'kUL'], ['unten-rechts', 'kUR']].filter(([, id]) => $(id).checked).map(([k]) => k);
   return {
-    jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
+    now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
     stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-    gaming: { kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {
@@ -136,7 +137,8 @@ function refresh() {
   const v = current(); ov.update(v); renderFake(v);
 }
 for (const el of document.querySelectorAll('input, select')) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); }
-const setze = (n) => { tode = Math.min(99999, Math.max(0, Math.round(n))); refresh(); };
+const setze = (n) => { tode = Math.min(99999, Math.max(0, Math.round(n))); todeAt = Date.now(); refresh(); };
+$('todeZeigen').onclick = () => { todeAt = Date.now(); refresh(); };
 $('todePlus').onclick = () => setze(tode + 1); $('todeMinus').onclick = () => setze(tode - 1); $('todeNull').onclick = () => setze(0);
 
 // Nachbau der Chat-Befehle (gleiche Regeln wie im Bot: Moderation zählt, Reset nur die Streamerin, !tode für alle)
@@ -145,7 +147,7 @@ function chat(text) {
   const [wort, ...args] = text.trim().split(/\\s+/);
   const antwort = () => '💀 ' + pad(tode) + ' ' + ($('todeLabel').value || 'Tode');
   if (!$('todeAn').checked) return 'Der Deathcounter ist ausgeschaltet. Bot schweigt.';
-  if (wort === '!tode') return antwort();
+  if (wort === '!tode') { todeAt = Date.now(); refresh(); return antwort(); }
   if (wort !== '!tod') return 'Kein bekannter Befehl. Bot schweigt.';
   if (!mod) return 'Nur Moderation und Streamerin dürfen zählen. Bot schweigt.';
   const sub = (args[0] ?? '').toLowerCase();
