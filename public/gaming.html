@@ -4,139 +4,62 @@
 <meta charset="utf-8">
 <title>Gaming-Overlay</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- OBS: Browser-Quelle 1920×1080 mit /gaming. Darunter (in dieser Reihenfolge, unten beginnend):
-     Spiel-Aufnahme (auf 16:9 skalieren), Kamera (quadratisch zuschneiden). Beide scheinen durch die Fenster.
-     Teile wählbar: /gaming?teile=uhr,ziel (Standard: beide). Vorschau ohne Bot: ?demo=1. Platzhalter für die Fenster: ?platzhalter=1.
+<!-- OBS: Browser-Quelle 1920×1080 mit /gaming. Darunter (von unten): Spiel-Aufnahme (16:9), darüber die Kamera (quadratisch zugeschnitten).
+     Kamerafenster wählen: /gaming?kamera=oben-rechts (Standard). Mehrere: ?kamera=oben-links,unten-rechts. Keine: ?kamera=aus.
+     Größe der Kamera in Pixeln: &groesse=340. Vorschau ohne Bot: ?demo=1. Platzhalter in den Fenstern: ?platzhalter=1.
      Jahres- und Tageszeit der Landschaft kommen aus dem Admin (Landschaft). -->
 <style>
-@font-face { font-family: Fredoka; font-weight: 500; src: url(fonts/fredoka-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
-@font-face { font-family: Fredoka; font-weight: 700; src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
-:root { --papier: rgba(251, 246, 235, .92); --rand: #bba98a; --text: #4d4236; --leise: #8a7b66; --fokus: #7f9a74; --pause: #c9985c; --bereit: #a09280; }
 * { box-sizing: border-box; margin: 0; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Fredoka, system-ui, sans-serif; color: var(--text); }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Fredoka, system-ui, sans-serif; }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
 #szene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
 .platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-size: 34px; font-weight: 600; }
 body.platzhalter .platz { display: flex; }
-.card { position: absolute; left: 1486px; width: 410px; background: var(--papier); border: 3px solid var(--rand); border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 14px 22px; }
-.klein { font-size: 20px; color: var(--leise); font-weight: 500; }
-.bar { height: 14px; border-radius: 8px; background: rgba(120, 100, 70, .16); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: var(--fokus); transition: width .9s ease, background .4s; }
-#uhr { top: 468px; }
-#uhr .oben { display: flex; align-items: flex-end; justify-content: space-between; }
-#uhr .zeit { font-weight: 700; font-size: 64px; line-height: 1; font-variant-numeric: tabular-nums; }
-#uhr .rest { font-weight: 700; font-size: 44px; line-height: 1.1; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
-#uhr.phase-idle .rest { font-size: 26px; font-weight: 600; color: var(--leise); padding: 8px 0 10px; }
-#uhr .zeile { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
-.chip { padding: 2px 14px; border-radius: 20px; font-weight: 700; font-size: 20px; color: #fff; background: var(--bereit); transition: background .4s; }
-.phase-focus .chip, .phase-focus .bar i { background: var(--fokus); } .phase-break .chip, .phase-break .bar i { background: var(--pause); }
-#ziel { top: 724px; }
-#ziel .kopf { display: flex; justify-content: space-between; align-items: baseline; font-size: 22px; font-weight: 600; }
-#ziel .zahl { font-weight: 700; font-size: 64px; line-height: 1.05; font-variant-numeric: tabular-nums; }
-#ziel .bar { margin-top: 6px; }
-#ziel.geschafft .bar i { background: #d3a85a; } #ziel.geschafft .zahl { color: #a9783a; }
-[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="szene" width="1920" height="1080"></canvas>
   <div class="platz" id="platzSpiel">Spiel (16:9)</div>
-  <div class="platz" id="platzKamera">Kamera (1:1)</div>
-  <section class="card phase-idle" id="uhr" hidden>
-    <div class="oben"><div class="zeit" id="zeit">--:--</div><span class="chip" id="chip">Bereit</span></div>
-    <div class="rest" id="rest">Gleich geht's los</div>
-    <div class="bar"><i id="fortschritt"></i></div>
-    <div class="klein" id="runde" style="margin-top:6px"></div>
-  </section>
-  <section class="card" id="ziel" hidden>
-    <div class="kopf"><span id="zlabel">Wörter heute</span><span class="klein" id="zziel"></span></div>
-    <div class="zahl" id="zahl">0</div>
-    <div class="bar"><i id="zbalken"></i></div>
-  </section>
+  <div id="platzKameras"></div>
 </div>
 
 <script type="module">
 import { Wachstum } from './js/wachstum.mjs';
-import { GAMING, drawGamingFrames } from './js/gaming.mjs';
+import { KAMERA, SPIEL, drawGamingFrames, kameraRect, parseEcken } from './js/gaming.mjs';
 
 const q = new URLSearchParams(location.search);
-const teile = new Set((q.get('teile') ?? 'uhr,ziel').split(',').map((s) => s.trim()));
 const demo = q.has('demo');
+const ecken = parseEcken(q.get('kamera'));
+const size = Math.min(700, Math.max(160, Number(q.get('groesse')) || KAMERA));
 const $ = (id) => document.getElementById(id);
-const pad = (n) => String(n).padStart(2, '0');
-const fmt = new Intl.NumberFormat('de-DE');
 const stage = $('stage');
 const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };
 addEventListener('resize', fit); fit();
 
 if (q.has('platzhalter') || demo) document.body.classList.add('platzhalter');
-for (const [id, r] of [['platzSpiel', GAMING.spiel], ['platzKamera', GAMING.kamera]]) {
-  Object.assign($(id).style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: id === 'platzSpiel' ? '10px' : '18px' });
-}
+const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
+place($('platzSpiel'), SPIEL, 10);
+for (const e of ecken) { const el = document.createElement('div'); el.className = 'platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), 18); $('platzKameras').append(el); }
 
 const c = $('szene').getContext('2d');
 const wachstum = new Wachstum();
-let view = null, cursor = null, offset = 0, shown = 0, target = 0, numeric = true;
+let view = null;
 
-function demoView() {
-  return {
-    now: Date.now(), jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
-    stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 },
-    timer: { phase: q.get('phase') ?? 'focus', startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000 },
-  };
-}
-
-function render() {
-  const t = view.timer, pm = view.pomodoro ?? { done: 0, goal: 0 };
-  $('uhr').hidden = !teile.has('uhr');
-  $('uhr').className = `card phase-${t.phase}`;
-  $('chip').textContent = t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
-  $('runde').textContent = t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} Pomodoros geschafft` : '';
-  const z = view.ziel;
-  $('ziel').hidden = !teile.has('ziel') || !z;
-  if (!z) return;
-  $('zlabel').textContent = z.label; numeric = z.numeric;
-  if (z.numeric) { target = z.current; $('zziel').textContent = z.goal ? `Ziel ${fmt.format(z.goal)}` : ''; } else $('zziel').textContent = `Ziel ${z.goalText} Std`;
-  $('zbalken').style.width = `${Math.min(100, (z.fraction || 0) * 100)}%`;
-  $('ziel').classList.toggle('geschafft', z.goal > 0 && z.fraction >= 1);
-}
-
-function tick() {
-  const d = new Date();
-  $('zeit').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  if (!view) return;
-  const z = view.ziel;
-  if (z && !z.numeric) {
-    const ms = z.startedAt ? Math.max(0, Date.now() + offset - z.startedAt) : 0, m = Math.floor(ms / 60000);
-    $('zahl').textContent = `${Math.floor(m / 60)}:${pad(m % 60)}`;
-    $('zbalken').style.width = `${Math.min(100, (ms / (z.goalMinutes * 60000)) * 100)}%`;
-  }
-  const t = view.timer;
-  if (t.phase === 'idle') { $('rest').textContent = "Gleich geht's los"; $('fortschritt').style.width = '0%'; return; }
-  const now = Date.now() + offset, s = Math.ceil(Math.max(0, t.endsAt - now) / 1000);
-  $('rest').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-  $('fortschritt').style.width = `${Math.min(1, (now - t.startedAt) / (t.endsAt - t.startedAt)) * 100}%`;
-}
-
-function apply(data) {
-  const first = view === null;
-  offset = (data.now ?? Date.now()) - Date.now();
-  view = data;
-  if (data.cursor) cursor = data.cursor;
-  render();
-  if (first) shown = target;
-}
+const demoView = () => ({
+  now: Date.now(), jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
+  stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
+  timer: { phase: 'idle' },
+});
 
 async function poll() {
   try {
-    const res = await fetch(`/api/overlay${cursor ? `?since=${encodeURIComponent(cursor)}` : ''}`, { cache: 'no-store' });
-    if (res.ok) apply(await res.json());
+    const res = await fetch('/api/overlay', { cache: 'no-store' });
+    if (res.ok) view = await res.json();
   } catch { /* beim nächsten Mal wieder */ }
 }
-if (demo) apply(demoView()); else { await poll(); setInterval(poll, 3000); }
+if (demo) view = demoView(); else { await poll(); setInterval(poll, 10000); }
 
 let last = 0;
 function frame(t) {
@@ -146,12 +69,9 @@ function frame(t) {
   c.clearRect(0, 0, 1920, 1080);
   if (view) wachstum.draw(c, view, t);
   else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
-  drawGamingFrames(c);
-  if (shown !== target) { shown += (target - shown) * 0.12; if (Math.abs(target - shown) < 1) shown = target; }
-  if (numeric && view?.ziel) $('zahl').textContent = fmt.format(Math.round(shown));
+  drawGamingFrames(c, ecken, size);
 }
 requestAnimationFrame(frame);
-setInterval(tick, 250); tick();
 </script>
 </body>
 </html>

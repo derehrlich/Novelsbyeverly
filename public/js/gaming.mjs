@@ -1,15 +1,25 @@
-// Gaming-Szene: Rahmen für das Spiel (16:9) und die Kamera (1:1), Koordinaten im 1920×1080-Bild.
-// In OBS liegen Spiel und Kamera UNTER diesem Overlay; die Fenster werden durchsichtig ausgeschnitten.
+// Gaming-Szene: Rahmen für das Spiel (16:9) und bis zu vier quadratische Kamerafenster in den Ecken, Koordinaten im 1920×1080-Bild.
+// In OBS liegen Spiel (unten) und Kamera (darüber) UNTER diesem Overlay; die Fenster werden durchsichtig ausgeschnitten.
 import { alpha, leaf, lg, rr } from './malerei.mjs';
 
 export const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
-// x, y, w, h = der durchsichtige Ausschnitt (ohne Rahmen)
-export const GAMING = {
-  spiel: { x: 40, y: 40, w: 1408, h: 792 }, // 1408 : 792 = 16 : 9
-  kamera: { x: 1500, y: 40, w: 384, h: 384 }, // 1 : 1
-};
+export const SPIEL = { x: 128, y: 72, w: 1664, h: 936 }; // 1664 : 936 = 16 : 9
+export const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
+const UEBER = 50; // so weit ragt das Kamerafenster über die Ecke des Spielrahmens hinaus
+export const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
 
-// Ein dünner Holzrahmen mit weicher Innenkante und ein paar Blättern in den Ecken.
+export function kameraRect(ecke, size = KAMERA) {
+  const links = ecke.endsWith('links'), oben = ecke.startsWith('oben');
+  return { x: links ? SPIEL.x - UEBER : SPIEL.x + SPIEL.w - size + UEBER, y: oben ? SPIEL.y - UEBER : SPIEL.y + SPIEL.h - size + UEBER, w: size, h: size };
+}
+
+// Liest "oben-rechts,unten-links" oder "aus" (Adressparameter). Ohne Angabe: oben-rechts.
+export function parseEcken(text) {
+  if (text == null) return ['oben-rechts'];
+  return [...new Set(text.split(',').map((s) => s.trim()).filter((s) => ECKEN.includes(s)))];
+}
+
+// Ein dünner Holzrahmen mit weicher Innenkante und ein paar Blättern.
 function holzrahmen(c, { x, y, w, h }, r, blaetter) {
   const d = RAHMEN;
   rr(c, x - d + 2, y - d + 6, w + 2 * d - 4, h + 2 * d - 4, r + d, alpha('#2b2118', 0.22)); // Schatten
@@ -19,12 +29,18 @@ function holzrahmen(c, { x, y, w, h }, r, blaetter) {
   for (const [lx, ly, a, len] of blaetter) leaf(c, x + lx * w, y + ly * h, len, len * 0.36, a, '#7f9d6f');
 }
 
-export function drawGamingFrames(c) {
-  const { spiel, kamera } = GAMING;
-  holzrahmen(c, spiel, 10, [[0, 0.06, -0.5, 54], [0, 0.11, -1.0, 44], [1, 0.94, 2.6, 54], [1, 0.89, 2.2, 44], [0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40]]);
-  holzrahmen(c, kamera, 18, [[0, 0.1, -0.5, 44], [0, 0.17, -1.0, 36], [1, 0.9, 2.6, 44], [1, 0.83, 2.2, 36], [0.5, 1, 3.9, 34]]);
-  c.globalCompositeOperation = 'destination-out'; // durchsichtige Fenster
-  rr(c, spiel.x, spiel.y, spiel.w, spiel.h, 10, '#000000');
-  rr(c, kamera.x, kamera.y, kamera.w, kamera.h, 18, '#000000');
+const BLAETTER_KAMERA = { links: [[0, 0.5, -1.2, 40], [0.2, 1, 3.9, 34]], rechts: [[1, 0.5, 2.2, 40], [0.8, 1, 3.9, 34]] };
+
+export function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA) {
+  holzrahmen(c, SPIEL, 10, [[0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40], [0.5, 1, 3.4, 34]]);
+  c.globalCompositeOperation = 'destination-out';
+  rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, 10, '#000000');
   c.globalCompositeOperation = 'source-over';
+  for (const e of ecken) { // Kamera liegt über dem Spielrahmen
+    const k = kameraRect(e, size);
+    holzrahmen(c, k, 18, BLAETTER_KAMERA[e.endsWith('links') ? 'links' : 'rechts']);
+    c.globalCompositeOperation = 'destination-out';
+    rr(c, k.x, k.y, k.w, k.h, 18, '#000000');
+    c.globalCompositeOperation = 'source-over';
+  }
 }

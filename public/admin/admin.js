@@ -2,6 +2,9 @@ import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
 
 const $ = (id) => document.getElementById(id);
+const GAMING_ECKEN = [['oben-links', 'oben links'], ['oben-rechts', 'oben rechts'], ['unten-links', 'unten links'], ['unten-rechts', 'unten rechts']];
+let gamingWahl = new Set(['oben-rechts']);
+try { const g = localStorage.getItem('gamingEcken'); if (g !== null) gamingWahl = new Set(g.split(',').filter(Boolean)); } catch { /* ohne Speicher */ }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 async function api(method, path, body) {
@@ -41,11 +44,15 @@ async function loadState() {
   ];
   $('status').innerHTML = rows.join('');
   const u = state.urls;
+  const gamingLink = () => `${u.gaming}?kamera=${gamingWahl.size ? GAMING_ECKEN.map(([k]) => k).filter((k) => gamingWahl.has(k)).join(',') : 'aus'}`;
   const urlRow = (label, url, hint = '') => `<div class="url"><b>${label}</b> <code>${esc(url)}</code><button class="hell" data-copy="${esc(url)}">Kopieren</button></div>${hint ? `<div class="leise">${hint}</div>` : ''}`;
   $('urls').innerHTML = urlRow('OBS-Overlay', u.overlay, 'Browser-Quelle 1920×1080, „Audio über OBS steuern“ aktivieren. Die Kamera in OBS <b>unter</b> das Overlay legen. Nur einzelne Teile: <code>?teile=uhr,woerter,tasks,musik,szene</code>')
-    + urlRow('Gaming-Overlay', u.gaming, 'Zusätzliche Browser-Quelle 1920×1080 für Gaming-Streams: Spiel (16:9) und Kamera (1:1) in OBS <b>darunter</b> legen, sie scheinen durch die Rahmen.')
+    + `<div class="url"><b>Gaming-Overlay</b> <code id="gamingUrl"></code><button class="hell" id="gamingKopieren">Kopieren</button></div><div class="reihe" id="gamingEcken" style="margin:4px 0"><span class="leise">Kamerafenster in den Ecken:</span>${GAMING_ECKEN.map(([k, l]) => `<label><input type="checkbox" data-ecke="${k}"${gamingWahl.has(k) ? ' checked' : ''}> ${l}</label>`).join(' ')}</div><div class="leise">Zusätzliche Browser-Quelle 1920×1080 für Gaming: Spiel (16:9) in OBS ganz unten, die Kamera <b>darüber</b>, beide unter dem Overlay. Hake nur die Ecken an, in denen du eine Kamera brauchst. Nicht angehakte Fenster fehlen ganz.</div>`
     + urlRow('Twitch-Weiterleitung', u.redirect, 'Diese Adresse muss in der Twitch-Entwickler-App als „OAuth Redirect URL“ stehen.')
     + urlRow('Wörter-Schnittstelle', u.words, `Für ein Hilfsprogramm (Papyrus): <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);
+  $('gamingUrl').textContent = gamingLink();
+  for (const cb of document.querySelectorAll('[data-ecke]')) cb.onchange = () => { cb.checked ? gamingWahl.add(cb.dataset.ecke) : gamingWahl.delete(cb.dataset.ecke); try { localStorage.setItem('gamingEcken', [...gamingWahl].join(',')); } catch {} $('gamingUrl').textContent = gamingLink(); };
+  $('gamingKopieren').onclick = () => navigator.clipboard.writeText(gamingLink()).then(() => meldung('Kopiert'));
   for (const b of document.querySelectorAll('[data-copy]')) b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => meldung('Kopiert'));
   renderTimer();
   renderWords(state.words);
