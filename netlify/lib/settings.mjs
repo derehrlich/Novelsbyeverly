@@ -23,6 +23,14 @@ export const DEFAULTS = {
   musikQuelle: 'aus',
   musikUrl: 'http://localhost:1608/',
   layout: DEFAULT_LAYOUT,
+  // Gaming-Szene (/gaming): Kamerafenster in den Ecken des Spielrahmens und der Deathcounter
+  gamingKameraOL: false, gamingKameraOR: true, gamingKameraUL: false, gamingKameraUR: false,
+  gamingKameraGroesse: 340, // Seitenlänge der quadratischen Kamera in Pixeln
+  gamingTode: false, // Deathcounter anzeigen
+  gamingTodeLabel: 'Tode',
+  gamingTodePos: 'unten-links', // oben-links | oben-mitte | oben-rechts | unten-links | unten-mitte | unten-rechts
+  gamingTodeTemplate: '💀 {n} {label}', // Chat-Antwort bei Änderung und bei !tode
+  gamingTodeChat: true, // Bot schreibt bei jeder Änderung die aktuelle Zahl in den Chat
   // Wann erscheint die Figur: 'sit' = Chatbefehl !sitzen, 'checkin' = Kanalpunkte-Reward "Check-in", 'both' = beides
   appearOn: 'sit',
   scene: 'cafe',
@@ -69,9 +77,9 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
-const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'] };
+const INT = { gamingKameraGroesse: [160, 700], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
+const BOOL = ['gamingKameraOL', 'gamingKameraOR', 'gamingKameraUL', 'gamingKameraUR', 'gamingTode', 'gamingTodeChat', 'autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const ENUM = { gamingTodePos: ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'], appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'] };
 
 export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';

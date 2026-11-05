@@ -5,73 +5,45 @@
 <title>Gaming-Overlay</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- OBS: Browser-Quelle 1920×1080 mit /gaming. Darunter (von unten): Spiel-Aufnahme (16:9), darüber die Kamera (quadratisch zugeschnitten).
-     Kamerafenster wählen: /gaming?kamera=oben-rechts (Standard). Mehrere: ?kamera=oben-links,unten-rechts. Keine: ?kamera=aus.
-     Größe der Kamera in Pixeln: &groesse=340. Vorschau ohne Bot: ?demo=1. Platzhalter in den Fenstern: ?platzhalter=1.
-     Jahres- und Tageszeit der Landschaft kommen aus dem Admin (Landschaft). -->
+     Kamerafenster, Größe und Deathcounter stellst du im Admin ein (Gaming-Szene). Zum Ausprobieren in der Adresse:
+     ?kamera=oben-links,unten-rechts (oder aus) · &groesse=340 · ?platzhalter=1 zeigt die Fenster · ?demo=1 Beispieldaten ohne Bot. -->
 <style>
 @font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: Fredoka; font-weight: 700; src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
 * { box-sizing: border-box; margin: 0; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Fredoka, system-ui, sans-serif; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
-#szene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
-.platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-size: 34px; font-weight: 600; }
-body.platzhalter .platz { display: flex; }
 </style>
 </head>
 <body>
-<div id="stage">
-  <canvas id="szene" width="1920" height="1080"></canvas>
-  <div class="platz" id="platzSpiel">Spiel (16:9)</div>
-  <div id="platzKameras"></div>
-</div>
-
+<div id="stage"></div>
 <script type="module">
-import { Wachstum } from './js/wachstum.mjs';
-import { KAMERA, SPIEL, drawGamingFrames, kameraRect, parseEcken } from './js/gaming.mjs';
+import { GamingOverlay } from './js/gaming-ui.mjs';
+import { ECKEN } from './js/gaming.mjs';
 
 const q = new URLSearchParams(location.search);
 const demo = q.has('demo');
-const ecken = parseEcken(q.get('kamera'));
-const size = Math.min(700, Math.max(160, Number(q.get('groesse')) || KAMERA));
-const $ = (id) => document.getElementById(id);
-const stage = $('stage');
+const stage = document.getElementById('stage');
 const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };
 addEventListener('resize', fit); fit();
 
-if (q.has('platzhalter') || demo) document.body.classList.add('platzhalter');
-const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
-place($('platzSpiel'), SPIEL, 10);
-for (const e of ecken) { const el = document.createElement('div'); el.className = 'platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), 18); $('platzKameras').append(el); }
-
-const c = $('szene').getContext('2d');
-const wachstum = new Wachstum();
-let view = null;
-
+const ov = new GamingOverlay(stage, { platzhalter: q.has('platzhalter') || demo });
+// Einstellungen kommen aus dem Admin; Adressparameter überschreiben sie zum Ausprobieren.
+function mix(view) {
+  const g = { ...(view.gaming ?? {}) };
+  if (q.has('kamera')) g.kameras = q.get('kamera').split(',').map((s) => s.trim()).filter((s) => ECKEN.includes(s));
+  if (q.get('groesse')) g.groesse = Math.min(700, Math.max(160, Number(q.get('groesse')) || 340));
+  return { ...view, gaming: g };
+}
 const demoView = () => ({
-  now: Date.now(), jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
+  jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55), timer: { phase: 'idle' },
   stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' },
-  timer: { phase: 'idle' },
+  gaming: { kameras: ['oben-rechts'], groesse: 340, tode: { n: 7, label: 'Tode', pos: 'unten-links' } },
 });
-
 async function poll() {
-  try {
-    const res = await fetch('/api/overlay', { cache: 'no-store' });
-    if (res.ok) view = await res.json();
-  } catch { /* beim nächsten Mal wieder */ }
+  try { const r = await fetch('/api/overlay', { cache: 'no-store' }); if (r.ok) ov.update(mix(await r.json())); } catch { /* beim nächsten Mal wieder */ }
 }
-if (demo) view = demoView(); else { await poll(); setInterval(poll, 10000); }
-
-let last = 0;
-function frame(t) {
-  requestAnimationFrame(frame);
-  if (t - last < 70) return;
-  last = t;
-  c.clearRect(0, 0, 1920, 1080);
-  if (view) wachstum.draw(c, view, t);
-  else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
-  drawGamingFrames(c, ecken, size);
-}
-requestAnimationFrame(frame);
+if (demo) ov.update(mix(demoView())); else { await poll(); setInterval(poll, 3000); }
 </script>
 </body>
 </html>

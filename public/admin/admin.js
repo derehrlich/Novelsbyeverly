@@ -2,9 +2,6 @@ import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
 
 const $ = (id) => document.getElementById(id);
-const GAMING_ECKEN = [['oben-links', 'oben links'], ['oben-rechts', 'oben rechts'], ['unten-links', 'unten links'], ['unten-rechts', 'unten rechts']];
-let gamingWahl = new Set(['oben-rechts']);
-try { const g = localStorage.getItem('gamingEcken'); if (g !== null) gamingWahl = new Set(g.split(',').filter(Boolean)); } catch { /* ohne Speicher */ }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 async function api(method, path, body) {
@@ -44,15 +41,12 @@ async function loadState() {
   ];
   $('status').innerHTML = rows.join('');
   const u = state.urls;
-  const gamingLink = () => `${u.gaming}?kamera=${gamingWahl.size ? GAMING_ECKEN.map(([k]) => k).filter((k) => gamingWahl.has(k)).join(',') : 'aus'}`;
   const urlRow = (label, url, hint = '') => `<div class="url"><b>${label}</b> <code>${esc(url)}</code><button class="hell" data-copy="${esc(url)}">Kopieren</button></div>${hint ? `<div class="leise">${hint}</div>` : ''}`;
   $('urls').innerHTML = urlRow('OBS-Overlay', u.overlay, 'Browser-Quelle 1920×1080, „Audio über OBS steuern“ aktivieren. Die Kamera in OBS <b>unter</b> das Overlay legen. Nur einzelne Teile: <code>?teile=uhr,woerter,tasks,musik,szene</code>')
-    + `<div class="url"><b>Gaming-Overlay</b> <code id="gamingUrl"></code><button class="hell" id="gamingKopieren">Kopieren</button></div><div class="reihe" id="gamingEcken" style="margin:4px 0"><span class="leise">Kamerafenster in den Ecken:</span>${GAMING_ECKEN.map(([k, l]) => `<label><input type="checkbox" data-ecke="${k}"${gamingWahl.has(k) ? ' checked' : ''}> ${l}</label>`).join(' ')}</div><div class="leise">Zusätzliche Browser-Quelle 1920×1080 für Gaming: Spiel (16:9) in OBS ganz unten, die Kamera <b>darüber</b>, beide unter dem Overlay. Hake nur die Ecken an, in denen du eine Kamera brauchst. Nicht angehakte Fenster fehlen ganz.</div>`
+    + urlRow('Gaming-Overlay', u.gaming, 'Zusätzliche Browser-Quelle 1920×1080 für Gaming. Kamerafenster und Deathcounter stellst du unten bei „Gaming-Szene“ ein. Spiel (16:9) in OBS ganz unten, die Kamera <b>darüber</b>, beide unter dem Overlay.')
     + urlRow('Twitch-Weiterleitung', u.redirect, 'Diese Adresse muss in der Twitch-Entwickler-App als „OAuth Redirect URL“ stehen.')
     + urlRow('Wörter-Schnittstelle', u.words, `Für ein Hilfsprogramm (Papyrus): <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);
-  $('gamingUrl').textContent = gamingLink();
-  for (const cb of document.querySelectorAll('[data-ecke]')) cb.onchange = () => { cb.checked ? gamingWahl.add(cb.dataset.ecke) : gamingWahl.delete(cb.dataset.ecke); try { localStorage.setItem('gamingEcken', [...gamingWahl].join(',')); } catch {} $('gamingUrl').textContent = gamingLink(); };
-  $('gamingKopieren').onclick = () => navigator.clipboard.writeText(gamingLink()).then(() => meldung('Kopiert'));
+  $('todeUrl').textContent = u.tode;
   for (const b of document.querySelectorAll('[data-copy]')) b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => meldung('Kopiert'));
   renderTimer();
   renderWords(state.words);
@@ -156,12 +150,22 @@ const OPT = {
   tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
+  gamingTodePos: [['oben-links', 'Oben links'], ['oben-mitte', 'Oben Mitte'], ['oben-rechts', 'Oben rechts'], ['unten-links', 'Unten links'], ['unten-mitte', 'Unten Mitte'], ['unten-rechts', 'Unten rechts']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
   ['Darstellung', [
     ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
     ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
+  ]],
+  ['Gaming-Szene (/gaming)', [
+    ['gamingKameraOL', 'Kamerafenster oben links', 'bool', 'Nicht angehakte Fenster fehlen ganz. Das Kamerabild ist quadratisch und ragt über die Ecke des Spielrahmens.'],
+    ['gamingKameraOR', 'Kamerafenster oben rechts', 'bool'], ['gamingKameraUL', 'Kamerafenster unten links', 'bool'], ['gamingKameraUR', 'Kamerafenster unten rechts', 'bool'],
+    ['gamingKameraGroesse', 'Kamera: Seitenlänge in Pixeln (160–700)', 'number'],
+    ['gamingTode', 'Deathcounter anzeigen', 'bool', 'Steuerung im Chat (!tod), per Hotkey oder oben bei „Gaming-Szene“.'],
+    ['gamingTodeLabel', 'Deathcounter: Beschriftung', 'text'], ['gamingTodePos', 'Deathcounter: Position im Spielfenster', 'select', 'Steht in derselben Ecke ein Kamerafenster, rückt die Karte daneben.'],
+    ['gamingTodeChat', 'Bot schreibt die Zahl bei jeder Änderung in den Chat', 'bool'],
+    ['gamingTodeTemplate', 'Chat-Text', 'area', '{n} {label}'],
   ]],
   ['Pomodoro', [
     ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
@@ -212,7 +216,7 @@ async function loadSettings() {
   }).join('')}</div>`).join('');
   renderScenes(settings);
   fillMusik(settings); fillZiele(settings); fillStefanie(settings);
-  loadPages().catch(() => {}); loadStream().catch(() => {});
+  loadPages().catch(() => {}); loadStream().catch(() => {}); loadTode().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
 }
 $('speichern').onclick = run(async () => {
@@ -334,3 +338,11 @@ async function start() {
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); }
 }
 start().catch(() => show(false));
+
+// ---- Gaming-Szene: Deathcounter von Hand bedienen
+async function loadTode() { const r = await api('GET', 'tode'); $('todeZahl').textContent = r.n; }
+const todeAktion = (aktion, wert) => run(async () => { const r = await api('POST', 'tode', { aktion, wert }); $('todeZahl').textContent = r.n; });
+$('todePlus').onclick = todeAktion('plus'); $('todeMinus').onclick = todeAktion('minus');
+$('todeReset').onclick = run(async () => { if (confirm('Deathcounter auf 0 setzen?')) { const r = await api('POST', 'tode', { aktion: 'reset' }); $('todeZahl').textContent = r.n; } });
+$('todeSetzen').onclick = run(async () => { const r = await api('POST', 'tode', { aktion: 'set', wert: $('todeWert').value }); $('todeZahl').textContent = r.n; $('todeWert').value = ''; });
+loadTode().catch(() => {});

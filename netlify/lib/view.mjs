@@ -11,6 +11,7 @@ import { getMusik } from './musik.mjs';
 import { resolveSeason, resolveTime } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
+import { getTode } from './tode.mjs';
 import { cleanFigur } from '../../public/js/katalog.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
@@ -80,6 +81,11 @@ export async function buildView(settings, since, now = Date.now()) {
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
+    gaming: {
+      kameras: [['oben-links', settings.gamingKameraOL], ['oben-rechts', settings.gamingKameraOR], ['unten-links', settings.gamingKameraUL], ['unten-rechts', settings.gamingKameraUR]].filter(([, on]) => on).map(([k]) => k),
+      groesse: settings.gamingKameraGroesse,
+      tode: settings.gamingTode ? { n: (await getTode()).n, label: settings.gamingTodeLabel, pos: settings.gamingTodePos } : null,
+    },
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),

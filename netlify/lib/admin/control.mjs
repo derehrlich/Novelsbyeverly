@@ -10,6 +10,7 @@ import { pushEvent, streamDay } from '../util.mjs';
 import { clearMusik, getMusik, setMusik } from '../musik.mjs';
 import { addPages, getPages, setPages } from '../pages.mjs';
 import { fmtHM, startStream, stopStream, streamInfo } from '../streamzeit.mjs';
+import { getTode, todeAktion } from '../tode.mjs';
 import { json } from '../http.mjs';
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : null);
@@ -143,4 +144,13 @@ export async function stream({ route, method }) {
   else if (method !== 'GET') return;
   const info = await streamInfo();
   return json({ startedAt: info.startedAt, quelle: info.quelle, goalMinutes: settings.streamGoalMinutes, text: info.startedAt ? fmtHM(Date.now() - info.startedAt) : null });
+}
+
+// Deathcounter der Gaming-Szene
+export async function tode({ route, method, body }) {
+  if (route[0] !== 'tode') return;
+  if (method === 'GET') return json(await getTode());
+  if (method !== 'POST') return;
+  const r = await todeAktion(body.aktion, body.wert);
+  return r ? json(r) : json({ error: 'Unbekannte Aktion' }, 400);
 }

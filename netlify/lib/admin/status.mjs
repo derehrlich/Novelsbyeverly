@@ -40,7 +40,7 @@ export async function status({ req, route, method }) {
     rewardId: state.rewardId ?? null,
     revoked: state.revoked ?? null,
     subscription, subscriptionError,
-    urls: { site: siteUrl(req), redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, gaming: `${siteUrl(req)}/gaming`, words: `${siteUrl(req)}/api/words` },
+    urls: { site: siteUrl(req), redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, gaming: `${siteUrl(req)}/gaming`, words: `${siteUrl(req)}/api/words`, tode: `${siteUrl(req)}/api/tod` },
     timer: await getTimer(),
     pomodoro: { done: await sprintsToday(settings), goal: settings.pomodoroGoal },
     modus: settings.szeneModus,

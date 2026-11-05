@@ -3,10 +3,11 @@
 import { alpha, leaf, lg, rr } from './malerei.mjs';
 
 export const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
-export const SPIEL = { x: 128, y: 72, w: 1664, h: 936 }; // 1664 : 936 = 16 : 9
+export const SPIEL = { x: 80, y: 45, w: 1760, h: 990 }; // 1760 : 990 = 16 : 9 (schmaler Rand)
 export const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
-const UEBER = 50; // so weit ragt das Kamerafenster über die Ecke des Spielrahmens hinaus
+const UEBER = 32; // so weit ragt das Kamerafenster über die Ecke des Spielrahmens hinaus
 export const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
+export const TODE_POS = ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'];
 
 export function kameraRect(ecke, size = KAMERA) {
   const links = ecke.endsWith('links'), oben = ecke.startsWith('oben');

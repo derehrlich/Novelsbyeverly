@@ -53,6 +53,7 @@ const webhook = (await mod('functions/twitch-webhook.mjs')).default;
 const overlay = (await mod('functions/overlay.mjs')).default;
 const admin = (await mod('functions/admin.mjs')).default;
 const ingest = (await mod('functions/words-ingest.mjs')).default;
+const todIngest = (await mod('functions/tode-ingest.mjs')).default;
 const auth = (await mod('functions/auth.mjs')).default;
 const people = await mod('lib/people.mjs');
 const timerLib = await mod('lib/timer.mjs');
@@ -597,6 +598,48 @@ await test('Admin: Seiten und Streamzeit', async () => {
   assert.equal((await adminCall('POST', 'pages', { value: 'x' }, cookie)).status, 400);
   assert.equal((await adminCall('POST', 'stream/start', {}, cookie)).body.quelle, 'hand');
   assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
+});
+
+console.log('Gaming-Szene und Deathcounter');
+await test('Gaming-Szene: Einstellungen landen im Overlay, Rand ist 16:9', async () => {
+  const g = await import('../public/js/gaming.mjs');
+  assert.equal(g.SPIEL.w * 9, g.SPIEL.h * 16);
+  const r = g.kameraRect('unten-links'); assert.equal(r.w, r.h);
+  await saveSettings({ gamingKameraOR: false, gamingKameraOL: true, gamingKameraGroesse: 9999, gamingTode: false });
+  let v = await viewNow();
+  assert.deepEqual(v.gaming.kameras, ['oben-links']); assert.equal(v.gaming.groesse, 700); assert.equal(v.gaming.tode, null);
+  assert.equal(normalize({ gamingTodePos: 'mitte' }).error, 'gamingTodePos: unbekannter Wert');
+  await saveSettings({ gamingTode: true, gamingTodeLabel: 'Tode', gamingTodePos: 'unten-mitte' });
+  v = await viewNow(); assert.equal(v.gaming.tode.pos, 'unten-mitte'); assert.equal(v.gaming.tode.n, 0);
+});
+await test('Deathcounter: Chat (Moderation), Reset nur Streamerin, Anzeige für alle', async () => {
+  const bc = { chatter_user_id: '999', badges: [{ set_id: 'broadcaster' }] };
+  const mod = { badges: [{ set_id: 'moderator' }] };
+  assert.match((await say('5', 'Mo', '!tod', mod)).message, /💀 1 Tode/);
+  assert.match((await say('5', 'Mo', '!tod +', mod)).message, /💀 2 Tode/);
+  assert.match((await say('5', 'Mo', '!tod -', mod)).message, /💀 1 Tode/);
+  assert.match((await say('5', 'Mo', '!tod 12', mod)).message, /💀 12 Tode/);
+  const before = chatSent().length;
+  await say('1', 'Lena', '!tod'); await say('5', 'Mo', '!tod reset', mod);
+  assert.equal(chatSent().length, before);
+  assert.match((await say('1', 'Lena', '!tode')).message, /💀 12 Tode/);
+  assert.equal((await viewNow()).gaming.tode.n, 12);
+  assert.match((await say('999', 'Streamerin', '!tod reset', bc)).message, /💀 0 Tode/);
+  await saveSettings({ gamingTode: false });
+  const b2 = chatSent().length; await say('5', 'Mo', '!tod', mod);
+  assert.equal(chatSent().length, b2);
+  await saveSettings({ gamingTode: true });
+});
+await test('Deathcounter: Hotkey-Schnittstelle braucht den INGEST_TOKEN', async () => {
+  const call = (qs, o = {}) => todIngest(new Request(`https://x/api/tod${qs}`, o));
+  assert.equal((await call('?aktion=plus')).status, 401);
+  assert.equal((await call('?aktion=plus&token=falsch')).status, 401);
+  assert.equal((await (await call('?aktion=plus&token=ingest-geheim')).json()).n, 1);
+  const post = await call('', { method: 'POST', headers: { authorization: 'Bearer ingest-geheim', 'content-type': 'application/json' }, body: JSON.stringify({ aktion: 'set', wert: 5 }) });
+  assert.equal((await post.json()).n, 5);
+  assert.equal((await call('?aktion=minus&token=ingest-geheim')).status, 200);
+  assert.equal((await call('?aktion=unsinn&token=ingest-geheim')).status, 400);
+  assert.equal((await (await call('?token=ingest-geheim')).json()).n, 4);
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

@@ -118,6 +118,14 @@
     </section>
 
     <section class="karte">
+      <h2>Gaming-Szene: Deathcounter</h2>
+      <p class="leise">Die Anzeige und die Kamerafenster schaltest du weiter unten unter <b>Einstellungen → Gaming-Szene</b> ein. Die Adresse des Overlays steht oben bei den Links.</p>
+      <div class="reihe"><b style="font-size:40px" id="todeZahl">–</b><button id="todeMinus" class="hell">−1</button><button id="todePlus">+1 💀</button><input id="todeWert" type="number" min="0" placeholder="Zahl" style="width:90px"><button id="todeSetzen" class="hell">Setzen</button><button id="todeReset" class="hell">Auf 0</button></div>
+      <p class="leise"><b>Chat</b> (Moderation und Streamerin): <code>!tod</code> = +1, <code>!tod -</code> = −1, <code>!tod 12</code> = auf 12 setzen, <code>!tod reset</code> = auf 0 (nur Streamerin). Alle sehen mit <code>!tode</code> den Stand.</p>
+      <p class="leise"><b>Hotkey:</b> Browser-Quellen in OBS empfangen keine Tasten, wenn du im Spiel bist. Darum ruft ein kleines Programm auf deinem PC die Adresse <code id="todeUrl">…</code> auf: Stream Deck („Website öffnen“), oder das mitgelieferte AutoHotkey-Skript <code>scripts/tode-hotkey.ahk</code> (F9 = +1, F10 = −1). Dazu muss <code>INGEST_TOKEN</code> in Netlify gesetzt sein. Anleitung im README.</p>
+    </section>
+
+    <section class="karte">
       <h2>Anordnung</h2>
       <p class="leise">Ziehe Uhr, Wörter, To-Do-Liste, Musik, Kamerafenster und Module an die gewünschte Stelle. Anklicken und Größe ändern. Das Bild zeigt den echten Stand. <b>Kamera in OBS unter das Overlay legen</b>: Das Kamerafenster ist durchsichtig ausgeschnitten.</p>
       <div id="editor"><iframe id="editorFrame" title="Vorschau" tabindex="-1"></iframe><div id="editorBoxen"></div></div>
@@ -161,6 +169,7 @@
         <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>
         <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
         <tr><td><code>!song Titel - Interpret</code> · <code>!song aus</code></td><td>Musik-Anzeige von Hand (Moderation)</td></tr>
+        <tr><td><code>!tod</code> · <code>!tod -</code> · <code>!tod 12</code> · <code>!tod reset</code> · <code>!tode</code></td><td>Deathcounter der Gaming-Szene (Moderation; <code>!tode</code> für alle zeigt den Stand)</td></tr>
         <tr><td><code>!hilfe</code></td><td>Befehlsübersicht</td></tr>
         <tr><td><i>Zimmer-Modus (pausiert):</i> <code>!sitzen</code> · <code>!aufstehen</code> · <code>!figur</code> · <code>!rang</code> · <code>!szene</code></td><td>Figuren der Zuschauer an Tischen, nur wenn „Darstellung: Zimmer“ gewählt ist</td></tr>
       </table>
