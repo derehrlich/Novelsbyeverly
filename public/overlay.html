@@ -13,15 +13,16 @@
 @font-face { font-family: Fredoka; font-weight: 500; src: url(fonts/fredoka-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 700; src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
-:root {
+:root { /* Standardwerte; das gewählte Design (Admin → Overlay) überschreibt sie, siehe js/design.mjs */
   --papier: rgba(251, 246, 235, .92); --rand: #bba98a; --text: #4d4236; --leise: #8a7b66;
   --fokus: #7f9a74; --pause: #c9985c; --bereit: #a09280; --akzent: #c08a72;
+  --radius: 26px; --randbreite: 3px; --schrift: Fredoka, system-ui, sans-serif; --schatten: 0 10px 26px rgba(50, 40, 28, .22);
 }
 * { box-sizing: border-box; margin: 0; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Fredoka, system-ui, sans-serif; color: var(--text); }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: var(--schrift); color: var(--text); }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
 #szene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
-.card { position: absolute; background: var(--papier); border: 3px solid var(--rand); border-radius: 26px; box-shadow: 0 10px 26px rgba(50, 40, 28, .22); padding: 16px 24px; }
+.card { position: absolute; background: var(--papier); border: var(--randbreite) solid var(--rand); border-radius: var(--radius); box-shadow: var(--schatten); padding: 16px 24px; }
 .klein { font-size: 20px; color: var(--leise); font-weight: 500; }
 .bar { height: 14px; border-radius: 8px; background: rgba(120, 100, 70, .16); overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: var(--fokus); transition: width .9s ease, background .4s; }
@@ -32,7 +33,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #uhr .datum { display: flex; flex-direction: column; text-align: right; font-size: 21px; line-height: 1.1; color: var(--leise); font-weight: 500; margin-bottom: 8px; }
 #uhr .zeile { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
 .chip { display: inline-block; padding: 3px 14px; border-radius: 20px; font-weight: 700; font-size: 22px; color: #fff; background: var(--bereit); transition: background .4s; }
-.phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); }
+.phase-focus .chip { background: var(--fokus); } .phase-break .chip { background: var(--pause); } .angehalten .chip { background: var(--akzent); }
 #uhr .runde { font-size: 20px; color: var(--leise); }
 .pomo { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; min-height: 22px; }
 .pomo i { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #c9988f; background: transparent; position: relative; }
@@ -41,7 +42,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .pomo i.aktiv { background: conic-gradient(#c7766a var(--p, 0%), rgba(199, 118, 106, .12) 0); }
 #uhr .rest { font-weight: 700; font-size: 58px; line-height: 1.05; margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
 #uhr.phase-break .bar i { background: var(--pause); } #uhr.phase-idle .bar i { background: var(--bereit); }
-#uhr.phase-idle .rest { font-size: 30px; font-family: Fredoka; font-weight: 600; color: var(--leise); padding: 12px 0 14px; }
+#uhr.phase-idle .rest { font-size: 30px; font-family: inherit; font-weight: 600; color: var(--leise); padding: 12px 0 14px; }
 
 #woerter { right: 36px; top: 28px; width: 360px; }
 #woerter .kopf { display: flex; justify-content: space-between; align-items: baseline; }
@@ -58,7 +59,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #tasks ul { list-style: none; padding: 0; }
 #tasks li { display: flex; gap: 10px; align-items: center; font-size: 22px; line-height: 1.2; padding: 3px 0; font-weight: 500; white-space: nowrap; }
 #tasks li span { overflow: hidden; text-overflow: ellipsis; }
-#tasks li::before { content: ''; flex: none; width: 20px; height: 20px; border: 3px solid var(--rand); border-radius: 6px; background: #fffdf6; }
+#tasks li::before { content: ''; flex: none; width: 20px; height: 20px; border: 3px solid var(--rand); border-radius: 6px; background: rgba(255, 255, 255, .35); }
 #tasks li.fertig { color: var(--leise); text-decoration: line-through; }
 #tasks li.fertig::before { background: var(--fokus); border-color: var(--fokus); content: '✓'; color: #fff; font-size: 16px; line-height: 14px; text-align: center; text-decoration: none; }
 #tasks li.leer { color: var(--leise); font-size: 20px; }
@@ -83,7 +84,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .name .t.fertig { background: #d6e5cc; text-decoration: line-through; }
 
 #banner { position: absolute; left: 50%; top: 40px; width: 640px; margin-left: -320px; display: flex; flex-direction: column; gap: 12px; align-items: center; pointer-events: none; }
-.ereignis { width: 100%; background: var(--papier); border: 3px solid var(--rand); border-radius: 28px; box-shadow: 0 12px 30px rgba(50, 40, 28, .26); padding: 14px 26px; display: flex; gap: 18px; align-items: center; animation: rein .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+.ereignis { width: 100%; background: var(--papier); border: var(--randbreite) solid var(--rand); border-radius: var(--radius); box-shadow: var(--schatten); padding: 14px 26px; display: flex; gap: 18px; align-items: center; animation: rein .5s cubic-bezier(.2, 1.3, .4, 1) both; }
 .ereignis.raus { animation: raus .5s ease-in both; }
 .ereignis .icon { font-size: 52px; line-height: 1; }
 .ereignis .titel { font-size: 32px; font-weight: 700; }
@@ -133,6 +134,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 <script type="module">
 import { Szene, seatPos, moduleLayout } from './js/szene.mjs';
 import { nowPlaying } from './js/jetztlaeuft.mjs';
+import { applyDesign } from './js/design.mjs';
 
 const q = new URLSearchParams(location.search);
 const teile = new Set((q.get('teile') ?? 'uhr,woerter,tasks,musik,szene').split(',').map((s) => s.trim()));
@@ -154,16 +156,36 @@ let musikNow = null, musikBusy = false;
 
 // ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
 let audio = null;
-function chime(notes = [660, 880, 1320], gap = 0.16) {
+function chime(notes = [660, 880, 1320], gap = 0.16, loud = 0.25) {
   if (!ton) return;
   try {
     audio ??= new AudioContext();
     notes.forEach((f, i) => {
       const t = audio.currentTime + i * gap, o = audio.createOscillator(), g = audio.createGain();
-      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(loud, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
       o.connect(g).connect(audio.destination); o.start(t); o.stop(t + 1.2);
     });
   } catch { /* ohne Ton weiter */ }
+}
+// Es gibt genau zwei Töne: „start“ (ein Pomodoro beginnt) und „ende“ (ein Pomodoro ist zu Ende). Sonst bleibt das Overlay still.
+// Pro Ton gilt entweder die hochgeladene Datei (Admin → Pomodoro → Töne) oder ein eingebauter Klang. Hauptschalter, Einzelschalter
+// und Lautstärke kommen aus dem Admin. test = Probeton aus dem Admin (ignoriert die Einzelschalter, nicht den Hauptschalter).
+const dateien = new Map();
+function klang(art, { test = false } = {}) {
+  const t = view?.ton;
+  if (!ton || !t?.an || (!test && !t[art])) return;
+  const lautheit = Math.max(0, Math.min(1, (t.lautstaerke ?? 60) / 100));
+  const datei = t.dateien?.[art];
+  if (datei) {
+    try {
+      let a = dateien.get(art);
+      if (!a || a.dataset.url !== datei.url) { a = new Audio(datei.url); a.dataset.url = datei.url; dateien.set(art, a); }
+      a.volume = lautheit; a.currentTime = 0;
+      a.play().catch(() => {});
+    } catch { /* ohne Ton weiter */ }
+    return;
+  }
+  if (art === 'start') chime([523, 659, 784, 1047], 0.12, lautheit * 0.45); else chime([988, 784, 659, 523], 0.2, lautheit * 0.45);
 }
 
 // ---- Konfetti
@@ -176,7 +198,10 @@ function burst(x, y, n = 80, spread = 1) {
     parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, r: 6 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length], life: 0 });
   }
 }
+let konfettiSichtbar = false; // nur löschen, wenn etwas zu löschen ist
 function stepConfetti() {
+  if (!parts.length && !konfettiSichtbar) return;
+  konfettiSichtbar = parts.length > 0;
   kc.clearRect(0, 0, 1920, 1080);
   parts = parts.filter((p) => p.life < 150 && p.y < 1100);
   for (const p of parts) {
@@ -189,8 +214,8 @@ function stepConfetti() {
 // ---- Banner
 const queue = [];
 let showing = false;
-function banner(icon, titel, sub = '', { gold = false, sound = true, confetti = 0 } = {}) {
-  queue.push({ icon, titel, sub, gold, sound, confetti });
+function banner(icon, titel, sub = '', { gold = false, confetti = 0 } = {}) {
+  queue.push({ icon, titel, sub, gold, confetti });
   if (!showing) nextBanner();
 }
 function nextBanner() {
@@ -203,7 +228,6 @@ function nextBanner() {
   el.querySelector('.icon').textContent = b.icon; el.querySelector('.titel').textContent = b.titel; el.querySelector('.sub').textContent = b.sub;
   el.querySelector('.sub').hidden = !b.sub;
   $('banner').append(el);
-  if (b.sound) chime();
   if (b.confetti) burst(960, 140, b.confetti, 1.3);
   setTimeout(() => el.classList.add('raus'), 5200);
   setTimeout(() => { el.remove(); nextBanner(); }, 5700);
@@ -213,13 +237,20 @@ function handleEvent(ev) {
   szene?.event(ev);
   switch (ev.type) {
     case 'sprint': banner(ev.early ? '⏹️' : '🍅', ev.early ? 'Pomodoro beendet' : `Pomodoro ${ev.n ?? ''}${ev.goal ? ` von ${ev.goal}` : ''} geschafft!`.replace('  ', ' '), [`${ev.minutes} Min`, ev.streamerWords ? `+${fmt.format(ev.streamerWords)} Wörter` : '', ev.writers ? `${ev.writers} Mitschreibende` : ''].filter(Boolean).join(' · '), { confetti: ev.early ? 0 : 140, sound: !ev.early }); break;
-    case 'phase': if (ev.phase === 'focus') banner('✍️', 'Pomodoro startet', `${ev.minutes} Minuten schreiben`, { sound: true }); else if (ev.phase === 'break') banner(ev.long ? '🌿' : '☕', ev.long ? 'Lange Pause' : 'Pause', `${ev.minutes} Minuten durchatmen`, { sound: false }); break;
+    case 'phase': {
+      const von = ev.cycle ? ` ${ev.cycle.index} von ${ev.cycle.total}` : '';
+      if (ev.phase === 'focus') { banner('✍️', `Pomodoro${von || ' startet'}`, `${ev.minutes} Minuten schreiben`); klang('start'); }
+      else if (ev.phase === 'break') { banner('☕', 'Pause', `${ev.minutes} Minuten durchatmen`); if (ev.vorher === 'focus') klang('ende'); } // Pomodoro zu Ende (nicht: Pause zu Ende)
+      else if (ev.sessionEnde) banner('🎉', 'Geschafft!', `${ev.gesamt} Pomodoro${ev.gesamt === 1 ? '' : 's'} am Stück`, { gold: true, confetti: 120 });
+      break;
+    }
+    case 'hold': banner(ev.on ? '⏸️' : '▶️', ev.on ? 'Angehalten' : 'Weiter geht’s', ''); break;
+    case 'tontest': klang(ev.art === 'start' ? 'start' : 'ende', { test: true }); break;
     case 'goal': banner('🎯', 'Tagesziel erreicht!', `${fmt.format(ev.words)} Wörter`, { gold: true, confetti: 220 }); break;
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
     case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
     case 'taskdone': burst(200, 380, 40, .7); break;
-    case 'sit': if (teile.has('szene')) chime([880], 0); break;
     default: break;
   }
 }
@@ -253,7 +284,7 @@ function renderModules() {
   for (const m of layout) {
     let el = box.querySelector(`[data-m="${m.id}"]`);
     if (!el) { el = document.createElement('div'); el.className = 'modul'; el.dataset.m = m.id; box.append(el); }
-    el.style.left = `${m.x}px`; el.style.top = `${view.modus === 'wachstum' ? m.y + 30 * m.s : m.y - 1}px`; el.style.transform = `translateX(-50%) scale(${Math.max(0.8, m.s)})`; el.style.transformOrigin = 'top center';
+    el.style.left = `${m.x}px`; el.style.top = `${view.modus !== 'zimmer' ? m.y + 30 * m.s : m.y - 1}px`; el.style.transform = `translateX(-50%) scale(${Math.max(0.8, m.s)})`; el.style.transformOrigin = 'top center';
   }
   for (const el of [...box.children]) if (!keep.has(el.dataset.m)) el.remove();
   updateModuleLabels();
@@ -299,10 +330,10 @@ function renderWords() {
 function renderTimer() {
   const t = view.timer;
   const card = $('uhr');
-  card.className = `card phase-${t.phase}`;
-  $('chip').textContent = t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
+  card.className = `card phase-${t.phase}${t.paused ? ' angehalten' : ''}`;
+  $('chip').textContent = t.paused ? 'Angehalten' : t.phase === 'focus' ? 'Fokus' : t.phase === 'break' ? 'Pause' : 'Bereit';
   const pm = view.pomodoro ?? { done: 0, goal: 0 };
-  $('runde').textContent = t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} geschafft` : pm.done ? `${pm.done} geschafft` : '';
+  $('runde').textContent = t.cycle && t.phase !== 'idle' ? `${t.phase === 'focus' ? 'Pomodoro' : 'Pause'} ${t.cycle.index} von ${t.cycle.total}` : t.phase === 'focus' ? `Pomodoro ${pm.done + 1}${pm.goal ? ` von ${pm.goal}` : ''}` : pm.goal ? `${pm.done} von ${pm.goal} geschafft` : pm.done ? `${pm.done} geschafft` : '';
   const total = pm.goal > 0 ? pm.goal : Math.max(4, pm.done + 1);
   const box = $('pomo');
   while (box.children.length < total) box.append(document.createElement('i'));
@@ -325,8 +356,8 @@ function tickClock() {
   }
   const t = view.timer;
   if (t.phase === 'idle') { $('rest').textContent = "Gleich geht's los"; $('fortschritt').style.width = '0%'; return; }
-  const now = Date.now() + offset;
-  const left = Math.max(0, t.endsAt - now);
+  const now = t.paused ? t.paused.at : Date.now() + offset; // angehalten: die Zeit steht
+  const left = t.paused ? t.paused.remaining : Math.max(0, t.endsAt - now);
   const s = Math.ceil(left / 1000);
   $('rest').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
   const frac = Math.min(1, (now - t.startedAt) / (t.endsAt - t.startedAt));
@@ -370,10 +401,14 @@ function renderMusik() {
   applyLayout();
 }
 
+let raw = null, override = {}; // raw: letzter Stand vom Server; override: nicht gespeicherte Änderungen aus der Admin-Vorschau
 function apply(data) {
   const first = view === null;
+  raw = data;
+  if (q.has('editor')) data = { ...data, ...override };
   offset = data.now - Date.now();
   view = data;
+  applyDesign(document.documentElement, view.design);
   for (const ev of data.events ?? []) handleEvent(ev);
   if (data.cursor) cursor = data.cursor;
   szene?.update(view);
@@ -383,7 +418,14 @@ function apply(data) {
 }
 
 // ---- Anordnungs-Editor im Admin schickt neue Positionen, damit man sie live sieht
-if (q.has('editor')) addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'layout' && view) { view.layout = e.data.layout; szene?.update(view); renderModules(); applyLayout(); } });
+// (Nachricht 'layout' = nur Positionen, 'vorschau' = beliebige Felder wie modus, jahreszeit, fenster, design, layout, progress)
+if (q.has('editor')) addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === 'layout') override = { ...override, layout: e.data.layout };
+  else if (e.data.type === 'vorschau') override = e.data.patch ?? {};
+  else return;
+  if (raw) apply({ ...raw, events: [] });
+});
 
 // ---- Abrufen
 async function poll() {
@@ -396,9 +438,9 @@ if (demo) {
   // Vorschau ohne Bot: Beispieldaten
   const { DEFAULT_LAYOUT } = await import('./js/layout.mjs');
   const mk = () => ({
-    now: Date.now(), modus: 'wachstum', jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
-    scene: 'cafe', deco: [], modules: { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
-    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 }, stefanie: { figur: { haut: '2', haare: 'braun', frisur: 'lang', oberteil: 'gruen', kopf: 'keine', gesicht: 'brille', hals: 'keine', tier: 'keine', tisch: 'laptop', getraenk: 'tee' }, taetigkeit: 'laptop' }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
+    now: Date.now(), modus: q.get('modus') ?? 'wachstum', fenster: { ort: q.get('ort') ?? 'lese', blick: q.get('blick') ?? 'stadt', wetter: q.get('wetter') ?? 'klar' }, jahreszeit: q.get('jahreszeit') ?? 'fruehling', tageszeit: q.get('tageszeit') ?? 'mittag', progress: Number(q.get('fortschritt') ?? 0.55),
+    scene: 'cafe', deco: [], modules: q.get('module') === 'aus' ? {} : { blume: true, kerze: true, buecher: true }, sprintsToday: 3, layout: DEFAULT_LAYOUT,
+    pomodoro: { done: 3, goal: 6, minutes: 25 }, ziel: { art: 'woerter', label: 'Wörter heute', numeric: true, current: 1234, goal: 2000, fraction: 0.617 }, musik: { mode: 'server', now: { title: 'Rainy Café', artist: 'Mondschein', cover: '' } },
     timer: { phase: q.get('phase') ?? 'focus', round: 4, startedAt: Date.now() - 7 * 60000, endsAt: Date.now() + 18 * 60000, wordsAtStart: 640 },
     words: { today: 1234, goal: 2000, chat: 0 }, communityHours: 0,
     streamerTasks: [{ id: 'a', text: 'Kapitel 12 schreiben', done: true }, { id: 'b', text: 'Szene im Café überarbeiten', done: false }, { id: 'c', text: 'Klappentext entwerfen', done: false }],
@@ -409,15 +451,22 @@ if (demo) {
 } else {
   await poll();
   setInterval(poll, 3000);
+  // Der Server meldet Änderungen aus dem Admin sofort; der Abruf alle 3 Sekunden bleibt als Rückfall.
+  try { const live = new EventSource('/api/overlay/live'); for (const k of ['settings', 'event']) live.addEventListener(k, poll); } catch { /* dann eben nur der Abruf */ }
 }
 
 // ---- Schleifen
+const perf = window.__perf = { n: 0, ms: 0 }; // Messung: /overlay?perf=1 und in der Konsole window.__perf lesen
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  if (t - last < 70) return; // ca. 14 Bilder pro Sekunde reichen für Pixel-Optik
+  if (t - last < 15) return; // bis zu 60 Bilder pro Sekunde (in OBS in den Eigenschaften der Browserquelle „Benutzerdefinierte Bildrate“ auf 60 stellen)
   last = t;
-  if (szene && view) szene.draw(t);
+  if (szene && view) {
+    const t0 = performance.now();
+    szene.draw(t);
+    if (q.has('perf')) { perf.n += 1; perf.ms += performance.now() - t0; }
+  }
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
   if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Overlay · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-seite="studio" data-titel="Overlay">
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+
+    <section class="karte">
+      <h2>Vorschau und Anordnung</h2>
+      <p class="leise">So sieht das Overlay aus. Alle Änderungen auf dieser Seite erscheinen sofort hier und gehen erst mit <b>Speichern</b> ins echte Overlay. Ziehe Uhr, Wörter, To-Do-Liste, Musik, Kamerafenster und Module an die gewünschte Stelle, klicke sie an, um sie ein-/auszuschalten oder zu vergrößern. <b>Die Kamera in OBS unter das Overlay legen.</b></p>
+      <div id="editor"><iframe id="editorFrame" title="Vorschau" tabindex="-1"></iframe><div id="editorBoxen"></div></div>
+      <div class="reihe" id="editorPanel">
+        <b id="editorName">Nichts ausgewählt</b>
+        <label><input type="checkbox" id="edAn"> sichtbar</label>
+        <label>X <input type="number" id="edX" step="4" style="width:80px"></label><label>Y <input type="number" id="edY" step="4" style="width:80px"></label>
+        <label>Größe <input type="range" id="edGroesse" min="0.5" max="2" step="0.05" style="width:140px"></label>
+        <span id="edKamera" hidden><label>Seitenlänge (1:1) <input type="number" id="edW" min="160" max="1080" step="10"></label></span>
+        <button class="hell" id="layoutZurueck">Standard-Positionen</button>
+      </div>
+      <p class="leise" id="edObs" hidden></p>
+      <div class="reihe"><label>Wachstum in der Vorschau <input type="range" id="vorschauFortschritt" min="0" max="100" value="55" style="width:180px"></label><output id="vorschauFortschrittWert" class="leise">echter Stand</output><button class="hell" id="vorschauReset">Echter Stand</button></div>
+    </section>
+
+    <section class="karte">
+      <h2>Szene</h2>
+      <h3>Darstellung</h3>
+      <div class="szenen" id="modi"></div>
+      <h3>Jahreszeit</h3>
+      <div class="szenen" id="jahreszeiten"></div>
+      <h3>Tageszeit</h3>
+      <div class="szenen" id="tageszeiten"></div>
+      <div id="quellenBlock"><h3>Landschaft wächst mit</h3><div class="szenen" id="quellen"></div>
+        <p class="leise">Die Wiese beginnt leer und wächst mit dem Fortschritt zu: im Frühling Blüten, im Sommer Sonnenblumen und Lavendel, im Herbst verliert die Eiche ihre Blätter, im Winter schneit es alles zu. „Auto“ nimmt Datum und Uhrzeit.</p></div>
+    </section>
+
+    <section class="karte" id="fensterKarte" hidden>
+      <h2>Fenster-Ansicht</h2>
+      <h3>Ort im Zimmer</h3>
+      <div class="szenen" id="fensterOrte"></div>
+      <h3>Blick nach draußen</h3>
+      <div class="szenen" id="fensterBlicke"></div>
+      <h3>Wetter</h3>
+      <div class="szenen" id="fensterWetter"></div>
+    </section>
+
+    <section class="karte">
+      <h2>Design der Karten</h2>
+      <p class="leise">Farben, Rundung und Schrift von Uhr, Wörter-Karte, To-Do, Musik und den Bannern.</p>
+      <h3>Farbschema</h3>
+      <div class="szenen" id="themen"></div>
+      <h3>Eigene Farben</h3>
+      <div class="farben" id="farben"></div>
+      <h3>Form</h3>
+      <div class="felder">
+        <div class="feld"><label>Deckkraft der Karten: <output id="dDeckkraftWert"></output> %</label><input type="range" id="dDeckkraft" min="40" max="100"></div>
+        <div class="feld"><label>Rundung der Ecken: <output id="dRadiusWert"></output> px</label><input type="range" id="dRadius" min="0" max="44"></div>
+        <div class="feld"><label>Rahmenbreite: <output id="dRandWert"></output> px</label><input type="range" id="dRand" min="0" max="8"></div>
+        <div class="feld"><label>Schrift</label><select id="dSchrift"></select></div>
+        <div class="feld"><label class="zeile"><input type="checkbox" id="dSchatten"> Schatten unter den Karten</label></div>
+      </div>
+      <div class="reihe"><button class="hell" id="designZurueck">Standard-Design</button></div>
+    </section>
+
+    <section class="karte">
+      <h2>Module</h2>
+      <p class="leise">Kleine Dinge, die mit dem Fortschritt reagieren. Position und Größe stellst du oben in der Vorschau ein.</p>
+      <div id="moduleListe"></div>
+    </section>
+  </div>
+  <div id="speicherLeiste"><span>Ungespeicherte Änderungen</span><button class="hell" id="verwerfen">Verwerfen</button><button class="gruen" id="speichern">Speichern</button></div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="studio.js"></script>
+</body>
+</html>

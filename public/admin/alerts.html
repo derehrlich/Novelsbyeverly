@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Alerts · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-seite="alerts" data-titel="Alerts">
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>✍️ Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <section class="karte">
+      <h2>OBS-Quelle für die Alerts</h2>
+      <p class="leise">Die Alerts laufen getrennt vom Overlay in einer eigenen Browser-Quelle. So kannst du sie in OBS frei platzieren, ein- und ausblenden oder über alles andere legen.</p>
+      <div class="url"><code id="alertUrl">–</code><button class="hell" id="alertKopieren">Kopieren</button></div>
+      <details><summary>So richtest du die Quelle in OBS ein</summary><div class="leise">
+        <ol>
+          <li>In OBS bei <b>Quellen</b> auf <b>+</b> klicken und <b>Browser</b> wählen. Neu erstellen, Namen z. B. „Alerts“.</li>
+          <li>Bei <b>URL</b> die Adresse von oben einfügen. Breite <b>1920</b>, Höhe <b>1080</b>.</li>
+          <li>Mit OK bestätigen. Die Quelle ist durchsichtig, du siehst sie nur, wenn ein Alert läuft.</li>
+          <li>Lege sie in der Quellenliste <b>ganz nach oben</b> (über Overlay und Kamera).</li>
+        </ol>
+        <p>Zum Prüfen: Unten auf „An OBS senden“ klicken. Dann läuft der Alert in OBS und in der Vorschau.</p>
+      </div></details>
+    </section>
+
+    <section class="karte">
+      <h2>Vorschau und Test</h2>
+      <div id="vorschau"><iframe id="vorschauRahmen" title="Vorschau der Alerts" src="/alerts?vorschau=1"></iframe></div>
+      <div class="reihe"><label for="testName">Name für den Test</label><input id="testName" value="Lena" maxlength="40" style="width: 180px"></div>
+      <h3>Hier in der Vorschau abspielen (mit deinen ungespeicherten Änderungen)</h3>
+      <div class="reihe" id="probeKnoepfe"></div>
+      <h3>An OBS senden (so wie ein echter Alert, mit den gespeicherten Einstellungen)</h3>
+      <div class="reihe" id="sendeKnoepfe"></div>
+    </section>
+
+    <section class="karte">
+      <h2>Aussehen</h2>
+      <div class="felder" id="allgemein"></div>
+    </section>
+
+    <div id="arten"></div>
+
+    <section class="karte">
+      <div class="reihe"><button id="standard" class="hell">Alles auf Standard zurücksetzen</button></div>
+    </section>
+  </div>
+</main>
+<div id="speicherLeiste"><span id="speicherText">Ungespeicherte Änderungen</span><button id="speichern">Speichern</button><button class="hell" id="verwerfen">Verwerfen</button></div>
+<div class="meldung" id="meldung" hidden></div>
+<style>
+#vorschau { position: relative; width: 100%; max-width: 960px; aspect-ratio: 16 / 9; border: 3px solid var(--rand); border-radius: 12px; overflow: hidden; background: linear-gradient(#bcd7e6, #d7e8c9 70%, #a9c58f); }
+#vorschau iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; background: transparent; }
+.feld input[type=range] { width: 100%; padding: 0; } .feld input[type=color] { width: 56px; height: 36px; padding: 0; cursor: pointer; } .feld input[type=text], .feld select, .feld input:not([type]) { width: 100%; }
+.feld .wert { font-weight: 600; }
+.art h2 { display: flex; gap: 12px; align-items: center; } .art h2 label { font-size: 15px; font-weight: 500; display: flex; gap: 6px; align-items: center; }
+</style>
+<script type="module" src="alerts.js"></script>
+</body>
+</html>

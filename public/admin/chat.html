@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chat & Zimmer · Verwaltung</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-seite="chat" data-titel="Chat & Zimmer">
+<main>
+  <section class="karte" id="login" hidden>
+    <h1>✍️ Co-Working-Bot</h1>
+    <p class="leise">Bitte mit dem Admin-Passwort anmelden.</p>
+    <div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div>
+  </section>
+
+  <div id="app" class="spalten" hidden>
+    <section class="karte">
+      <h2>Chat und Texte</h2>
+      <div id="formular"></div>
+      <div class="reihe"><button class="gruen" id="speichern">Speichern</button></div>
+    </section>
+    <section class="karte">
+      <h2>Chat-Befehle</h2>
+      <table>
+        <tr><td><code>!pomodoro 25 5 4</code></td><td>Ablauf starten: Pomodoro-Minuten, Pause-Minuten, Wiederholungen (ohne Zahlen gelten die Einstellungen; nur Moderation und Streamerin)</td></tr>
+        <tr><td><code>!anhalten</code> · <code>!weiter</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Anhalten, fortsetzen, Pause sofort, stoppen (nur Moderation und Streamerin)</td></tr>
+        <tr><td><code>!pomodoros 6</code> · <code>!ziel 1500</code></td><td>Pomodoro-Ziel bzw. Wörterziel für heute (nur Streamerin)</td></tr>
+        <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>
+        <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
+        <tr><td><code>!song Titel - Interpret</code> · <code>!song aus</code></td><td>Musik-Anzeige von Hand (Moderation)</td></tr>
+        <tr><td><code>!hilfe</code></td><td>Befehlsübersicht</td></tr>
+        <tr><td><i>Zimmer-Modus (pausiert):</i> <code>!sitzen</code> · <code>!aufstehen</code> · <code>!figur</code> · <code>!rang</code> · <code>!szene</code></td><td>Figuren der Zuschauer an Tischen, nur wenn „Darstellung: Zimmer“ gewählt ist</td></tr>
+      </table>
+    </section>
+
+    <section class="karte breit">
+      <h2>Zimmer-Modus (pausiert)</h2>
+      <p class="leise" id="zimmerHinweis">Der Zimmer-Modus mit Figuren der Zuschauer ist pausiert. Die Einstellungen bleiben erhalten; einschalten kannst du ihn unter „Overlay → Darstellung“.</p>
+      <details><summary>Einstellungen und Texte</summary>
+        <div id="formularZimmer"></div>
+        <div class="reihe"><button class="gruen" id="speichernZimmer">Speichern</button></div>
+      </details>
+      <details><summary>Mitschreibende</summary>
+        <div class="reihe"><a class="knopf hell" href="/api/admin/export.csv">CSV-Export</a><button class="hell" id="usersLaden">Aktualisieren</button><button class="hell" id="alleAufstehen">Alle Figuren aufstehen lassen</button></div>
+        <table><thead><tr><th>Name</th><th>Rang</th><th>Arbeitszeit</th><th>Sprints</th><th>Wörter</th><th>Besuche</th><th></th></tr></thead><tbody id="users"></tbody></table>
+      </details>
+      <details><summary>Testen</summary>
+        <p class="leise">Mit Testereignissen (und im Zimmer-Modus Testfiguren) siehst du im Overlay, wie alles aussieht, ohne dass jemand im Chat ist.</p>
+        <div class="reihe">
+          <button data-test="seats">Testfiguren setzen</button><button class="hell" data-test="clear">Testfiguren entfernen</button>
+          <button class="hell" data-event="sprint">Pomodoro-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
+          <button class="hell" data-event="rankup">Rang</button><button class="hell" data-event="unlock">Freischaltung</button>
+          <button class="hell" data-event="deko">Zimmer wächst</button><button class="hell" data-event="taskdone">Aufgabe erledigt</button>
+        </div>
+      </details>
+    </section>
+
+  </div>
+</main>
+<div class="meldung" id="meldung" hidden></div>
+<script type="module" src="chat.js"></script>
+</body>
+</html>
