@@ -18,7 +18,7 @@ for (const file of fs.readdirSync(path.join(root, 'netlify/functions'))) {
 }
 const match = (pathname) => routes.find(({ p }) => (p.endsWith('/*') ? pathname.startsWith(p.slice(0, -1)) : pathname === p));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.txt': 'text/plain' };
-const redirects = { '/': '/admin/', '/overlay': '/overlay.html' };
+const redirects = { '/': '/admin/', '/overlay': '/overlay.html', '/gaming': '/gaming.html' };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);

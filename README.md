@@ -44,6 +44,8 @@ Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmc
 
 **Kamerafenster (1:1).** Ein quadratischer Rahmen mit durchsichtigem Ausschnitt. **In OBS die Kamera unter das Overlay legen**, dann schaut sie durch das Fenster. Position und Seitenlänge stellst du in der Anordnung ein.
 
+**Gaming-Szene (`/gaming`).** Ein zweites Overlay für Gaming-Streams, als eigene Browser-Quelle (1920×1080) in OBS. Es zeigt die Landschaft (Jahres- und Tageszeit wie im Admin) mit einem dünnen, gemütlichen Holzrahmen um das **Spielfenster im 16:9-Format** (1408×792) und einem **quadratischen Kamerarahmen** (384×384) mit Uhr/Pomodoro und Ziel-Karte darunter. In OBS liegen Spiel-Aufnahme und Kamera **unter** dem Overlay und scheinen durch die ausgeschnittenen Fenster. Mit `?platzhalter=1` siehst du die Fenster, `?teile=uhr,ziel` wählt die Karten, `?demo=1` zeigt Beispieldaten. Die Maße stehen in `public/js/gaming.mjs`.
+
 **Zimmer-Modus (pausiert).** Die Szenen mit Tischen, an denen Zuschauer als Chibi-Figuren sitzen (Café, Garten, Park, mit Rängen und freischaltbaren Gegenständen), bleiben im Code erhalten. Unter *Einstellungen → Darstellung* lassen sie sich wieder einschalten. In der Landschaft sind die Befehle dafür ausgeschaltet.
 
 ## Musik anzeigen (YouTube Music)
