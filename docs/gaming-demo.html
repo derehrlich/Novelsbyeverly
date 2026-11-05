@@ -1200,15 +1200,15 @@ class Wachstum {
 
 
 const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
-const SPIEL = { x: 80, y: 45, w: 1760, h: 990 }; // 1760 : 990 = 16 : 9 (schmaler Rand)
+const SPIEL = { x: 104, y: 58, w: 1712, h: 963 }; // 1712 : 963 = 16 : 9 (schmaler Rand)
 const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
-const UEBER = 32; // so weit ragt das Kamerafenster über die Ecke des Spielrahmens hinaus
+const ABSTAND = 44; // Abstand zwischen Bildrand und Kamerabild (der Holzrahmen liegt darin, 30 px bis zum Rahmen)
 const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
 const TODE_POS = ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'];
 
 function kameraRect(ecke, size = KAMERA) {
   const links = ecke.endsWith('links'), oben = ecke.startsWith('oben');
-  return { x: links ? SPIEL.x - UEBER : SPIEL.x + SPIEL.w - size + UEBER, y: oben ? SPIEL.y - UEBER : SPIEL.y + SPIEL.h - size + UEBER, w: size, h: size };
+  return { x: links ? ABSTAND : 1920 - ABSTAND - size, y: oben ? ABSTAND : 1080 - ABSTAND - size, w: size, h: size };
 }
 
 // Liest "oben-rechts,unten-links" oder "aus" (Adressparameter). Ohne Angabe: oben-rechts.
