@@ -86,6 +86,7 @@ export async function buildView(settings, since, now = Date.now()) {
       abdunkeln: settings.gamingAbdunkeln,
       kameras: [['oben-links', settings.gamingKameraOL], ['oben-rechts', settings.gamingKameraOR], ['unten-links', settings.gamingKameraUL], ['unten-rechts', settings.gamingKameraUR]].filter(([, on]) => on).map(([k]) => k),
       groesse: settings.gamingKameraGroesse,
+      ueberlappung: settings.gamingKameraUeberlappung,
       tode: settings.gamingTode ? await (async () => { const t = await getTode(); return { n: t.n, at: t.at ?? 0, sekunden: settings.gamingTodeSekunden, label: settings.gamingTodeLabel, pos: settings.gamingTodePos }; })() : null,
     },
     design: settings.design,

@@ -1,7 +1,7 @@
 // Gaming-Szene als wiederverwendbares Bauteil: Landschaft + Rahmen auf dem Canvas, Deathcounter als Karte.
 // Wird vom echten Overlay (gaming.html) und von der Demo benutzt.
 import { Wachstum } from './wachstum.mjs';
-import { KAMERA, RADIUS, RAHMEN, SPIEL, drawGamingFrames, glasHintergrund, kameraRect, schneideFenster } from './gaming.mjs';
+import { KAMERA, RADIUS, RAHMEN, UEBER, drawGamingFrames, glasHintergrund, kameraRect, schneideFenster, spielRect } from './gaming.mjs';
 
 export const GAMING_CSS = `
 .g-platz { position: absolute; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #3d4a45, #2a302d); color: #cdd8d0; font-weight: 600; font-family: Fredoka, system-ui, sans-serif; text-align: center; }
@@ -23,7 +23,7 @@ export const GAMING_CSS = `
 const INSET = 28;
 // Position der Karte innerhalb des Spielfensters
 // Steht in derselben Ecke ein Kamerafenster, rückt die Karte daneben.
-function todePos(pos, w, h, kameras = [], size = KAMERA) {
+function todePos(pos, w, h, kameras = [], size = KAMERA, SPIEL = spielRect()) {
   const links = pos.endsWith('links'), mitte = pos.endsWith('mitte'), oben = pos.startsWith('oben');
   const kam = !mitte && kameras.includes(pos) ? kameraRect(pos, size) : null;
   let left = mitte ? SPIEL.x + (SPIEL.w - w) / 2 : links ? SPIEL.x + INSET : SPIEL.x + SPIEL.w - w - INSET;
@@ -60,11 +60,12 @@ export class GamingOverlay {
     const size = g.groesse ?? KAMERA;
     const design = g.design === 'glas' ? 'glas' : 'gemuetlich', rad = RADIUS[design];
     this.design = design; this.tode.dataset.design = design;
-    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}`;
+    const ueber = g.ueberlappung ?? UEBER, spiel = spielRect(g.kameras ?? [], size, ueber);
+    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}|${ueber}`;
     if (key !== this.key) {
       this.key = key;
       const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
-      place(this.spielBox, SPIEL, rad.spiel); this.spielBox.style.fontSize = '34px';
+      place(this.spielBox, spiel, rad.spiel); this.spielBox.style.fontSize = '34px';
       this.kamBox.textContent = '';
       for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), rad.kamera); this.kamBox.append(el); }
     }
@@ -74,7 +75,7 @@ export class GamingOverlay {
       this.tode.querySelector('.label').textContent = t.label;
       this.tode.querySelector('.zahl').textContent = new Intl.NumberFormat('de-DE').format(t.n);
       const { width, height } = { width: this.tode.offsetWidth || 260, height: this.tode.offsetHeight || 90 };
-      const p = todePos(t.pos, width, height, g.kameras ?? [], size);
+      const p = todePos(t.pos, width, height, g.kameras ?? [], size, spiel);
       this.tode.style.left = `${p.left}px`; this.tode.style.top = `${p.top}px`;
       if (this.todeN !== null && t.n !== this.todeN) { this.tode.classList.remove('pop'); void this.tode.offsetWidth; this.tode.classList.add('pop'); }
       this.todeN = t.n;
@@ -89,16 +90,16 @@ export class GamingOverlay {
     if (t - (this.last ?? 0) < 30) return; // etwa 30 Bilder pro Sekunde reichen für die ruhige Szene
     this.last = t;
     const { c, view } = this;
-    const g = view?.gaming ?? {}, ecken = g.kameras ?? [], size = g.groesse ?? KAMERA;
+    const g = view?.gaming ?? {}, ecken = g.kameras ?? [], size = g.groesse ?? KAMERA, ueber = g.ueberlappung ?? UEBER;
     c.clearRect(0, 0, 1920, 1080);
     if (g.hintergrund === 'obs') { // Rand bleibt durchsichtig: in OBS liegt darunter das unscharfe Spiel, hier nur leicht abgedunkelt
       if (g.abdunkeln > 0) { c.fillStyle = `rgba(8,10,16,${Math.min(0.8, g.abdunkeln / 100)})`; c.fillRect(0, 0, 1920, 1080); }
     } else if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
     else if (view) { this.wachstum.vorbereiten(view); c.drawImage(this.wachstum.base, 0, 0); this.wachstum.animiere(c, t); }
     else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
-    schneideFenster(c, ecken, size, this.design);
-    const key = `${this.design}|${ecken.join(',')}|${size}`;
-    if (key !== this.rahmenKey) { this.rahmenKey = key; const rc = this.rahmen.getContext('2d'); rc.clearRect(0, 0, 1920, 1080); drawGamingFrames(rc, ecken, size, this.design); }
+    schneideFenster(c, ecken, size, this.design, ueber);
+    const key = `${this.design}|${ecken.join(',')}|${size}|${ueber}`;
+    if (key !== this.rahmenKey) { this.rahmenKey = key; const rc = this.rahmen.getContext('2d'); rc.clearRect(0, 0, 1920, 1080); drawGamingFrames(rc, ecken, size, this.design, ueber); }
     c.drawImage(this.rahmen, 0, 0);
     this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
   }

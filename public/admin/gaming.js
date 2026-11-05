@@ -10,13 +10,14 @@ const OPT = {
 const SCHEMA = [
   ['Aussehen', [
     ['gamingDesign', 'Design', 'select', 'Glas: ruhiger Farbverlauf nach Tageszeit, durchscheinende Rahmen mit feiner Lichtkante, Deathcounter als Glaskapsel. Die Farben der Karten (Deathcounter im Design Gemütlich) stellst du unter „Overlay“ ein.'],
-    ['gamingHintergrund', 'Hintergrund am Rand', 'select', 'Unscharfes Spielbild: In OBS die Spielaufnahme kopieren („Als Referenz einfügen“), auf Vollbild ziehen (Strg+F), Filter „Unschärfe“ hinzufügen und diese Kopie UNTER das scharfe Spiel legen. Reihenfolge von unten: unscharfe Kopie, Spiel, Kamera, Gaming-Overlay.'],
+    ['gamingHintergrund', 'Hintergrund am Rand', 'select', 'Unscharfes Spielbild: In OBS die Spielaufnahme kopieren („Als Referenz einfügen“), auf Vollbild ziehen (Strg+F), Filter „Unschärfe“ hinzufügen und diese Kopie UNTER das scharfe Spiel legen. Reihenfolge in der OBS-Quellenliste von oben nach unten (oben = vorne): Gaming-Overlay, Kamera, Spiel, unscharfe Kopie.'],
     ['gamingAbdunkeln', 'Rand abdunkeln in % (nur bei unscharfem Spielbild, 0–80)', 'number'],
   ]],
   ['Kamerafenster', [
     ['gamingKameraOL', 'Kamerafenster oben links', 'bool', 'Nicht angehakte Fenster fehlen ganz. Das Kamerabild ist quadratisch und sitzt mit Abstand zum Bildrand in der Ecke, über dem Spielrahmen.'],
     ['gamingKameraOR', 'Kamerafenster oben rechts', 'bool'], ['gamingKameraUL', 'Kamerafenster unten links', 'bool'], ['gamingKameraUR', 'Kamerafenster unten rechts', 'bool'],
     ['gamingKameraGroesse', 'Kamera: Seitenlänge in Pixeln (160–700)', 'number'],
+    ['gamingKameraUeberlappung', 'Kamera ragt so viele Pixel ins Spielfenster (0–300)', 'number', 'Das Spielfenster macht den Kameras Platz und wird dafür kleiner (bleibt 16:9). Bei 0 liegt die Kamera daneben, bei größeren Werten überlappt sie mehr vom Spielbild. Ohne Kamerafenster füllt das Spiel fast das ganze Bild.'],
   ]],
   ['Deathcounter', [
     ['gamingTode', 'Deathcounter anzeigen', 'bool', 'Steuerung im Chat (!tod), per Hotkey oder oben.'],

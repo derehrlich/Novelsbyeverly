@@ -6,15 +6,15 @@ Adressen: Admin `/admin/` · Overlay `/overlay` · Alerts `/alerts` · **Gaming-
 
 ## Gaming-Szene (`/gaming`)
 Eigene Browser-Quelle (1920×1080) für Gaming-Streams. Alles stellst du im Admin unter *Gaming* ein.
-- **Spielfenster 16:9** (1712×963) mit dünnem Rahmen und schmalem Rand. In OBS liegt die Spielaufnahme ganz unten, **darüber die Kamera**, ganz oben die Browser-Quelle. Spiel und Kamera scheinen durch die ausgeschnittenen Fenster.
-- **Kamerafenster** (quadratisch, 160–700 px) in jeder der vier Ecken einzeln an- oder abschaltbar. Sie sitzen mit Abstand zum Bildrand und überlappen den Spielrahmen.
+- **Spielfenster 16:9** mit dünnem Rahmen und schmalem Rand (ohne Kamera 1712×963). Es macht den Kameras Platz und wird dafür kleiner. In der OBS-Quellenliste von **oben nach unten** (oben = vorne): Gaming-Overlay, Kamera, Spiel (bei unscharfem Rand zuunterst die Kopie). Spiel und Kamera scheinen durch die ausgeschnittenen Fenster.
+- **Kamerafenster** (quadratisch, 160–700 px) in jeder der vier Ecken einzeln an- oder abschaltbar. Sie sitzen mit Abstand zum Bildrand und ragen nur um einen einstellbaren Betrag (Standard 40 px) ins Spielfenster. Die Kamera muss in OBS quadratisch zugeschnitten sein und genau das Fenster füllen.
 - **Design:** *Gemütlich* (Landschaft aus dem Overlay, Holzrahmen mit Blättern) oder *Glas* (schlicht, durchscheinend, an Apples Liquid Glass angelehnt, Farbverlauf nach Tageszeit).
-- **Rand als unscharfes Spielbild:** Hintergrund „Unscharfes Spielbild“ lässt den Rand durchsichtig (abdunkelbar). In OBS die Spielaufnahme kopieren („Als Referenz einfügen“), auf Vollbild ziehen, Unschärfe-Filter hinzufügen und **unter** das scharfe Spiel legen.
+- **Rand als unscharfes Spielbild:** Hintergrund „Unscharfes Spielbild“ lässt den Rand durchsichtig (abdunkelbar). In OBS die Spielaufnahme kopieren („Als Referenz einfügen“), auf Vollbild ziehen, Unschärfe-Filter hinzufügen und in der Quellenliste **unter** das scharfe Spiel legen.
 - **Deathcounter** (optional, im Stil der Karten aus *Overlay → Design*, im Glas-Design als Glaskapsel): Totenkopf, Beschriftung, Zahl; wählbare Position, rückt neben eine Kamera in derselben Ecke; blendet nach einstellbarer Zeit aus (0 = bleibt) und bei jedem Zählen wieder ein.
   - Chat: `!tod` (+1), `!tod -`, `!tod 12`, `!tod reset` (nur Streamerin) für Moderation und Streamerin; `!tode` zeigt allen den Stand.
   - Admin: Knöpfe −1, +1, Einblenden, Setzen, Auf 0.
   - Hotkey: `GET/POST /api/tod` mit `INGEST_TOKEN` (`aktion`: `plus`, `minus`, `reset`, `zeigen`, `set` mit `wert`), z. B. `http://CASAOS-IP:8888/api/tod?aktion=plus&token=…`. Für Stream Deck („Website öffnen“) oder das AutoHotkey-Skript `/tode-hotkey.ahk` (im Admin zum Herunterladen, F9 = +1, F10 = −1).
-- Zum Ausprobieren in der Adresse: `?kamera=oben-links,unten-rechts` (oder `aus`), `&groesse=340`, `?design=glas`, `?hintergrund=obs&abdunkeln=25`, `?platzhalter=1` (zeigt die Fenster), `?demo=1` (Beispieldaten).
+- Zum Ausprobieren in der Adresse: `?kamera=oben-links,unten-rechts` (oder `aus`), `&groesse=340`, `&ueberlappung=40`, `?design=glas`, `?hintergrund=obs&abdunkeln=25`, `?platzhalter=1` (zeigt die Fenster), `?demo=1` (Beispieldaten).
 - Eine klickbare Demo ohne OBS ist `docs/gaming-demo.html`.
 
 ## Entwicklung

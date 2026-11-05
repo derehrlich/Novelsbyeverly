@@ -67,6 +67,7 @@ const body = `
       <label><input type="checkbox" id="kUL"> Unten links</label>
       <label><input type="checkbox" id="kUR"> Unten rechts</label>
       <label class="feld"><span>Seitenlänge: <span id="groesseWert">340</span> px</span><input type="range" id="groesse" min="200" max="500" step="10" value="340"></label>
+      <label class="feld"><span>Überlappung mit dem Spiel: <span id="ueberWert">40</span> px</span><input type="range" id="ueber" min="0" max="300" step="10" value="40"></label>
       <p class="hinweis">Nicht angehakte Fenster fehlen ganz. Steht der Deathcounter in derselben Ecke, rückt er neben die Kamera.</p>
     </section>
     <section class="gruppe">
@@ -119,8 +120,9 @@ function renderFake(view) {
     const u = document.createElement('div'); u.className = 'fake-spiel';
     Object.assign(u.style, { left: '0', top: '0', width: '1920px', height: '1080px', filter: 'blur(40px)', transform: 'scale(1.15)' }); fake.append(u);
   }
+  const sp = spielRect(view.gaming.kameras, view.gaming.groesse, view.gaming.ueberlappung);
   const s = document.createElement('div'); s.className = 'fake-spiel';
-  Object.assign(s.style, { left: SPIEL.x + 'px', top: SPIEL.y + 'px', width: SPIEL.w + 'px', height: SPIEL.h + 'px' });
+  Object.assign(s.style, { left: sp.x + 'px', top: sp.y + 'px', width: sp.w + 'px', height: sp.h + 'px' });
   s.innerHTML = '<i style="left:760px;top:520px;width:70px;height:110px;border-radius:12px"></i><i style="left:1180px;top:560px;width:90px;height:70px;background:#e07a5f;border-radius:50%"></i><b>Dein Spiel</b>';
   fake.append(s);
   for (const e of view.gaming.kameras) {
@@ -136,12 +138,12 @@ function current() {
   const kameras = [['oben-links', 'kOL'], ['oben-rechts', 'kOR'], ['unten-links', 'kUL'], ['unten-rechts', 'kUR']].filter(([, id]) => $(id).checked).map(([k]) => k);
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
-    gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), ueberlappung: Number($('ueber').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {
   applyDesign(stage, { theme: $('schema').value }); // wie im Overlay: Farben, Rundung, Schrift der Karten
-  $('groesseWert').textContent = $('groesse').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
+  $('groesseWert').textContent = $('groesse').value; $('ueberWert').textContent = $('ueber').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
   const v = current(); ov.update(v); renderFake(v);
 }
 for (const el of document.querySelectorAll('input, select')) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); }

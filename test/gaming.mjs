@@ -31,17 +31,35 @@ await test('Seiten /gaming und /admin/gaming.html werden ausgeliefert', async ()
   assert.equal((await get('/admin/gaming.html')).status, 200);
   assert.equal((await get('/js/gaming-ui.mjs')).status, 200);
 });
+await test('Spielfenster macht den Kameras Platz: 16:9, im Bild, Überlappung genau wie eingestellt', async () => {
+  const g = await import(`${root}/public/js/gaming.mjs`);
+  const o = g.spielRect([]); assert.deepEqual(o, { x: 104, y: 58, w: 1712, h: 963 });
+  for (const ecken of [[], ['oben-rechts'], ['oben-links'], ['unten-links', 'unten-rechts'], ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts']]) {
+    for (const size of [160, 340, 700]) for (const ueber of [0, 40, 300]) {
+      const s = g.spielRect(ecken, size, ueber);
+      assert.equal(s.w * 9, s.h * 16, `16:9 bei ${ecken} ${size} ${ueber}`);
+      assert.ok(s.x >= 0 && s.y >= 0 && s.x + s.w <= 1920 && s.y + s.h <= 1080, `im Bild bei ${ecken} ${size} ${ueber}`);
+    }
+  }
+  const s = g.spielRect(['oben-rechts'], 340, 40), k = g.kameraRect('oben-rechts', 340);
+  assert.equal(s.x + s.w - k.x, 40, 'rechte Kamera ragt genau 40 px ins Spiel');
+  const l = g.spielRect(['oben-links'], 340, 40), kl = g.kameraRect('oben-links', 340);
+  assert.equal(kl.x + kl.w - l.x, 40, 'linke Kamera ragt genau 40 px ins Spiel');
+  const b = g.spielRect(['oben-links', 'oben-rechts'], 340, 40);
+  assert.equal(g.kameraRect('oben-links', 340).x + 340 - b.x, 40); assert.equal(b.x + b.w - g.kameraRect('oben-rechts', 340).x, 40);
+  assert.ok(s.w < o.w, 'mit Kamera wird das Spiel kleiner');
+});
 await test('Einstellungen landen im Overlay, Eingaben werden geprüft', async () => {
   let v = await view();
-  assert.equal(v.gaming.design, 'gemuetlich'); assert.deepEqual(v.gaming.kameras, ['oben-rechts']); assert.equal(v.gaming.tode, null); assert.equal(v.gaming.hintergrund, 'design');
+  assert.equal(v.gaming.design, 'gemuetlich'); assert.equal(v.gaming.ueberlappung, 40); assert.deepEqual(v.gaming.kameras, ['oben-rechts']); assert.equal(v.gaming.tode, null); assert.equal(v.gaming.hintergrund, 'design');
   const put = async (b) => (await admin('PUT', 'settings', b));
-  assert.equal((await put({ gamingKameraOR: false, gamingKameraOL: true, gamingKameraGroesse: 9999, gamingDesign: 'glas', gamingHintergrund: 'obs', gamingAbdunkeln: 500, gamingTode: true, gamingTodePos: 'unten-mitte', gamingTodeSekunden: 99999 })).status, 200);
+  assert.equal((await put({ gamingKameraOR: false, gamingKameraOL: true, gamingKameraGroesse: 9999, gamingKameraUeberlappung: 9999, gamingDesign: 'glas', gamingHintergrund: 'obs', gamingAbdunkeln: 500, gamingTode: true, gamingTodePos: 'unten-mitte', gamingTodeSekunden: 99999 })).status, 200);
   v = await view();
-  assert.deepEqual(v.gaming.kameras, ['oben-links']); assert.equal(v.gaming.groesse, 700); assert.equal(v.gaming.design, 'glas');
+  assert.deepEqual(v.gaming.kameras, ['oben-links']); assert.equal(v.gaming.groesse, 700); assert.equal(v.gaming.ueberlappung, 300); assert.equal(v.gaming.design, 'glas');
   assert.equal(v.gaming.hintergrund, 'obs'); assert.equal(v.gaming.abdunkeln, 80); assert.equal(v.gaming.tode.pos, 'unten-mitte'); assert.equal(v.gaming.tode.sekunden, 3600);
   assert.equal((await put({ gamingDesign: 'neon' })).status, 400);
   assert.equal((await put({ gamingTodePos: 'mitte' })).status, 400);
-  await put({ gamingDesign: 'gemuetlich', gamingHintergrund: 'design', gamingTodeSekunden: 10 });
+  await put({ gamingDesign: 'gemuetlich', gamingHintergrund: 'design', gamingTodeSekunden: 10, gamingKameraUeberlappung: 40 });
 });
 await test('Deathcounter: Chat (Moderation), Reset nur Streamerin, !tode für alle', async () => {
   const mod = [{ set_id: 'moderator' }], bc = [{ set_id: 'broadcaster' }];

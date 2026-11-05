@@ -61,6 +61,7 @@ code { background: var(--soft); padding: 1px 6px; border-radius: 5px; font-size:
       <label><input type="checkbox" id="kUL"> Unten links</label>
       <label><input type="checkbox" id="kUR"> Unten rechts</label>
       <label class="feld"><span>Seitenlänge: <span id="groesseWert">340</span> px</span><input type="range" id="groesse" min="200" max="500" step="10" value="340"></label>
+      <label class="feld"><span>Überlappung mit dem Spiel: <span id="ueberWert">40</span> px</span><input type="range" id="ueber" min="0" max="300" step="10" value="40"></label>
       <p class="hinweis">Nicht angehakte Fenster fehlen ganz. Steht der Deathcounter in derselben Ecke, rückt er neben die Kamera.</p>
     </section>
     <section class="gruppe">
@@ -999,8 +1000,9 @@ function applyDesign(el, design) { for (const [k, v] of Object.entries(designVar
 
 
 const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
-const SPIEL = { x: 104, y: 58, w: 1712, h: 963 }; // 1712 : 963 = 16 : 9 (schmaler Rand)
 const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
+const UEBER = 40; // so weit ragt das Kamerafenster (Standard) in das Spielfenster hinein
+const RAND_X = 60, RAND_Y = 58; // Rand um das Spielfenster ohne Kamera
 const ABSTAND = 44; // Abstand zwischen Bildrand und Kamerabild (der Holzrahmen liegt darin, 30 px bis zum Rahmen)
 const DESIGNS = ['gemuetlich', 'glas'];
 const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
@@ -1009,6 +1011,19 @@ const TODE_POS = ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unt
 function kameraRect(ecke, size = KAMERA) {
   const links = ecke.endsWith('links'), oben = ecke.startsWith('oben');
   return { x: links ? ABSTAND : 1920 - ABSTAND - size, y: oben ? ABSTAND : 1080 - ABSTAND - size, w: size, h: size };
+}
+
+// Das Spielfenster (immer 16:9) macht den Kameras Platz: Sitzt links bzw. rechts eine Kamera, rückt die Spielkante so weit zur Mitte,
+// dass die Kamera es nur um `ueber` Pixel überlappt. Ohne Kamera füllt es das Bild bis auf einen schmalen Rand.
+function spielRect(ecken = [], size = KAMERA, ueber = UEBER) {
+  const u = Math.max(0, Math.min(ueber, size));
+  const l = ecken.some((e) => e.endsWith('links')), r = ecken.some((e) => e.endsWith('rechts'));
+  const links = l ? ABSTAND + size - u : RAND_X;
+  const rechts = r ? 1920 - ABSTAND - size + u : 1920 - RAND_X;
+  const maxW = Math.min(rechts - links, Math.floor(((1080 - 2 * RAND_Y) * 16) / 9));
+  const w = Math.max(320, Math.floor(maxW / 16) * 16), h = (w * 9) / 16; // Vielfaches von 16, damit 16:9 exakt aufgeht
+  const x = r && !l ? rechts - w : l && !r ? links : links + Math.floor((rechts - links - w) / 2);
+  return { x, y: Math.floor((1080 - h) / 2), w, h };
 }
 
 // Liest "oben-rechts,unten-links" oder "aus" (Adressparameter). Ohne Angabe: oben-rechts.
@@ -1055,8 +1070,8 @@ function glasrahmen(c, { x, y, w, h }, r) {
 }
 
 // Schneidet die durchsichtigen Fenster (Spiel und Kameras) aus dem, was schon auf dem Canvas liegt
-function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich') {
-  const rad = RADIUS[design === 'glas' ? 'glas' : 'gemuetlich'];
+function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich', ueber = UEBER) {
+  const rad = RADIUS[design === 'glas' ? 'glas' : 'gemuetlich'], SPIEL = spielRect(ecken, size, ueber);
   c.globalCompositeOperation = 'destination-out';
   rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, rad.spiel, '#000000');
   for (const e of ecken) { const k = kameraRect(e, size); rr(c, k.x, k.y, k.w, k.h, rad.kamera, '#000000'); }
@@ -1064,8 +1079,8 @@ function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, design = 'ge
 }
 
 // Malt Rahmen (Holz oder Glas) mit Fenstern. Auf eine eigene, durchsichtige Ebene gemalt, die über dem Hintergrund liegt.
-function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich') {
-  const glas = design === 'glas', rad = RADIUS[glas ? 'glas' : 'gemuetlich'];
+function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich', ueber = UEBER) {
+  const glas = design === 'glas', rad = RADIUS[glas ? 'glas' : 'gemuetlich'], SPIEL = spielRect(ecken, size, ueber);
   if (glas) glasrahmen(c, SPIEL, rad.spiel); else holzrahmen(c, SPIEL, rad.spiel, [[0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40], [0.5, 1, 3.4, 34]]);
   c.globalCompositeOperation = 'destination-out';
   rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, rad.spiel, '#000000');
@@ -1104,7 +1119,7 @@ const GAMING_CSS = `
 const INSET = 28;
 // Position der Karte innerhalb des Spielfensters
 // Steht in derselben Ecke ein Kamerafenster, rückt die Karte daneben.
-function todePos(pos, w, h, kameras = [], size = KAMERA) {
+function todePos(pos, w, h, kameras = [], size = KAMERA, SPIEL = spielRect()) {
   const links = pos.endsWith('links'), mitte = pos.endsWith('mitte'), oben = pos.startsWith('oben');
   const kam = !mitte && kameras.includes(pos) ? kameraRect(pos, size) : null;
   let left = mitte ? SPIEL.x + (SPIEL.w - w) / 2 : links ? SPIEL.x + INSET : SPIEL.x + SPIEL.w - w - INSET;
@@ -1141,11 +1156,12 @@ class GamingOverlay {
     const size = g.groesse ?? KAMERA;
     const design = g.design === 'glas' ? 'glas' : 'gemuetlich', rad = RADIUS[design];
     this.design = design; this.tode.dataset.design = design;
-    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}`;
+    const ueber = g.ueberlappung ?? UEBER, spiel = spielRect(g.kameras ?? [], size, ueber);
+    const key = `${(g.kameras ?? []).join(',')}|${size}|${design}|${ueber}`;
     if (key !== this.key) {
       this.key = key;
       const place = (el, r, radius) => Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, borderRadius: `${radius}px` });
-      place(this.spielBox, SPIEL, rad.spiel); this.spielBox.style.fontSize = '34px';
+      place(this.spielBox, spiel, rad.spiel); this.spielBox.style.fontSize = '34px';
       this.kamBox.textContent = '';
       for (const e of g.kameras ?? []) { const el = document.createElement('div'); el.className = 'g-platz'; el.textContent = `Kamera ${e}`; el.style.fontSize = '26px'; place(el, kameraRect(e, size), rad.kamera); this.kamBox.append(el); }
     }
@@ -1155,7 +1171,7 @@ class GamingOverlay {
       this.tode.querySelector('.label').textContent = t.label;
       this.tode.querySelector('.zahl').textContent = new Intl.NumberFormat('de-DE').format(t.n);
       const { width, height } = { width: this.tode.offsetWidth || 260, height: this.tode.offsetHeight || 90 };
-      const p = todePos(t.pos, width, height, g.kameras ?? [], size);
+      const p = todePos(t.pos, width, height, g.kameras ?? [], size, spiel);
       this.tode.style.left = `${p.left}px`; this.tode.style.top = `${p.top}px`;
       if (this.todeN !== null && t.n !== this.todeN) { this.tode.classList.remove('pop'); void this.tode.offsetWidth; this.tode.classList.add('pop'); }
       this.todeN = t.n;
@@ -1170,16 +1186,16 @@ class GamingOverlay {
     if (t - (this.last ?? 0) < 30) return; // etwa 30 Bilder pro Sekunde reichen für die ruhige Szene
     this.last = t;
     const { c, view } = this;
-    const g = view?.gaming ?? {}, ecken = g.kameras ?? [], size = g.groesse ?? KAMERA;
+    const g = view?.gaming ?? {}, ecken = g.kameras ?? [], size = g.groesse ?? KAMERA, ueber = g.ueberlappung ?? UEBER;
     c.clearRect(0, 0, 1920, 1080);
     if (g.hintergrund === 'obs') { // Rand bleibt durchsichtig: in OBS liegt darunter das unscharfe Spiel, hier nur leicht abgedunkelt
       if (g.abdunkeln > 0) { c.fillStyle = `rgba(8,10,16,${Math.min(0.8, g.abdunkeln / 100)})`; c.fillRect(0, 0, 1920, 1080); }
     } else if (this.design === 'glas') glasHintergrund(c, view?.tageszeit, t);
     else if (view) { this.wachstum.vorbereiten(view); c.drawImage(this.wachstum.base, 0, 0); this.wachstum.animiere(c, t); }
     else { c.fillStyle = '#cfdcb8'; c.fillRect(0, 0, 1920, 1080); }
-    schneideFenster(c, ecken, size, this.design);
-    const key = `${this.design}|${ecken.join(',')}|${size}`;
-    if (key !== this.rahmenKey) { this.rahmenKey = key; const rc = this.rahmen.getContext('2d'); rc.clearRect(0, 0, 1920, 1080); drawGamingFrames(rc, ecken, size, this.design); }
+    schneideFenster(c, ecken, size, this.design, ueber);
+    const key = `${this.design}|${ecken.join(',')}|${size}|${ueber}`;
+    if (key !== this.rahmenKey) { this.rahmenKey = key; const rc = this.rahmen.getContext('2d'); rc.clearRect(0, 0, 1920, 1080); drawGamingFrames(rc, ecken, size, this.design, ueber); }
     c.drawImage(this.rahmen, 0, 0);
     this.tode.classList.toggle('weg', !(performance.now() < (this.bis ?? 0)));
   }
@@ -1201,8 +1217,9 @@ function renderFake(view) {
     const u = document.createElement('div'); u.className = 'fake-spiel';
     Object.assign(u.style, { left: '0', top: '0', width: '1920px', height: '1080px', filter: 'blur(40px)', transform: 'scale(1.15)' }); fake.append(u);
   }
+  const sp = spielRect(view.gaming.kameras, view.gaming.groesse, view.gaming.ueberlappung);
   const s = document.createElement('div'); s.className = 'fake-spiel';
-  Object.assign(s.style, { left: SPIEL.x + 'px', top: SPIEL.y + 'px', width: SPIEL.w + 'px', height: SPIEL.h + 'px' });
+  Object.assign(s.style, { left: sp.x + 'px', top: sp.y + 'px', width: sp.w + 'px', height: sp.h + 'px' });
   s.innerHTML = '<i style="left:760px;top:520px;width:70px;height:110px;border-radius:12px"></i><i style="left:1180px;top:560px;width:90px;height:70px;background:#e07a5f;border-radius:50%"></i><b>Dein Spiel</b>';
   fake.append(s);
   for (const e of view.gaming.kameras) {
@@ -1218,12 +1235,12 @@ function current() {
   const kameras = [['oben-links', 'kOL'], ['oben-rechts', 'kOR'], ['unten-links', 'kUL'], ['unten-rechts', 'kUR']].filter(([, id]) => $(id).checked).map(([k]) => k);
   return {
     now: Date.now(), jahreszeit: $('jahr').value, tageszeit: $('tag').value, progress: Number($('wachs').value) / 100, timer: { phase: 'idle' },
-    gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
+    gaming: { design: $('design').value, hintergrund: $('hintergrund').value, abdunkeln: Number($('dunkel').value), kameras, groesse: Number($('groesse').value), ueberlappung: Number($('ueber').value), tode: $('todeAn').checked ? { n: tode, at: todeAt, sekunden: Math.max(0, Number($('todeSek').value) || 0), label: $('todeLabel').value || 'Tode', pos: $('todePos').value } : null },
   };
 }
 function refresh() {
   applyDesign(stage, { theme: $('schema').value }); // wie im Overlay: Farben, Rundung, Schrift der Karten
-  $('groesseWert').textContent = $('groesse').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
+  $('groesseWert').textContent = $('groesse').value; $('ueberWert').textContent = $('ueber').value; $('wachsWert').textContent = $('wachs').value; $('dunkelWert').textContent = $('dunkel').value;
   const v = current(); ov.update(v); renderFake(v);
 }
 for (const el of document.querySelectorAll('input, select')) { el.addEventListener('input', refresh); el.addEventListener('change', refresh); }

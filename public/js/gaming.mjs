@@ -3,8 +3,9 @@
 import { alpha, leaf, lg, rg, rr } from './malerei.mjs';
 
 export const RAHMEN = 14; // Dicke des Holzrahmens (bewusst dünn)
-export const SPIEL = { x: 104, y: 58, w: 1712, h: 963 }; // 1712 : 963 = 16 : 9 (schmaler Rand)
 export const KAMERA = 340; // Seitenlänge des Kamerabilds (1:1)
+export const UEBER = 40; // so weit ragt das Kamerafenster (Standard) in das Spielfenster hinein
+const RAND_X = 60, RAND_Y = 58; // Rand um das Spielfenster ohne Kamera
 const ABSTAND = 44; // Abstand zwischen Bildrand und Kamerabild (der Holzrahmen liegt darin, 30 px bis zum Rahmen)
 export const DESIGNS = ['gemuetlich', 'glas'];
 export const ECKEN = ['oben-links', 'oben-rechts', 'unten-links', 'unten-rechts'];
@@ -13,6 +14,19 @@ export const TODE_POS = ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links
 export function kameraRect(ecke, size = KAMERA) {
   const links = ecke.endsWith('links'), oben = ecke.startsWith('oben');
   return { x: links ? ABSTAND : 1920 - ABSTAND - size, y: oben ? ABSTAND : 1080 - ABSTAND - size, w: size, h: size };
+}
+
+// Das Spielfenster (immer 16:9) macht den Kameras Platz: Sitzt links bzw. rechts eine Kamera, rückt die Spielkante so weit zur Mitte,
+// dass die Kamera es nur um `ueber` Pixel überlappt. Ohne Kamera füllt es das Bild bis auf einen schmalen Rand.
+export function spielRect(ecken = [], size = KAMERA, ueber = UEBER) {
+  const u = Math.max(0, Math.min(ueber, size));
+  const l = ecken.some((e) => e.endsWith('links')), r = ecken.some((e) => e.endsWith('rechts'));
+  const links = l ? ABSTAND + size - u : RAND_X;
+  const rechts = r ? 1920 - ABSTAND - size + u : 1920 - RAND_X;
+  const maxW = Math.min(rechts - links, Math.floor(((1080 - 2 * RAND_Y) * 16) / 9));
+  const w = Math.max(320, Math.floor(maxW / 16) * 16), h = (w * 9) / 16; // Vielfaches von 16, damit 16:9 exakt aufgeht
+  const x = r && !l ? rechts - w : l && !r ? links : links + Math.floor((rechts - links - w) / 2);
+  return { x, y: Math.floor((1080 - h) / 2), w, h };
 }
 
 // Liest "oben-rechts,unten-links" oder "aus" (Adressparameter). Ohne Angabe: oben-rechts.
@@ -59,8 +73,8 @@ function glasrahmen(c, { x, y, w, h }, r) {
 }
 
 // Schneidet die durchsichtigen Fenster (Spiel und Kameras) aus dem, was schon auf dem Canvas liegt
-export function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich') {
-  const rad = RADIUS[design === 'glas' ? 'glas' : 'gemuetlich'];
+export function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich', ueber = UEBER) {
+  const rad = RADIUS[design === 'glas' ? 'glas' : 'gemuetlich'], SPIEL = spielRect(ecken, size, ueber);
   c.globalCompositeOperation = 'destination-out';
   rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, rad.spiel, '#000000');
   for (const e of ecken) { const k = kameraRect(e, size); rr(c, k.x, k.y, k.w, k.h, rad.kamera, '#000000'); }
@@ -68,8 +82,8 @@ export function schneideFenster(c, ecken = ['oben-rechts'], size = KAMERA, desig
 }
 
 // Malt Rahmen (Holz oder Glas) mit Fenstern. Auf eine eigene, durchsichtige Ebene gemalt, die über dem Hintergrund liegt.
-export function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich') {
-  const glas = design === 'glas', rad = RADIUS[glas ? 'glas' : 'gemuetlich'];
+export function drawGamingFrames(c, ecken = ['oben-rechts'], size = KAMERA, design = 'gemuetlich', ueber = UEBER) {
+  const glas = design === 'glas', rad = RADIUS[glas ? 'glas' : 'gemuetlich'], SPIEL = spielRect(ecken, size, ueber);
   if (glas) glasrahmen(c, SPIEL, rad.spiel); else holzrahmen(c, SPIEL, rad.spiel, [[0.34, 0, 0.9, 40], [0.78, 1, 3.9, 40], [0.5, 1, 3.4, 34]]);
   c.globalCompositeOperation = 'destination-out';
   rr(c, SPIEL.x, SPIEL.y, SPIEL.w, SPIEL.h, rad.spiel, '#000000');

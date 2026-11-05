@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- OBS: Browser-Quelle 1920×1080 mit /gaming. Darunter (von unten): Spiel-Aufnahme (16:9), darüber die Kamera (quadratisch zugeschnitten).
      Kamerafenster, Größe und Deathcounter stellst du im Admin ein (Gaming-Szene). Zum Ausprobieren in der Adresse:
-     ?kamera=oben-links,unten-rechts (oder aus) · &groesse=340 · &design=glas · &hintergrund=obs&abdunkeln=25 · ?platzhalter=1 zeigt die Fenster · ?demo=1 Beispieldaten ohne Bot. -->
+     ?kamera=oben-links,unten-rechts (oder aus) · &groesse=340 · &ueberlappung=40 · &design=glas · &hintergrund=obs&abdunkeln=25 · ?platzhalter=1 zeigt die Fenster · ?demo=1 Beispieldaten ohne Bot. -->
 <style>
 @font-face { font-family: Fredoka; font-weight: 500; src: url(fonts/fredoka-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: Fredoka; font-weight: 600; src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
@@ -37,6 +37,7 @@ function mix(view) {
   if (q.has('design')) g.design = q.get('design');
   if (q.has('hintergrund')) g.hintergrund = q.get('hintergrund');
   if (q.has('abdunkeln')) g.abdunkeln = Math.min(80, Math.max(0, Number(q.get('abdunkeln')) || 0));
+  if (q.has('ueberlappung')) g.ueberlappung = Math.min(300, Math.max(0, Number(q.get('ueberlappung')) || 0));
   if (q.get('groesse')) g.groesse = Math.min(700, Math.max(160, Number(q.get('groesse')) || 340));
   return { ...view, gaming: g };
 }

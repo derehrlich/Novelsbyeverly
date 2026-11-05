@@ -33,6 +33,7 @@ export const DEFAULTS = {
   gamingHintergrund: 'design', // design (Landschaft bzw. Glasverlauf) | obs (Rand bleibt durchsichtig: darunter liegt in OBS eine unscharfe Kopie des Spiels)
   gamingAbdunkeln: 25, // bei Hintergrund obs: Rand um so viel Prozent abdunkeln (0–80)
   gamingKameraOL: false, gamingKameraOR: true, gamingKameraUL: false, gamingKameraUR: false,
+  gamingKameraUeberlappung: 40, // so viele Pixel ragt ein Kamerafenster in das Spielfenster (das Spielfenster macht den Kameras Platz)
   gamingKameraGroesse: 340, // Seitenlänge der quadratischen Kamera in Pixeln
   gamingTode: false, // Deathcounter anzeigen
   gamingTodeLabel: 'Tode',
@@ -91,7 +92,7 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { gamingAbdunkeln: [0, 80], gamingKameraGroesse: [160, 700], gamingTodeSekunden: [0, 3600], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
+const INT = { gamingKameraUeberlappung: [0, 300], gamingAbdunkeln: [0, 80], gamingKameraGroesse: [160, 700], gamingTodeSekunden: [0, 3600], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], repeats: [1, 20], soundLautstaerke: [0, 100], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
 const BOOL = ['gamingKameraOL', 'gamingKameraOR', 'gamingKameraUL', 'gamingKameraUR', 'gamingTode', 'gamingTodeChat', 'soundAn', 'soundStart', 'soundEnde', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
 const ENUM = { gamingDesign: ['gemuetlich', 'glas'], gamingHintergrund: ['design', 'obs'], gamingTodePos: ['oben-links', 'oben-mitte', 'oben-rechts', 'unten-links', 'unten-mitte', 'unten-rechts'], appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'fenster', 'zimmer'], fensterOrt: ['lese', 'arbeit'], fensterBlick: ['stadt', 'landschaft', 'wald', 'see'], fensterWetter: ['auto', 'klar', 'regen', 'schnee'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], musikQuelle: ['aus', 'lokal', 'server'] };
 
