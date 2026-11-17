@@ -1,5 +1,6 @@
 import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
+import { initNav, PAGES, showPage } from './nav.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -18,7 +19,44 @@ function meldung(text, fehler = false) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, fehler ? 7000 : 3000);
 }
 const run = (fn) => async (...a) => { try { await fn(...a); } catch (e) { meldung(e.message, true); } };
-function show(app) { $('app').hidden = !app; $('login').hidden = app; }
+function show(app) { $('app').hidden = !app; $('login').hidden = app; document.querySelector('.login-seite').hidden = app; }
+
+// ---- Übersicht: „Das wartet auf dich“ und „Läuft gerade“
+const live = { pages: null, stream: null };
+function collectTodos() {
+  const st = state; const out = [];
+  if (!st) return out;
+  const e = st.env;
+  const missing = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'EVENTSUB_SECRET'].filter((k) => !e[k]);
+  if (missing.length) out.push({ cls: 'fehler', text: `In der App (CasaOS) fehlen noch Werte: ${missing.join(', ')}`, go: 'einrichtung', knopf: 'Zur Einrichtung' });
+  else if (!st.connectedAs) out.push({ cls: 'fehler', text: 'Twitch ist noch nicht mit dem Kanal verbunden.', go: 'einrichtung', knopf: 'Jetzt verbinden' });
+  if (st.connectedAs && st.missingScopes.length) out.push({ cls: 'warn', text: `Dem Kanal fehlen Twitch-Berechtigungen (${st.missingScopes.join(', ')}). Bitte neu verbinden.`, go: 'einrichtung', knopf: 'Neu verbinden' });
+  if (st.connectedAs && !st.botAs) out.push({ cls: 'warn', text: 'Kein Bot-Account verbunden: Der Bot schreibt dann unter dem Kanalnamen.', go: 'einrichtung', knopf: 'Bot verbinden' });
+  if (st.revoked) out.push({ cls: 'fehler', text: `Twitch hat ein Abo widerrufen (${st.revoked}). Bitte abgleichen.`, go: 'einrichtung', knopf: 'Abgleichen' });
+  else if (st.connectedAs && st.subscription && st.subscription !== 'enabled') out.push({ cls: 'warn', text: `Die Twitch-Webhooks sind nicht aktiv (${st.subscription}).`, go: 'einrichtung', knopf: 'Abgleichen' });
+  if (st.connectedAs && !st.features.checkin && !st.features.points) out.push({ cls: 'info', text: 'Tipp: Check-in, Streak und Punkte sind noch ausgeschaltet.', go: 'checkin', knopf: 'Ansehen' });
+  return out;
+}
+function renderDashboard() {
+  if (!$('todos')) return;
+  const todos = collectTodos();
+  $('todos').innerHTML = todos.length
+    ? `<section class="karte"><h2>Das wartet auf dich</h2>${todos.map((t, i) => `<div class="todo ${t.cls}"><span class="punkt ${t.cls === 'info' ? '' : t.cls}"></span><span class="todotext">${esc(t.text)}</span><button class="hell" data-nav="${t.go}">${esc(t.knopf)}</button></div>`).join('')}</section>`
+    : '<section class="karte alles-gut"><h2>Alles in Ordnung ✅</h2><p class="leise">Twitch ist verbunden und die Webhooks laufen.</p></section>';
+  const st = state; if (!st) return;
+  const tiles = [
+    ['pomodoro', '🍅', 'Timer', `<b id="liveTimer">bereit</b><small></small>`],
+    ['pomodoro', '✅', 'Pomodoros heute', `<b>${st.pomodoro.done}${st.pomodoro.goal ? ` / ${st.pomodoro.goal}` : ''}</b><small>${st.pomodoro.goal ? 'Ziel für heute' : 'ohne Ziel'}</small>`],
+    ['ziel', '✍️', 'Wörter heute', `<b>${fmtN(st.words.today)}${st.words.goal ? ` / ${fmtN(st.words.goal)}` : ''}</b><small>Tagesziel</small>`],
+  ];
+  if (live.pages) tiles.push(['ziel', '📖', 'Seiten heute', `<b>${fmtN(live.pages.today)}${live.pages.goal ? ` / ${fmtN(live.pages.goal)}` : ''}</b><small>Seitenziel</small>`]);
+  if (live.stream) tiles.push(['ziel', '🕒', 'Streamzeit', `<b>${live.stream.startedAt ? `${live.stream.text} Std` : '–'}</b><small>${live.stream.startedAt ? (live.stream.quelle === 'twitch' ? 'von Twitch erkannt' : 'von Hand gestartet') : 'nicht gestartet'}</small>`]);
+  if (st.features.checkin) tiles.push(['checkin', '🔥', 'Check-ins heute', `<b>${st.checkinsToday}</b><small>Besuche in diesem Stream</small>`]);
+  if (st.modus === 'zimmer') tiles.push(['mitschreibende', '🪑', 'Am Tisch', `<b>${st.seated}</b><small>${st.communityHours} Std gemeinsam</small>`]);
+  $('live').innerHTML = tiles.map(([page, icon, titel, inner]) => `<a class="kachel" href="#${page}" data-nav="${page}"><span class="ki">${icon}</span><span class="kt">${esc(titel)}</span>${inner}</a>`).join('');
+  renderTimer();
+  $('schnell').innerHTML = PAGES.filter((p) => p[0] !== 'start').map(([k, icon, label]) => `<a class="chip" href="#${k}" data-nav="${k}">${icon} ${esc(label)}</a>`).join('');
+}
 
 // ---- Anmeldung
 $('anmelden').onclick = run(async () => { await api('POST', 'login', { password: $('passwort').value }); $('passwort').value = ''; await start(); });
@@ -52,6 +90,7 @@ async function loadState() {
   $('plaetze').textContent = `${state.seated} sitzen · Zimmer: ${state.communityHours} Std gemeinsame Arbeitszeit`;
   $('plaetze').hidden = state.modus !== 'zimmer'; $('zimmerKnoepfe').hidden = state.modus !== 'zimmer';
   $('pomoHeute').textContent = state.pomodoro.done; $('pomoZiel').textContent = state.pomodoro.goal || '–';
+  renderDashboard();
 }
 $('abgleich').onclick = run(async () => {
   const r = await api('POST', 'setup');
@@ -63,10 +102,12 @@ $('abgleich').onclick = run(async () => {
 const pad = (n) => String(n).padStart(2, '0');
 function renderTimer() {
   const t = state?.timer;
-  if (!t || t.phase === 'idle') { $('timer').textContent = 'bereit'; $('timerInfo').textContent = ''; return; }
+  const tile = (a, b) => { const el = $('liveTimer'); if (el) { el.textContent = a; el.nextElementSibling.textContent = b; } };
+  if (!t || t.phase === 'idle') { $('timer').textContent = 'bereit'; $('timerInfo').textContent = ''; tile('bereit', 'Kein Timer läuft'); return; }
   const s = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
   $('timer').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
   $('timerInfo').textContent = t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause';
+  tile($('timer').textContent, $('timerInfo').textContent);
 }
 setInterval(renderTimer, 500);
 setInterval(() => { if (!$('app').hidden) { loadState().catch(() => {}); loadStream().catch(() => {}); } }, 15000);
@@ -105,11 +146,11 @@ $('zieleSpeichern').onclick = run(async () => {
   const r = await api('PUT', 'settings', { wordGoal: Number($('zielWoerter').value), seitenGoal: Number($('zielSeiten').value), streamGoalMinutes: Math.round(Number($('zielStunden').value) * 60) });
   current = r.settings; fillZiele(r.settings); meldung('Ziele gespeichert'); await loadState();
 });
-async function loadPages() { const p = await api('GET', 'pages'); $('seitenHeute').textContent = fmtN(p.today); $('seitenZiel').textContent = fmtN(p.goal); }
+async function loadPages() { const p = await api('GET', 'pages'); live.pages = p; renderDashboard(); $('seitenHeute').textContent = fmtN(p.today); $('seitenZiel').textContent = fmtN(p.goal); }
 const sendPages = (mode) => run(async () => { const v = $('seitenWert').value; if (v === '') throw new Error('Bitte eine Zahl eingeben'); await api('POST', 'pages', { mode, value: v }); $('seitenWert').value = ''; await loadPages(); });
 $('sSet').onclick = sendPages('set'); $('sPlus').onclick = sendPages('delta');
 async function loadStream() {
-  const s = await api('GET', 'stream');
+  const s = await api('GET', 'stream'); live.stream = s; renderDashboard();
   $('streamText').textContent = s.startedAt ? `${s.text} Std von ${Math.floor(s.goalMinutes / 60)}:${String(s.goalMinutes % 60).padStart(2, '0')} (${s.quelle === 'twitch' ? 'von Twitch erkannt' : 'von Hand gestartet'})` : 'nicht gestartet';
 }
 $('streamStart').onclick = run(async () => { await api('POST', 'stream/start'); await loadStream(); });
@@ -179,7 +220,8 @@ const SCHEMA = [
     ['sprintEndTemplate', 'Pomodoro geschafft', 'area', '{n} {ziel} {streamer}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
   ]],
   ['Check-in und Streak', [
-    ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Danach auf „Reward & Webhooks abgleichen“ klicken. Name und Preis des Rewards stehen unter „Zimmer-Modus“.'],
+    ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
+    ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis (Kanalpunkte)', 'number'],
     ['streakGrace', 'Schonfrist: so viele Streams darf man verpassen', 'number'],
     ['milestoneEnabled', 'Meilensteine feiern (goldenes Banner und eigener Chattext)', 'bool'],
     ['milestoneLevels', 'Meilensteine bei diesen Besuchen (mit Komma getrennt)', 'text'],
@@ -190,7 +232,7 @@ const SCHEMA = [
     ['streakCmdNone', 'Antwort auf !streak ohne Check-in', 'area', '{user}'],
   ]],
   ['Punkte und Rangliste', [
-    ['pointsEnabled', 'Punkte zählen (Chat, aktive Tage, Check-ins)', 'bool', 'Zählt den Twitch-Chat und zeigt die Monatsrangliste unter /rangliste. Danach auf „Reward & Webhooks abgleichen“ klicken.'],
+    ['pointsEnabled', 'Punkte zählen (Chat, aktive Tage, Check-ins)', 'bool', 'Zählt den Twitch-Chat und zeigt die Monatsrangliste unter /rangliste.'],
     ['pointsWeightMsg', 'Punkte je Nachricht', 'number'], ['pointsWeightDay', 'Punkte je aktivem Tag', 'number'], ['pointsWeightCheckin', 'Punkte je Check-in-Tag', 'number'],
     ['pointsMsgCap', 'Gezählte Nachrichten pro Tag (höchstens)', 'number'], ['pointsMsgGap', 'Mindestabstand zwischen zwei gezählten Nachrichten (Sekunden)', 'number'],
     ['pointsRankSize', 'Plätze im Chat zeigen', 'number'],
@@ -203,42 +245,73 @@ const SCHEMA = [
     ['backupAutoEnabled', 'Jede Nacht automatisch sichern', 'bool'], ['backupHour', 'Ab wann (Uhr)', 'number'], ['backupKeep', 'So viele Sicherungen behalten', 'number'],
   ]],
   ['Zimmer-Modus (pausiert)', [
-    ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Bei Reward oder „Beides“ danach auf „Reward & Webhooks abgleichen“ klicken.'],
+    ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Der Reward wird beim Speichern automatisch bei Twitch abgeglichen.'],
     ['scene', 'Szene', 'select'], ['maxSeats', 'Plätze (1–10)', 'number'],
     ['seatIdleMinutes', 'Platz frei nach … Min ohne Chatnachricht', 'number'],
     ['unlocksEnabled', 'Freischaltungen (Ränge, Gegenstände, Zimmer-Deko)', 'bool', 'Aus: alle Gegenstände sind sofort frei.'],
-    ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis', 'number'],
     ['sitTemplate', 'Hinsetzen', 'area', '{user} {ort} {rank}'], ['sitAgainTemplate', 'Schon gesetzt', 'area', '{user} {ort}'], ['fullTemplate', 'Alles belegt', 'area', '{user}'],
     ['leaveTemplate', 'Aufstehen', 'area', '{user} {minutes} {total}'], ['notSeatedTemplate', 'Sitzt nicht', 'area', '{user} {sit}'], ['checkinTemplate', 'Check-in per Reward', 'area', '{user} {count} {ort} {rank}'],
     ['rankUpTemplate', 'Neuer Rang', 'area', '{user} {rank} {hours}'], ['unlockTemplate', 'Neuer Gegenstand', 'area', '{user} {item} {figur}'], ['decoTemplate', 'Zimmer wächst', 'area', '{deko}'],
   ]],
 ];
 let current = null;
+// Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
+const TOGGLE_GROUPS = new Set(['Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
+// Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
+const SYNC_KEYS = ['checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
+const openFolds = new Set();
+
+function fieldHtml([key, label, type, hint], settings) {
+  const v = settings[key];
+  const input = type === 'select' ? `<select data-k="${key}">${OPT[key].map(([val, text]) => `<option value="${val}" ${val === v ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select>`
+    : type === 'bool' ? `<input type="checkbox" data-k="${key}" ${v ? 'checked' : ''}>`
+      : type === 'number' ? `<input type="number" data-k="${key}" value="${esc(v)}">`
+        : type === 'area' ? `<textarea data-k="${key}" maxlength="300">${esc(v)}</textarea>`
+          : `<input data-k="${key}" value="${esc(v)}">`;
+  return `<div class="feld ${type === 'area' ? 'breit' : ''} ${type === 'bool' ? 'haken' : ''}"><label>${type === 'bool' ? input : ''}${esc(label)}</label>${type === 'bool' ? '' : input}${hint ? `<div class="hinweis">${type === 'area' ? 'Platzhalter: ' : ''}${esc(hint)}</div>` : ''}</div>`;
+}
+function groupHtml([titel, felder], settings) {
+  const toggle = TOGGLE_GROUPS.has(titel) ? felder[0] : null;
+  const on = toggle && settings[toggle[0]];
+  const badge = toggle ? `<span class="badge ${on ? 'an' : 'aus'}">${on ? 'an' : 'aus'}</span>` : '';
+  return `<details class="fold" data-group="${esc(titel)}" ${openFolds.has(titel) ? 'open' : ''}><summary><span>${esc(titel)}</span>${badge}</summary><div class="felder">${felder.map((f) => fieldHtml(f, settings)).join('')}</div></details>`;
+}
+function renderFolds(settings) {
+  for (const d of document.querySelectorAll('details.fold[open]')) openFolds.add(d.dataset.group);
+  for (const box of document.querySelectorAll('[data-schema]')) {
+    const groups = box.dataset.schema.split('|').map((n) => SCHEMA.find((g) => g[0] === n)).filter(Boolean);
+    box.innerHTML = `<h2 class="zwischen">Einstellungen und Texte</h2>${groups.map((g) => groupHtml(g, settings)).join('')}<div class="reihe"><button class="gruen" data-save>Speichern</button></div>`;
+    for (const d of box.querySelectorAll('details.fold')) d.ontoggle = () => (d.open ? openFolds.add(d.dataset.group) : openFolds.delete(d.dataset.group));
+    box.querySelector('[data-save]').onclick = run(() => saveFolds(box));
+  }
+}
+async function saveFolds(box) {
+  const body = {};
+  for (const el of box.querySelectorAll('[data-k]')) body[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+  const before = current;
+  const { settings } = await api('PUT', 'settings', body);
+  current = settings; renderScenes(settings); renderFolds(settings);
+  meldung('Gespeichert');
+  if (before && SYNC_KEYS.some((k) => before[k] !== settings[k])) await syncTwitch();
+  await loadState();
+}
+// Reward und Webhooks bei Twitch abgleichen (sonst nur über den Knopf unter „Einrichtung“)
+async function syncTwitch() {
+  try {
+    const r = await api('POST', 'setup');
+    meldung(r.warnings?.length ? `Gespeichert, Twitch-Abgleich mit Hinweis: ${r.warnings.join(' · ')}` : `Gespeichert und bei Twitch abgeglichen${r.reward ? ` (Reward „${r.reward}“)` : ''}`, Boolean(r.warnings?.length));
+  } catch (e) { meldung(`Gespeichert, aber der Twitch-Abgleich ging nicht: ${e.message}`, true); }
+}
 
 async function loadSettings() {
   const { settings } = await api('GET', 'settings');
   current = settings;
-  $('formular').innerHTML = SCHEMA.map(([titel, felder]) => `<h3>${titel}</h3><div class="felder">${felder.map(([key, label, type, hint]) => {
-    const v = settings[key];
-    const input = type === 'select' ? `<select data-k="${key}">${OPT[key].map(([val, text]) => `<option value="${val}" ${val === v ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select>`
-      : type === 'bool' ? `<input type="checkbox" data-k="${key}" ${v ? 'checked' : ''}>`
-        : type === 'number' ? `<input type="number" data-k="${key}" value="${esc(v)}">`
-          : type === 'area' ? `<textarea data-k="${key}" maxlength="300">${esc(v)}</textarea>`
-            : `<input data-k="${key}" value="${esc(v)}">`;
-    return `<div class="feld ${type === 'area' ? 'breit' : ''}"><label>${esc(label)}</label>${input}${hint ? `<div class="hinweis">${type === 'area' ? 'Platzhalter: ' : ''}${esc(hint)}</div>` : ''}</div>`;
-  }).join('')}</div>`).join('');
+  renderFolds(settings);
   renderScenes(settings);
   fillMusik(settings); fillZiele(settings); fillStefanie(settings);
   loadPages().catch(() => {}); loadStream().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
 }
-$('speichern').onclick = run(async () => {
-  const body = {};
-  for (const el of $('formular').querySelectorAll('[data-k]')) body[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
-  const { settings } = await api('PUT', 'settings', body);
-  current = settings; renderScenes(settings);
-  meldung('Gespeichert');
-});
 
 // ---- Mitschreibende
 const fmtMin = (m) => (m < 60 ? `${m} Min` : `${Math.floor(m / 60)} Std ${m % 60} Min`);
@@ -366,11 +439,13 @@ $('restoreDatei').onchange = run(async (e) => {
   meldung(`${r.restored} Einträge wiederhergestellt – bitte Twitch neu verbinden`); await start();
 });
 
+let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
+  if (!navReady) { navReady = true; initNav({ onShow: (key) => { if (key === 'anordnung' && layoutState) fitEditor(); } }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
   loadSystem().catch(() => {});
-  if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); }
+  if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));
