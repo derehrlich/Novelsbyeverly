@@ -33,7 +33,7 @@ async function loadState() {
   const e = state.env;
   const envOk = e.TWITCH_CLIENT_ID && e.TWITCH_CLIENT_SECRET && e.EVENTSUB_SECRET;
   const rows = [
-    envOk ? punkt('ok', 'Umgebungsvariablen gesetzt') : punkt('fehler', `In Netlify fehlen: ${['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'EVENTSUB_SECRET'].filter((k) => !e[k]).join(', ')}`),
+    envOk ? punkt('ok', 'Umgebungsvariablen gesetzt') : punkt('fehler', `In der Umgebung (Docker-App bzw. Netlify) fehlen: ${['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'EVENTSUB_SECRET'].filter((k) => !e[k]).join(', ')}`),
     state.connectedAs ? punkt(state.missingScopes.length ? 'warn' : 'ok', `Kanal verbunden als <b>${esc(state.connectedAs)}</b>${state.missingScopes.length ? ` – Berechtigungen fehlen (${esc(state.missingScopes.join(', '))}), bitte neu verbinden` : ''}`) : punkt('fehler', 'Kanal nicht verbunden'),
     state.botAs ? punkt(state.botMissingScopes.length ? 'warn' : 'ok', `Bot-Account verbunden als <b>${esc(state.botAs)}</b>${state.botMissingScopes.length ? ' – Berechtigungen fehlen, bitte neu verbinden' : ''}`) : punkt('warn', 'Kein Bot-Account verbunden – der Bot schreibt dann unter dem Kanalnamen'),
     state.subscription === 'enabled' ? punkt('ok', 'Chat-Webhook aktiv') : punkt(state.subscription ? 'warn' : 'fehler', `Webhooks: ${esc(state.subscriptionError ?? state.subscription ?? 'noch nicht eingerichtet')}`),
@@ -43,6 +43,7 @@ async function loadState() {
   const u = state.urls;
   const urlRow = (label, url, hint = '') => `<div class="url"><b>${label}</b> <code>${esc(url)}</code><button class="hell" data-copy="${esc(url)}">Kopieren</button></div>${hint ? `<div class="leise">${hint}</div>` : ''}`;
   $('urls').innerHTML = urlRow('OBS-Overlay', u.overlay, 'Browser-Quelle 1920×1080, „Audio über OBS steuern“ aktivieren. Die Kamera in OBS <b>unter</b> das Overlay legen. Nur einzelne Teile: <code>?teile=uhr,woerter,tasks,musik,szene</code>')
+    + urlRow('Rangliste', u.rangliste, 'Öffentliche Seite, z. B. als Link im Panel. Als Overlay in OBS: <code>?overlay</code> anhängen (durchsichtig, ohne Kopf).')
     + urlRow('Twitch-Weiterleitung', u.redirect, 'Diese Adresse muss in der Twitch-Entwickler-App als „OAuth Redirect URL“ stehen.')
     + urlRow('Wörter-Schnittstelle', u.words, `Für ein Hilfsprogramm (Papyrus): <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);
   for (const b of document.querySelectorAll('[data-copy]')) b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => meldung('Kopiert'));
@@ -176,6 +177,30 @@ const SCHEMA = [
   ['Chat-Texte', [
     ['sprintStartTemplate', 'Pomodoro-Start', 'area', '{minutes}'], ['breakTemplate', 'Kurze Pause', 'area', '{minutes}'], ['longBreakTemplate', 'Lange Pause', 'area', '{minutes} {n}'],
     ['sprintEndTemplate', 'Pomodoro geschafft', 'area', '{n} {ziel} {streamer}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
+  ]],
+  ['Check-in und Streak', [
+    ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Danach auf „Reward & Webhooks abgleichen“ klicken. Name und Preis des Rewards stehen unter „Zimmer-Modus“.'],
+    ['streakGrace', 'Schonfrist: so viele Streams darf man verpassen', 'number'],
+    ['milestoneEnabled', 'Meilensteine feiern (goldenes Banner und eigener Chattext)', 'bool'],
+    ['milestoneLevels', 'Meilensteine bei diesen Besuchen (mit Komma getrennt)', 'text'],
+    ['visitTemplate', 'Chatnachricht beim Check-in', 'area', '{user} {count} {streak} {record}'],
+    ['milestoneTemplate', 'Chatnachricht beim Meilenstein', 'area', '{user} {count} {streak} {record}'],
+    ['visitDuplicateTemplate', 'Schon eingecheckt (Punkte kommen zurück)', 'area', '{user} {count} {streak} {record}'],
+    ['streakCmdTemplate', 'Antwort auf !streak', 'area', '{user} {count} {streak} {record} {rank} {total}'],
+    ['streakCmdNone', 'Antwort auf !streak ohne Check-in', 'area', '{user}'],
+  ]],
+  ['Punkte und Rangliste', [
+    ['pointsEnabled', 'Punkte zählen (Chat, aktive Tage, Check-ins)', 'bool', 'Zählt den Twitch-Chat und zeigt die Monatsrangliste unter /rangliste. Danach auf „Reward & Webhooks abgleichen“ klicken.'],
+    ['pointsWeightMsg', 'Punkte je Nachricht', 'number'], ['pointsWeightDay', 'Punkte je aktivem Tag', 'number'], ['pointsWeightCheckin', 'Punkte je Check-in-Tag', 'number'],
+    ['pointsMsgCap', 'Gezählte Nachrichten pro Tag (höchstens)', 'number'], ['pointsMsgGap', 'Mindestabstand zwischen zwei gezählten Nachrichten (Sekunden)', 'number'],
+    ['pointsRankSize', 'Plätze im Chat zeigen', 'number'],
+    ['pointsRankTemplate', 'Antwort auf !rangliste', 'area', '{month} {list} {me} {n} {url}'],
+    ['pointsRankEmpty', 'Antwort auf !rangliste ohne Punkte', 'area', '{month} {url}'],
+    ['pointsMeTemplate', 'Antwort auf !punkte', 'area', '{user} {points} {month} {rank} {total} {url}'],
+    ['pointsMeNone', 'Antwort auf !punkte ohne Punkte', 'area', '{user} {month}'],
+  ]],
+  ['Sicherung (nur Heimserver)', [
+    ['backupAutoEnabled', 'Jede Nacht automatisch sichern', 'bool'], ['backupHour', 'Ab wann (Uhr)', 'number'], ['backupKeep', 'So viele Sicherungen behalten', 'number'],
   ]],
   ['Zimmer-Modus (pausiert)', [
     ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Bei Reward oder „Beides“ danach auf „Reward & Webhooks abgleichen“ klicken.'],
@@ -319,10 +344,33 @@ $('layoutSpeichern').onclick = run(async () => { const r = await api('PUT', 'set
 $('layoutZurueck').onclick = () => { layoutState = normalizeLayout(structuredClone(DEFAULT_LAYOUT)); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); meldung('Standard geladen – noch speichern'); };
 $('layoutLaden').onclick = run(async () => { const { settings } = await api('GET', 'settings'); layoutState = normalizeLayout(settings.layout); if (gewaehlt) select(gewaehlt); else renderBoxen(); pushLayout(); });
 
+// ---- System: Update und Sicherung
+const fmtDate = (iso) => new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+async function loadSystem() {
+  const u = await api('GET', 'update');
+  $('version').textContent = u.commit ? `Version ${u.commit.slice(0, 7)}${u.builtAt ? ` (gebaut ${fmtDate(u.builtAt)})` : ''}` : 'Version unbekannt (lokal gestartet)';
+  $('updateHinweis').textContent = u.configured ? '' : 'Der Update-Knopf ist noch nicht eingerichtet (WATCHTOWER_URL und WATCHTOWER_TOKEN in der App, siehe docs/casaos.md).';
+  const b = await api('GET', 'backup/status');
+  $('sicherungStatus').textContent = !b.available ? 'Automatische Sicherung gibt es nur auf dem Heimserver. Der Download oben geht immer.'
+    : `${b.enabled ? `Jede Nacht ab ${b.hour} Uhr, es bleiben ${b.keep}.` : 'Automatische Sicherung ist aus.'} ${b.lastOk ? `Letzte: ${fmtDate(b.lastOk)}.` : 'Noch keine Sicherung.'} ${b.lastError ? `Fehler: ${b.lastError}` : ''} Ordner: ${b.dir}`;
+}
+$('updatePruefen').onclick = run(async () => {
+  const r = await api('POST', 'update');
+  if (r.started) { meldung('Update läuft – die Seite ist gleich kurz weg'); setTimeout(() => location.reload(), 30_000); } else meldung('Bereits aktuell');
+});
+$('sichernJetzt').onclick = run(async () => { const r = await api('POST', 'backup/now'); meldung(r.ok ? `Gesichert: ${r.name}` : r.error, !r.ok); await loadSystem(); });
+$('restoreDatei').onchange = run(async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file || !confirm('Alle Besucher, Einstellungen und Punkte werden durch die Sicherung ersetzt. Wirklich wiederherstellen?')) return;
+  const r = await api('POST', 'backup', { backup: JSON.parse(await file.text()), confirm: true });
+  meldung(`${r.restored} Einträge wiederhergestellt – bitte Twitch neu verbinden`); await start();
+});
+
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
+  loadSystem().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); }
 }
 start().catch(() => show(false));

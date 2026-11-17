@@ -103,6 +103,8 @@ export async function tests({ route, method, body }) {
       rankup: { type: 'rankup', name: 'Lena', rank: 'Federkiel' },
       unlock: { type: 'unlock', name: 'Lena', item: 'Katze' },
       deko: { type: 'deko', item: 'Lichterkette' },
+      checkin: { type: 'checkin', name: 'Lena', count: 12, streak: 5, milestone: false },
+      meilenstein: { type: 'checkin', name: 'Lena', count: 50, streak: 8, milestone: true },
       taskdone: { type: 'taskdone', name: 'Lena', text: 'Kapitel 3 überarbeiten' },
     };
     if (!kinds[body.kind]) return json({ error: 'Unbekannter Test' }, 400);

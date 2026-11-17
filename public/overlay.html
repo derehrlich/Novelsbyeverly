@@ -218,6 +218,7 @@ function handleEvent(ev) {
     case 'rankup': banner('⭐', `${ev.name} ist jetzt „${ev.rank}“`, 'Neuer Rang!', { gold: true, confetti: 100 }); break;
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
     case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
+    case 'checkin': banner(ev.milestone ? '🏆' : '✅', `${ev.name} ist eingecheckt`, [`Besuch ${ev.count}`, ev.streak > 1 ? `🔥 ${ev.streak} Streams in Folge` : ''].filter(Boolean).join(' · '), { gold: ev.milestone, confetti: ev.milestone ? 180 : 0 }); break;
     case 'taskdone': burst(200, 380, 40, .7); break;
     case 'sit': if (teile.has('szene')) chime([880], 0); break;
     default: break;

@@ -599,4 +599,160 @@ await test('Admin: Seiten und Streamzeit', async () => {
   assert.equal((await adminCall('POST', 'stream/stop', {}, cookie)).body.startedAt, null);
 });
 
+console.log('Check-in, Streak, Punkte, Rangliste, Sicherung');
+const streakLib = await mod('lib/streak.mjs');
+const punkte = await mod('lib/punkte.mjs');
+const rangliste = (await mod('functions/rangliste.mjs')).default;
+const backupLib = await mod('lib/admin/backup.mjs');
+const events = async () => Promise.all((await db.list('event/')).map((k) => db.get(k)));
+const redeemWith = (rewardId) => (id, uid, name) => webhook(sign({ subscription: { type: 'channel.channel_points_custom_reward_redemption.add' }, event: { id, user_id: uid, user_name: name, reward: { id: rewardId } } }));
+await saveSettings({ checkinEnabled: true, appearOn: 'sit', milestoneLevels: '3', pointsEnabled: false });
+const ciReward = await ensureCheckinReward(await getSettings(), true);
+const redeem = redeemWith(ciReward.id);
+
+await test('Streak: Schonfrist, Rekord und der heutige Tag zählt noch nicht als Fehltag', () => {
+  const days = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'];
+  const user = (d) => ({ days: d });
+  assert.deepEqual(streakLib.computeStreak(user(['2026-01-01', '2026-01-02', '2026-01-03']), days, '2026-01-03', 1), { current: 3, record: 3 });
+  assert.deepEqual(streakLib.computeStreak(user(['2026-01-01', '2026-01-02', '2026-01-04']), days, '2026-01-04', 1), { current: 3, record: 3 }); // ein Stream verpasst: verziehen
+  assert.deepEqual(streakLib.computeStreak(user(['2026-01-01', '2026-01-02', '2026-01-05']), days, '2026-01-05', 1), { current: 1, record: 2 }); // zwei verpasst: gerissen
+  assert.deepEqual(streakLib.computeStreak(user(['2026-01-01', '2026-01-02']), days, '2026-01-03', 0), { current: 2, record: 2 }); // heute noch offen
+  assert.deepEqual(streakLib.parseLevels('10, 25;50 x 25'), [10, 25, 50]);
+});
+await test('Check-in: zählt Besuch und Streak, Banner im Overlay, Chat, Einlösung erfüllt', async () => {
+  await redeem('ci1', '40', 'Mira');
+  assert.match(lastChat().message, /Mira ist eingecheckt – Besuch #1, 🔥 Streak 1/);
+  assert.ok(calls.some((c) => c.path.endsWith('/redemptions') && c.body.status === 'FULFILLED'));
+  assert.equal((await db.get('user/40')).days.length, 1);
+  assert.ok((await events()).some((e) => e.type === 'checkin' && e.name === 'Mira' && e.count === 1 && e.milestone === false));
+  assert.equal(await db.get('seat/40'), null); // ohne „Erscheinen bei Check-in“ setzt sich keine Figur hin
+});
+await test('Check-in: zweiter am selben Tag wird erstattet und nicht doppelt gezählt', async () => {
+  const before = calls.length;
+  await redeem('ci2', '40', 'Mira');
+  assert.match(lastChat().message, /schon eingecheckt \(Besuch #1\).*Punkte kommen|schon eingecheckt \(Besuch #1\).*Punkte bekommst/);
+  assert.ok(calls.slice(before).some((c) => c.path.endsWith('/redemptions') && c.body.status === 'CANCELED'));
+  assert.equal((await db.get('user/40')).days.length, 1);
+});
+await test('Check-in: Wiederholte Zustellung derselben Einlösung wird ignoriert', async () => {
+  const before = chatSent().length;
+  await redeem('ci1', '40', 'Mira');
+  assert.equal(chatSent().length, before);
+});
+await test('Meilenstein: eigener Chattext und goldenes Banner', async () => {
+  const user = await db.get('user/40');
+  await db.set('user/41', { ...user, name: 'Nele', days: ['2026-01-01', '2026-01-02'] });
+  await redeem('ci3', '41', 'Nele');
+  assert.match(lastChat().message, /Nele ist zum 3\. Mal dabei – Meilenstein/);
+  assert.ok((await events()).some((e) => e.type === 'checkin' && e.name === 'Nele' && e.milestone === true));
+});
+await test('Check-in mit „Erscheinen bei Check-in“ setzt im Zimmer-Modus zusätzlich die Figur hin', async () => {
+  await saveSettings({ appearOn: 'checkin', szeneModus: 'zimmer' });
+  await redeem('ci4', '42', 'Otto');
+  assert.ok(await db.get('seat/42'));
+  assert.equal((await db.get('user/42')).days.length, 1);
+  await saveSettings({ appearOn: 'sit', szeneModus: 'wachstum' });
+});
+await test('!streak antwortet nur bei eingeschaltetem Check-in und zeigt Besuche, Streak und Platz', async () => {
+  const msg = await say('40', 'Mira', '!streak');
+  assert.match(msg.message, /Mira: 1 Besuche · 🔥 Streak 1 \(Rekord 1\) · Platz \d+ von \d+/);
+  assert.match((await say('99', 'Fremd', '!streak')).message, /noch keinen Check-in von dir/);
+  await saveSettings({ checkinEnabled: false });
+  const before = chatSent().length;
+  await say('40', 'Mira', '!streak');
+  assert.equal(chatSent().length, before); // Check-in aus: keine Antwort
+  await saveSettings({ checkinEnabled: true });
+});
+await test('Ohne Check-in-Schalter bleibt alles wie bisher (Reward setzt nur hin)', async () => {
+  await saveSettings({ checkinEnabled: false, appearOn: 'checkin', szeneModus: 'zimmer' });
+  await redeem('ci5', '43', 'Paul');
+  assert.match(lastChat().message, /Paul ist eingecheckt – Besuch #1!/);
+  assert.ok(await db.get('seat/43'));
+  await saveSettings({ checkinEnabled: true, appearOn: 'sit', szeneModus: 'wachstum' });
+});
+
+await test('Punkte: Chat zählt mit Abstand und Tageslimit, Check-ins und aktive Tage zählen mit', async () => {
+  await saveSettings({ pointsEnabled: true, pointsMsgGap: 0, pointsMsgCap: 3 });
+  for (let i = 0; i < 5; i += 1) await webhook(sign(chatEvent('50', 'Pia', 'Hallo zusammen')));
+  const rec = await db.get(`cmonth/${punkte.monthOf(await getSettings())}/50`);
+  assert.equal(rec.msgs, 3); assert.equal(rec.days, 1); // Deckel: höchstens 3 pro Tag
+  await saveSettings({ pointsMsgGap: 60 });
+  await webhook(sign(chatEvent('51', 'Quin', 'Hi')));
+  await webhook(sign(chatEvent('51', 'Quin', 'Hi nochmal')));
+  assert.equal((await db.get(`cmonth/${punkte.monthOf(await getSettings())}/51`)).msgs, 1); // Mindestabstand
+  const board = await punkte.monthBoard(await getSettings());
+  const pia = board.rows.find((r) => r.name === 'Pia');
+  assert.equal(pia.points, 3 * 1 + 1 * 10); // 3 Nachrichten + 1 aktiver Tag
+  const mira = board.rows.find((r) => r.name === 'Mira');
+  assert.ok(mira.points >= 20 && mira.checkins === 1); // Check-in-Tag
+  assert.ok(board.rows.every((r, i) => i === 0 || board.rows[i - 1].points >= r.points)); // absteigend sortiert
+});
+await test('Punkte: Streamerin und Bot zählen nicht', async () => {
+  await db.set('config/bot-tokens', { access_token: 'tokBot', refresh_token: 'r', expires_at: Date.now() + 3_600_000, user_id: '555', login: 'everlybot', scopes: ['user:write:chat', 'user:read:chat', 'user:bot'] });
+  await webhook(sign(chatEvent('999', 'Streamerin', 'Hallo')));
+  await webhook(sign(chatEvent('555', 'EverlyBot', 'Hallo')));
+  assert.equal(await db.get(`cmonth/${punkte.monthOf(await getSettings())}/999`), null);
+  assert.equal(await db.get(`cmonth/${punkte.monthOf(await getSettings())}/555`), null);
+});
+await test('!rangliste und !punkte antworten im Chat', async () => {
+  await saveSettings({ pointsMsgGap: 0, pointsMsgCap: 50 });
+  const top = (await punkte.monthBoard(await getSettings())).rows[0];
+  assert.match((await say('50', 'Pia', '!rangliste')).message, new RegExp(`Rangliste .*: 1\\. ${top.name} \\(${top.points}\\) · `));
+  assert.match((await say('50', 'Pia', '!punkte')).message, /Pia: \d+ Punkte .* Platz \d+ von \d+/);
+  assert.match((await say('77', 'Neu', '!punkte')).message, /Neu: 11 Punkte/); // die erste Nachricht zählt schon (1 Nachricht + 10 für den aktiven Tag)
+  assert.match(await punkte.pointsReply(await getSettings(), 'unbekannt', 'Neu'), /Neu, du hast .* noch keine Punkte/);
+});
+await test('Öffentliche Rangliste: Daten ohne IDs, 404 wenn Check-in und Punkte aus sind', async () => {
+  const res = await rangliste(new Request('https://x/api/rangliste'));
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.ok(data.month.rows.length >= 2); assert.ok(data.visits.length >= 3);
+  assert.equal(data.visits.find((v) => v.name === 'Mira').value, 1);
+  assert.doesNotMatch(JSON.stringify(data), /"(twitchId|id)"/);
+});
+await test('Sicherung: Daten rein und wieder raus, Tokens nie dabei, Wiederherstellen über den Admin', async () => {
+  const file = await backupLib.buildBackup();
+  assert.equal(file.format, 'everly-backup');
+  assert.ok(file.entries['user/40'] && file.entries['config/settings']);
+  assert.ok(!Object.keys(file.entries).some((k) => k.startsWith('config/tokens') || k.startsWith('config/bot-tokens') || k.startsWith('seen/')));
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  await db.delete('user/40');
+  assert.equal((await adminCall('POST', 'backup', { backup: file }, cookie)).status, 400); // ohne Bestätigung
+  assert.equal((await adminCall('POST', 'backup', { backup: { format: 'x', entries: {} }, confirm: true }, cookie)).status, 400);
+  const r = await adminCall('POST', 'backup', { backup: file, confirm: true }, cookie);
+  assert.equal(r.status, 200); assert.ok(r.body.restored > 5);
+  assert.equal((await db.get('user/40')).name, 'Mira');
+  assert.ok(await db.get('config/tokens')); // Tokens bleiben unberührt
+});
+await test('Automatische Sicherung: schreibt eine Datei, räumt alte weg, sichert nur einmal pro Tag', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'everly-backup-'));
+  process.env.BACKUP_DIR = dir;
+  const auto = await mod('lib/system/autobackup.mjs');
+  await saveSettings({ backupKeep: 2, backupHour: 0 });
+  for (const d of ['2026-01-01', '2026-01-02', '2026-01-03']) fs.writeFileSync(path.join(dir, `everly-${d}.json`), '{}');
+  const r = await auto.runBackupNow();
+  assert.ok(r.ok); assert.match(r.name, /^everly-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.equal(fs.readdirSync(dir).length, 2); // nur die zwei jüngsten bleiben
+  assert.equal(await auto.backupTick(), null); // heute schon gesichert
+  assert.ok(JSON.parse(fs.readFileSync(path.join(dir, r.name), 'utf8')).entries['user/40']);
+  assert.equal((await auto.backupStatus()).files[0].name, r.name);
+  delete process.env.BACKUP_DIR;
+});
+await test('Admin: Update-Knopf ohne Einrichtung, Testereignisse für Check-in und Meilenstein', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const u = await adminCall('GET', 'update', null, cookie);
+  assert.equal(u.body.configured, false);
+  assert.equal((await adminCall('POST', 'update', {}, cookie)).status, 503);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'checkin' }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'test/event', { kind: 'meilenstein' }, cookie)).status, 200);
+  assert.equal((await adminCall('PUT', 'settings', { streakGrace: 99, pointsRankSize: 0 }, cookie)).body.settings.streakGrace, 5);
+  assert.equal((await adminCall('GET', 'state', null, cookie)).body.urls.rangliste, 'https://beispiel.netlify.app/rangliste');
+});
+await test('Rangliste ist nicht öffentlich, wenn Check-in und Punkte aus sind', async () => {
+  await saveSettings({ checkinEnabled: false, pointsEnabled: false });
+  assert.equal((await rangliste(new Request('https://x/api/rangliste'))).status, 404);
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

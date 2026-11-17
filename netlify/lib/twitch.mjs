@@ -103,7 +103,7 @@ export async function ensureCheckinReward(settings, wanted) {
     if (reward && reward.is_enabled) await helix('PATCH', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id, id: reward.id }, body: { is_enabled: false } }).catch(() => {});
     return null;
   }
-  const fields = { title: settings.checkinRewardTitle, cost: settings.checkinRewardCost, prompt: 'Check-in: deine Figur setzt sich zu den Mitschreibenden.', background_color: '#C98B4B' };
+  const fields = { title: settings.checkinRewardTitle, cost: settings.checkinRewardCost, prompt: settings.checkinEnabled ? 'Check-in: zählt deinen Besuch und deine Streak, einmal pro Stream.' : 'Check-in: deine Figur setzt sich zu den Mitschreibenden.', background_color: '#C98B4B' };
   if (!reward) {
     try {
       reward = (await helix('POST', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id }, body: fields })).data[0];

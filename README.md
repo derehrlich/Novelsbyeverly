@@ -1,6 +1,6 @@
-# Novels by Everly – Co-Working-Overlay und Bot für Twitch (Netlify)
+# Novels by Everly – Co-Working-Overlay und Bot für Twitch (zu Hause auf dem NAS oder Netlify)
 
-Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem runden Gartenpavillon unter einer mächtigen Eiche. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle.
+Ein Overlay für Schreib- und Co-Working-Streams. Der Stream startet mit einer leeren Wiese, und je mehr geschafft wird, desto mehr wächst: Blüten, ein Baum, Rosen. Stefanie sitzt dabei in einem runden Gartenpavillon unter einer mächtigen Eiche. Dazu gibt es Uhr mit Pomodoro-Timer, Wörterzähler, To-Do-Liste, Musik-Anzeige, ein Kamerafenster und kleine Module wie eine Blume, die mit den Wörtern wächst. Alles läuft als Browser-Quelle in OBS, wird im Browser verwaltet (`/admin/`) und lässt sich dort frei anordnen. Ein Bot unter eigenem Twitch-Konto versteht Chat-Befehle. Er läuft auf dem eigenen NAS (CasaOS/Docker, siehe `docs/casaos.md`) und lässt sich weiter auch auf Netlify betreiben.
 
 ![Leere Wiese am Anfang](docs/vorschau-1-leere-wiese.png)
 ![Frühling am Morgen](docs/vorschau-2-fruehling.png)
@@ -46,6 +46,14 @@ Die **Tageszeit** (Morgengrauen, Mittag, Abend mit Mond, Sternen und Glühwürmc
 
 **Zimmer-Modus (pausiert).** Die Szenen mit Tischen, an denen Zuschauer als Chibi-Figuren sitzen (Café, Garten, Park, mit Rängen und freischaltbaren Gegenständen), bleiben im Code erhalten. Unter *Einstellungen → Darstellung* lassen sie sich wieder einschalten. In der Landschaft sind die Befehle dafür ausgeschaltet.
 
+## Check-in, Streak, Punkte und Rangliste
+
+Beides ist standardmäßig **aus** und wird im Admin unter *Einstellungen* eingeschaltet (danach einmal *Reward & Webhooks abgleichen*).
+
+- **Check-in** (`Check-in und Streak`): Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Er zählt den Besuch, berechnet die **Streak** (Stream-Tage in Folge, mit einstellbarer Schonfrist für verpasste Streams), feiert **Meilensteine** (Standard 10, 25, 50, 100, 250, 500, 1000 Besuche) mit goldenem Banner im Overlay und schreibt eine Chatnachricht. Wer an dem Tag schon eingecheckt war, bekommt die Punkte zurück. Chat: `!streak` zeigt Besuche, Streak, Rekord und Platz.
+- **Punkte** (`Punkte und Rangliste`): Jede Chatnachricht, jeder aktive Tag und jeder Check-in bringt Punkte (Gewichte einstellbar). Damit Spam sich nicht lohnt, zählt eine Nachricht höchstens alle 60 Sekunden und pro Tag höchstens 30. Die Streamerin und der Bot zählen nicht. Am Monatsanfang beginnt die Wertung neu. Chat: `!punkte` (eigene Punkte und Platz) und `!rangliste` (Top 5).
+- **Rangliste:** die öffentliche Seite `/rangliste` (auch als durchsichtiges OBS-Overlay mit `?overlay`) zeigt die Monatsrangliste, die treuesten Mitschreibenden, aktuelle Streaks, Rekorde, Arbeitszeit und gemeldete Wörter.
+
 ## Musik anzeigen (YouTube Music)
 
 Das Overlay zeigt, was gerade läuft. Es gibt zwei Wege (*Admin → Musik*):
@@ -75,11 +83,14 @@ Hinweis: Lizenzierte Musik im Stream kann auf Twitch zu stummgeschalteten Videos
 | `!wörter 300` | Zuschauer | gemeldete Wörter zählen für den Chat-Zähler |
 | `!wörter 4231` · `!wörter +300` | Streamerin | Stand aus Papyrus bzw. dazugeschrieben |
 | `!song Titel - Interpret` · `!song aus` | Moderation, Streamerin | Musik-Anzeige von Hand |
+| `!streak` · `!punkte` · `!rangliste` | alle | Eigene Besuche und Streak, eigene Punkte, Monatsrangliste (nur wenn Check-in bzw. Punkte eingeschaltet sind) |
 | `!hilfe` | alle | Übersicht |
 
 Nur im Zimmer-Modus: `!sitzen`, `!aufstehen`, `!figur`, `!rang`, `!szene`.
 
 ## Einrichtung
+
+> **Zu Hause auf dem NAS (empfohlen):** Schritt-für-Schritt-Anleitung in `docs/casaos.md`. Die Schritte 2 bis 6 unten gelten dort genauso.
 
 1. **Netlify**: Repo verbinden (*Add new site → Import from Git*). Die Build-Einstellungen kommen aus `netlify.toml`, es gibt keinen Build-Befehl.
 2. **Twitch-App** unter <https://dev.twitch.tv/console/apps> anlegen:
@@ -136,7 +147,8 @@ Aufbau:
 - `public/overlay.html`: Overlay (Karten, Banner, Konfetti, Ton) · `public/js/wachstum.mjs`: Landschaft, Baum, Pavillon, Pilze (Jahreszeiten, Tageszeiten, Wachstum) · `public/js/figur.mjs`: Chibi-Figur (Stefanie und Zimmer-Modus) · `public/js/szene.mjs`: Module, Kamerarahmen und der pausierte Zimmer-Modus · `public/js/malerei.mjs`: Malwerkzeuge · `public/js/layout.mjs`: Standard-Anordnung · `public/js/jetztlaeuft.mjs`: liest Musik-Antworten · `public/js/katalog.mjs`: Figuren, Ränge, Gegenstände
 - `public/admin/`: Verwaltung mit Anordnungs-Editor
 - `netlify/functions/`: `twitch-webhook` (Chat und Reward), `overlay` (Stand), `admin`, `auth`, `words-ingest`, `musik-ingest`
-- `netlify/lib/`: `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
+- `server.mjs` (Heimserver), `Dockerfile`, `docker-compose.yml`
+- `netlify/lib/`: `streak` und `punkte` (Check-in, Streak, Rangliste), `system/autobackup` (nächtliche Sicherung), `chat` (Befehle), `timer` (Pomodoro), `words`, `pages` (Seiten), `streamzeit`, `tasks`, `musik`, `zeiten` (Jahres- und Tageszeit), `view`, `people` (Zimmer-Modus)
 
 Neues Modul: Schalter in `settings.mjs`, Daten in `view.mjs`, Zeichnen in `drawModules` (`szene.mjs`) und ein Eintrag in `layout.mjs` und `BOXEN` (`public/admin/admin.js`). Neue Jahreszeit oder Pflanze: in `wachstum.mjs` (`PAL`, `MIX` und die Zeichenfunktionen).
 
@@ -144,6 +156,6 @@ Die Grafik ist komplett in Code gemalt (keine Bilddateien). Wer später eigene I
 
 ## Hinweise
 
-- Es läuft kein Hintergrundprozess. Timer-Wechsel und Abrechnung holt das Overlay oder der Chat beim nächsten Abruf nach (spätestens nach wenigen Sekunden).
+- Auf Netlify läuft kein Hintergrundprozess: Timer-Wechsel und Abrechnung holt das Overlay oder der Chat beim nächsten Abruf nach. Auf dem Heimserver prüft `server.mjs` den Timer alle 5 Sekunden und sichert jede Nacht.
 - Wörter, die Zuschauer melden, beruhen auf Vertrauen und zählen nur für den Chat-Zähler.
 - Die Daten liegen in Netlify Blobs. Schreibzugriffe von gleichzeitigen Anfragen sind pro Person getrennt; sehr gleichzeitige Meldungen derselben Person könnten sich theoretisch überschreiben.
