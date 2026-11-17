@@ -755,4 +755,31 @@ await test('Rangliste ist nicht öffentlich, wenn Check-in und Punkte aus sind',
   assert.equal((await rangliste(new Request('https://x/api/rangliste'))).status, 404);
 });
 
+console.log('Admin-Oberfläche');
+await test('Menü: jede Seite hat ein Panel, jede Einstellungsgruppe steht auf genau einer Seite', async () => {
+  const { PAGES } = await import('../public/admin/nav.js');
+  const html = fs.readFileSync(new URL('../public/admin/index.html', import.meta.url), 'utf8');
+  const js = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8');
+  const panels = [...html.matchAll(/data-panel="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...panels].sort(), PAGES.map((p) => p[0]).sort(), 'Menü und Panels passen zusammen');
+  const groups = [...js.matchAll(/^  \['([^']+)', \[/gm)].map((m) => m[1]);
+  const placed = [...html.matchAll(/data-schema="([^"]+)"/g)].flatMap((m) => m[1].split('|'));
+  assert.deepEqual([...placed].sort(), [...groups].sort(), 'jede Gruppe genau einmal');
+  // jeder Schlüssel im Formular ist eine bekannte Einstellung
+  const keys = [...js.matchAll(/\['([a-zA-Z]+)', '[^']*', '(?:text|number|bool|area|select)'/g)].map((m) => m[1]);
+  assert.ok(keys.length > 60);
+  for (const k of keys) assert.ok(k in DEFAULTS, `Einstellung ${k} existiert`);
+  // alle ids, die admin.js anspricht, gibt es im HTML
+  for (const id of new Set([...js.matchAll(/\$\('([A-Za-z]+)'\)/g)].map((m) => m[1]))) assert.ok(html.includes(`id="${id}"`) || js.includes(`id="${id}"`) || js.includes(`id=\"${id}\"`) || ['liveTimer'].includes(id), `id ${id} fehlt im HTML`);
+});
+await test('Admin: Status liefert die Angaben für die Übersicht', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  await saveSettings({ checkinEnabled: true });
+  const st = (await adminCall('GET', 'state', null, cookie)).body;
+  assert.equal(st.features.checkin, true); assert.equal(typeof st.checkinsToday, 'number');
+  assert.ok(st.pomodoro && st.words && st.timer);
+  await saveSettings({ checkinEnabled: false });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

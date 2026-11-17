@@ -5,6 +5,7 @@ import { activeSeats, communityMinutes } from '../people.mjs';
 import { getTimer, sprintsToday } from '../timer.mjs';
 import { getWords } from '../words.mjs';
 import { json } from '../http.mjs';
+import { streamDay } from '../util.mjs';
 import { listSubscriptions, ROLES, siteUrl, storedTokens } from '../twitch.mjs';
 
 const missing = (tokens, role) => (tokens ? ROLES[role].scopes.filter((sc) => Array.isArray(tokens.scopes) && !tokens.scopes.includes(sc)) : []);
@@ -46,6 +47,8 @@ export async function status({ req, route, method }) {
     modus: settings.szeneModus,
     words: await getWords(settings),
     seated: (await activeSeats(settings)).length,
+    features: { checkin: settings.checkinEnabled, points: settings.pointsEnabled },
+    checkinsToday: settings.checkinEnabled ? (await db.list(`checked/${streamDay(settings)}/`)).length : 0,
     communityHours: Math.floor((await communityMinutes()) / 60),
   });
 }
