@@ -106,8 +106,8 @@ const SCENES = {
     return { layers: L, hor };
   },
   sitzecke(ww, wh, pal, w, seed) {
-    const SW = ww + 400; const hor = wh * 0.6; const L = [];
-    const SC = [0.5, 0.85, 1.3, 1.9, 2.7], GAP = [15, 24, 38, 66, 110], BASE = [-4, 8, 26, 64, 118];
+    const SW = ww + 400; const hor = wh * 0.74; const L = [];
+    const SC = [0.42, 0.7, 1.05, 1.5, 2.1], GAP = [14, 22, 34, 58, 96], BASE = [-30, -14, 8, 40, 84];
     for (let i = 0; i < 5; i += 1) {
       const k = i / 4; const color = tone(mix(mix(pal.far, pal.haze, 0.35 * (1 - k)), pal.near, 0.15 + k * 0.85), w);
       L.push(strip(SW, wh, (c, sw, sh) => { const r = rng(seed + 20 + i); const gy = hor + BASE[i]; const gg = c.createLinearGradient(0, gy, 0, sh); gg.addColorStop(0, css(color)); gg.addColorStop(1, css(mix(color, '#000000', 0.4))); c.fillStyle = gg; c.fillRect(0, gy, sw, sh);
@@ -185,18 +185,36 @@ function placeholderRoom(name) {
   c.fillStyle = '#d8c8a0'; c.beginPath(); c.moveTo(1000, by + 26); c.lineTo(1100, by + 10); c.lineTo(1200, by + 26); c.lineTo(1100, by + 44); c.fill();
   return cv;
 }
-// Magenta-Fläche im Bild in Durchsichtigkeit umwandeln (mit weichem Rand und ohne rosa Saum)
+// Magenta-Fläche im Bild in Durchsichtigkeit umwandeln (mit weichem Rand und ohne rosa Saum).
+// Erkannt wird alles, was „magenta-artig“ ist: Rot und Blau hoch, Grün deutlich niedriger. Auch der helle, rosa Lichtschein einer Lampe auf der Fläche zählt dazu.
 function cutWindow(img) {
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d', { willReadFrequently: true });
   const f = Math.max(W / img.width, H / img.height); const dw = img.width * f, dh = img.height * f; c.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  const id = c.getImageData(0, 0, W, H), d = id.data; let n = 0, minX = W, minY = H, maxX = 0, maxY = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i + 1], b = d[i + 2]; const m = Math.min(r, b) - g;
-    if (m > 40 && r > 120 && b > 120) {
-      const a = clamp(1 - (m - 70) / 80, 0, 1);
-      if (a < 0.02) { d[i + 3] = 0; } else { d[i + 3] = Math.round(a * 255); d[i] = Math.min(r, g + 24); d[i + 2] = Math.min(b, g + 24); }
-      if (a < 0.5) { n += 1; const p = i / 4, x = p % W, y = (p / W) | 0; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
-    }
+  const id = c.getImageData(0, 0, W, H), d = id.data; const N = W * H;
+  // Abstand jedes Pixels zur durchsichtigen Fläche (Näherung in zwei Durchgängen)
+  const distance = () => {
+    const dist = new Uint8Array(N); for (let p = 0; p < N; p += 1) dist[p] = d[p * 4 + 3] < 128 ? 0 : 255;
+    for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) { const p = y * W + x; let v = dist[p]; if (x > 0) v = Math.min(v, dist[p - 1] + 1); if (y > 0) v = Math.min(v, dist[p - W] + 1); dist[p] = v; }
+    for (let y = H - 1; y >= 0; y -= 1) for (let x = W - 1; x >= 0; x -= 1) { const p = y * W + x; let v = dist[p]; if (x < W - 1) v = Math.min(v, dist[p + 1] + 1); if (y < H - 1) v = Math.min(v, dist[p + W] + 1); dist[p] = v; }
+    return dist;
+  };
+  // 1) Magenta-artige Pixel: Rot und Blau hoch, Grün deutlich niedriger
+  for (let p = 0; p < N; p += 1) {
+    const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2], m = Math.min(r, b) - g;
+    if (m > 20 && r > 170 && b > 170 && Math.abs(r - b) < 70) d[i + 3] = Math.round(clamp(1 - (m - 24) / 28, 0, 1) * 255);
+  }
+  // 2) Der helle rosa Lichtschein einer Lampe auf der Fläche: nahe am Fenster zählt jedes blasse Rosa dazu
+  let dist = distance();
+  for (let p = 0; p < N; p += 1) { if (dist[p] > 90 || d[p * 4 + 3] < 128) continue; const i = p * 4; if (d[i] > 150 && d[i + 2] > 150 && Math.min(d[i], d[i + 2]) - d[i + 1] > 8) d[i + 3] = 0; }
+  dist = distance();
+  // 3) Rosa Saum an der Kante entfernen und Fensterfläche vermessen
+  let n = 0, minX = W, minY = H, maxX = 0, maxY = 0;
+  for (let p = 0; p < N; p += 1) {
+    const i = p * 4;
+    if (dist[p] === 0) { n += 1; const x = p % W, y = (p / W) | 0; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; continue; }
+    if (dist[p] > 4) continue;
+    const g = d[i + 1], m = Math.min(d[i], d[i + 2]) - g;
+    if (m > 6) { const k = clamp(m / 40, 0, 1); d[i] -= (d[i] - Math.min(d[i], g + 8)) * k; d[i + 2] -= (d[i + 2] - Math.min(d[i + 2], g + 8)) * k; }
   }
   c.putImageData(id, 0, 0);
   return { cv, found: n > W * H * 0.01, win: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } };
