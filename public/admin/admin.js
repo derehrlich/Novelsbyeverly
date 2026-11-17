@@ -1,6 +1,6 @@
 import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
-import { initNav, PAGES, showPage } from './nav.js';
+import { initNav, PAGES, PREVIEW_PAGES, showPage } from './nav.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -128,7 +128,7 @@ const AUSWAHL = {
 function renderScenes(settings) {
   for (const [boxId, [key, opts]] of Object.entries(AUSWAHL)) {
     $(boxId).innerHTML = opts.map(([v, label]) => `<button data-v="${v}" class="${settings[key] === v ? 'aktiv' : ''}">${label}</button>`).join('');
-    for (const b of $(boxId).querySelectorAll('button')) b.onclick = run(async () => { const r = await api('PUT', 'settings', { [key]: b.dataset.v }); current = r.settings; renderScenes(r.settings); meldung('Gespeichert – schau ins Overlay'); });
+    for (const b of $(boxId).querySelectorAll('button')) b.onclick = run(async () => { const r = await api('PUT', 'settings', { [key]: b.dataset.v }); current = r.settings; renderScenes(r.settings); renderFolds(r.settings); schedulePreview(0); meldung('Gespeichert'); });
   }
 }
 
@@ -190,6 +190,8 @@ const OPT = {
   tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
+  kartenStil: [['papier', 'Papier (warme Karten, wie bisher)'], ['glas', 'Glas (durchsichtig und getönt)']],
+  hintergrund: [['landschaft', 'Gemalte Landschaft'], ['bild', 'Eigenes Bild (Upload unten)']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
@@ -244,6 +246,15 @@ const SCHEMA = [
   ['Sicherung (nur Heimserver)', [
     ['backupAutoEnabled', 'Jede Nacht automatisch sichern', 'bool'], ['backupHour', 'Ab wann (Uhr)', 'number'], ['backupKeep', 'So viele Sicherungen behalten', 'number'],
   ]],
+  ['Kartenstil', [
+    ['kartenStil', 'Stil der Karten (Uhr, Ziel, To-Do, Musik, Banner)', 'select', 'Glas lässt das Bild dahinter verschwommen durchscheinen, getönt in der gewählten Farbe.'],
+    ['glasFarbe', 'Glas: Farbton', 'color'],
+    ['glasStaerke', 'Glas: Tönung (0 = klar, 90 = fast deckend)', 'range'],
+    ['glasUnschaerfe', 'Glas: Unschärfe des Hintergrunds (Pixel)', 'range'],
+  ]],
+  ['Hintergrund', [
+    ['hintergrund', 'Was liegt hinter den Karten?', 'select', 'Mit „Eigenes Bild“ ersetzt dein Bild die gemalte Landschaft (samt Pavillon und Modulen).'],
+  ]],
   ['Zimmer-Modus (pausiert)', [
     ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Der Reward wird beim Speichern automatisch bei Twitch abgeglichen.'],
     ['scene', 'Szene', 'select'], ['maxSeats', 'Plätze (1–10)', 'number'],
@@ -260,6 +271,7 @@ const TOGGLE_GROUPS = new Set(['Check-in und Streak', 'Punkte und Rangliste', 'S
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
 const SYNC_KEYS = ['checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
+const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60] };
 
 function fieldHtml([key, label, type, hint], settings) {
   const v = settings[key];
@@ -287,7 +299,7 @@ function renderFolds(settings) {
 }
 async function saveFolds(box) {
   const body = {};
-  for (const el of box.querySelectorAll('[data-k]')) body[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+  for (const el of box.querySelectorAll('[data-k]')) body[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' || el.type === 'range' ? Number(el.value) : el.value;
   const before = current;
   const { settings } = await api('PUT', 'settings', body);
   current = settings; renderScenes(settings); renderFolds(settings);
@@ -312,6 +324,8 @@ async function loadSettings() {
   loadPages().catch(() => {}); loadStream().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
 }
+
+document.addEventListener('input', (e) => { if (e.target.type === 'range' && e.target.nextElementSibling?.tagName === 'OUTPUT') e.target.nextElementSibling.textContent = e.target.value; });
 
 // ---- Mitschreibende
 const fmtMin = (m) => (m < 60 ? `${m} Min` : `${Math.floor(m / 60)} Std ${m % 60} Min`);
@@ -407,7 +421,7 @@ function fitEditor() {
 }
 function loadLayout(layout) {
   layoutState = normalizeLayout(layout);
-  if (!$('editorFrame').src) { $('editorFrame').src = '/overlay.html?editor=1&kamera=1&ton=aus'; $('editorFrame').onload = pushLayout; }
+  if (!$('editorFrame').src) { $('editorFrame').src = '/overlay.html?editor=1&vorschau=1&kamera=1&ton=aus'; $('editorFrame').onload = pushLayout; }
   fitEditor(); renderBoxen(); pushLayout();
 }
 addEventListener('resize', fitEditor);
@@ -439,13 +453,119 @@ $('restoreDatei').onchange = run(async (e) => {
   meldung(`${r.restored} Einträge wiederhergestellt – bitte Twitch neu verbinden`); await start();
 });
 
+// ---- Live-Vorschau: das echte Overlay, mit den noch nicht gespeicherten Einstellungen
+// Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
+let activePage = 'start';
+let previewTimer = 0, previewBusy = false, previewAgain = false;
+const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+function collectDraft() {
+  const d = {};
+  for (const el of document.querySelectorAll('[data-k]')) {
+    const k = el.dataset.k;
+    if (!PREVIEW_KEYS.includes(k)) continue;
+    if (el.type === 'checkbox') d[k] = el.checked;
+    else if (el.type === 'number' || el.type === 'range') { if (el.value !== '' && Number.isFinite(Number(el.value))) d[k] = Number(el.value); }
+    else d[k] = el.value;
+  }
+  const fig = {};
+  for (const el of document.querySelectorAll('#stefanieFelder [data-slot]')) fig[el.dataset.slot] = el.value;
+  if (Object.keys(fig).length) d.stefanieFigur = fig;
+  if ($('musikQuelleSel').value) { d.musikQuelle = $('musikQuelleSel').value; d.musikUrl = $('musikUrlFeld').value; }
+  for (const [id, key, mul] of [['zielWoerter', 'wordGoal', 1], ['zielSeiten', 'seitenGoal', 1], ['zielStunden', 'streamGoalMinutes', 60]]) {
+    const v = $(id).value; if (v !== '' && Number.isFinite(Number(v))) d[key] = Math.round(Number(v) * mul);
+  }
+  for (const [boxId, [key]] of Object.entries(AUSWAHL)) { const a = $(boxId).querySelector('button.aktiv'); if (a && !(key in d)) d[key] = a.dataset.v; }
+  if (layoutState) d.layout = layoutState;
+  return d;
+}
+const previewTarget = () => (activePage === 'anordnung' ? $('editorFrame') : PREVIEW_PAGES.includes(activePage) ? $('vorschauFrame') : null);
+async function refreshPreview() {
+  const frame = previewTarget();
+  if (!frame?.src || !frame.contentWindow) return;
+  if (previewBusy) { previewAgain = true; return; }
+  previewBusy = true;
+  try {
+    const view = await api('POST', 'preview', { draft: collectDraft() });
+    frame.contentWindow.postMessage({ type: 'view', view }, location.origin);
+  } catch { /* ungültige Eingabe (z. B. halb getippte Zahl): die Vorschau bleibt, wie sie war */ }
+  previewBusy = false;
+  if (previewAgain) { previewAgain = false; schedulePreview(150); }
+}
+function schedulePreview(ms = 300) { clearTimeout(previewTimer); previewTimer = setTimeout(refreshPreview, ms); }
+addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'overlay-ready') schedulePreview(0); });
+for (const ev of ['input', 'change']) document.addEventListener(ev, (e) => { if (e.target.closest?.('.inhalt')) schedulePreview(); });
+setInterval(() => { if (!document.hidden && previewTarget()) refreshPreview(); }, 5000); // Timer, Wörter und Musik laufen mit
+
+function fitVorschau() {
+  const w = $('vorschauRahmen').clientWidth;
+  if (w) { $('vorschauRahmen').style.height = `${(w * 9) / 16}px`; $('vorschauFrame').style.transform = `scale(${w / 1920})`; }
+}
+new ResizeObserver(fitVorschau).observe($('vorschauRahmen'));
+try { if (localStorage.getItem('vorschauZu') === '1') $('vorschauBox').classList.add('zu'); } catch { /* ohne Speicher */ }
+$('vorschauZu').onclick = () => {
+  const zu = $('vorschauBox').classList.toggle('zu');
+  try { localStorage.setItem('vorschauZu', zu ? '1' : '0'); } catch { /* ohne Speicher */ }
+  $('vorschauZu').textContent = zu ? '+' : '–';
+  if (!zu) { fitVorschau(); schedulePreview(0); }
+};
+function onPageShow(key) {
+  activePage = key;
+  const mit = PREVIEW_PAGES.includes(key);
+  $('vorschauBox').hidden = !mit;
+  document.body.classList.toggle('mit-vorschau', mit);
+  if (mit && !$('vorschauFrame').src) $('vorschauFrame').src = '/overlay.html?editor=1&vorschau=1&kamera=1&ton=aus';
+  if (mit) fitVorschau();
+  if (key === 'anordnung' && layoutState) fitEditor();
+  if (mit || key === 'anordnung') schedulePreview(0);
+}
+
+// ---- Design: Farbvorschläge und eigenes Hintergrundbild
+const GLAS_FARBEN = [['Meerblau', '#3b6f94'], ['Dämmerung', '#5b4a8f'], ['Salbei', '#4f7d68'], ['Rosé', '#a35a78'], ['Bernstein', '#a8722f'], ['Schiefer', '#2d3b4a'], ['Nebel', '#9fb4c4']];
+$('glasFarben').innerHTML = GLAS_FARBEN.map(([n, c]) => `<button type="button" class="farbe" data-c="${c}" title="${n}"><i style="background:${c}"></i>${n}</button>`).join('');
+for (const b of $('glasFarben').querySelectorAll('button')) b.onclick = () => {
+  const farbe = document.querySelector('[data-k="glasFarbe"]'), stil = document.querySelector('[data-k="kartenStil"]');
+  if (!farbe) return;
+  farbe.value = b.dataset.c; if (stil) stil.value = 'glas';
+  farbe.dispatchEvent(new Event('input', { bubbles: true }));
+};
+async function loadBg() {
+  const b = await api('GET', 'hintergrund');
+  $('bgStatus').textContent = b.vorhanden ? `Bild vorhanden (${Math.round(b.size / 1024)} KB).` : 'Noch kein Bild hochgeladen.';
+  $('bgVorschau').innerHTML = b.vorhanden ? `<img src="/api/overlay-bg?v=${b.version}" alt="Hintergrundbild">` : '<span class="leise">Noch kein Bild</span>';
+  $('bgLoeschen').disabled = !b.vorhanden;
+}
+// Bild im Browser verkleinern (höchstens 1920×1080), damit der Upload klein bleibt
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const f = Math.min(1, 1920 / bmp.width, 1080 / bmp.height);
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * f); c.height = Math.round(bmp.height * f);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.86);
+}
+$('bgDatei').onchange = run(async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Bitte ein Bild als JPG, PNG oder WebP wählen');
+  await api('POST', 'hintergrund', { data: await shrinkImage(file) });
+  const r = await api('PUT', 'settings', { hintergrund: 'bild' });
+  current = r.settings; renderFolds(r.settings);
+  await loadBg(); schedulePreview(0);
+  meldung('Bild hochgeladen und als Hintergrund eingestellt');
+});
+$('bgLoeschen').onclick = run(async () => {
+  if (!confirm('Das Hintergrundbild entfernen? Danach ist wieder die Landschaft zu sehen.')) return;
+  await api('DELETE', 'hintergrund');
+  const { settings } = await api('GET', 'settings'); current = settings; renderFolds(settings);
+  await loadBg(); schedulePreview(0); meldung('Bild entfernt');
+});
+
 let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
-  if (!navReady) { navReady = true; initNav({ onShow: (key) => { if (key === 'anordnung' && layoutState) fitEditor(); } }); }
+  if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

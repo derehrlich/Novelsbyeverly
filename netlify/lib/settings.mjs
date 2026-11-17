@@ -23,6 +23,14 @@ export const DEFAULTS = {
   musikQuelle: 'aus',
   musikUrl: 'http://localhost:1608/',
   layout: DEFAULT_LAYOUT,
+  // Aussehen der Karten (Uhr, Ziel, To-Do, Musik, Banner): papier = warme Karten wie bisher, glas = durchsichtige, getönte Glaskacheln
+  kartenStil: 'papier',
+  glasFarbe: '#3b6f94', // Tönung der Glaskacheln
+  glasStaerke: 38, // wie kräftig die Tönung ist (0 = klar, 90 = fast deckend)
+  glasUnschaerfe: 22, // wie stark der Hintergrund hinter dem Glas verschwimmt (Pixel)
+  // Hintergrund: landschaft = die gemalte Landschaft, bild = ein eigenes Bild (Upload im Admin)
+  hintergrund: 'landschaft',
+  hintergrundVersion: 0, // Zeitstempel des hochgeladenen Bildes (0 = keins), wird vom Upload gesetzt
   // Wann erscheint die Figur: 'sit' = Chatbefehl !sitzen, 'checkin' = Kanalpunkte-Reward "Check-in", 'both' = beides
   appearOn: 'sit',
   scene: 'cafe',
@@ -95,9 +103,9 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10], streakGrace: [0, 5], pointsWeightMsg: [0, 1000], pointsWeightDay: [0, 1000], pointsWeightCheckin: [0, 1000], pointsMsgCap: [1, 500], pointsMsgGap: [0, 3600], pointsRankSize: [1, 10], backupHour: [0, 23], backupKeep: [1, 60] };
+const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10], streakGrace: [0, 5], pointsWeightMsg: [0, 1000], pointsWeightDay: [0, 1000], pointsWeightCheckin: [0, 1000], pointsMsgCap: [1, 500], pointsMsgGap: [0, 3600], pointsRankSize: [1, 10], backupHour: [0, 23], backupKeep: [1, 60], glasStaerke: [0, 90], glasUnschaerfe: [0, 60], hintergrundVersion: [0, 9_999_999_999_999] };
 const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint', 'checkinEnabled', 'milestoneEnabled', 'pointsEnabled', 'backupAutoEnabled'];
-const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'] };
+const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'], kartenStil: ['papier', 'glas'], hintergrund: ['landschaft', 'bild'] };
 
 export const seatsOnReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
 // Der Chat-Webhook wird gebraucht, wenn der Bot Befehle versteht oder Chat-Punkte zählt
@@ -120,6 +128,11 @@ export function normalize(input, base = DEFAULTS) {
       const u = String(value ?? '').trim();
       if (u && !/^https?:\/\/[^\s]+$/i.test(u)) return { error: 'Die Musik-Adresse muss mit http:// oder https:// beginnen' };
       out.musikUrl = u.slice(0, 300);
+      continue;
+    }
+    if (key === 'glasFarbe') {
+      if (!/^#[0-9a-f]{6}$/i.test(String(value ?? ''))) return { error: 'Die Glasfarbe muss so aussehen: #3b6f94' };
+      out.glasFarbe = String(value).toLowerCase();
       continue;
     }
     if (INT[key]) {

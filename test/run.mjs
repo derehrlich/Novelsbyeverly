@@ -782,4 +782,55 @@ await test('Admin: Status liefert die Angaben für die Übersicht', async () => 
   await saveSettings({ checkinEnabled: false });
 });
 
+console.log('Live-Vorschau, Glas-Stil und Hintergrundbild');
+const bgFn = (await mod('functions/overlay-bg.mjs')).default;
+const PNG1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+await test('Einstellungen: Glasfarbe, Tönung und Unschärfe werden geprüft', () => {
+  assert.equal(normalize({ glasFarbe: '#ABCDEF' }).settings.glasFarbe, '#abcdef');
+  assert.match(normalize({ glasFarbe: 'rot' }).error, /Glasfarbe/);
+  assert.equal(normalize({ glasStaerke: 500 }).settings.glasStaerke, 90);
+  assert.equal(normalize({ glasUnschaerfe: -3 }).settings.glasUnschaerfe, 0);
+  assert.equal(normalize({ kartenStil: 'neon' }).error, 'kartenStil: unbekannter Wert');
+  assert.equal(DEFAULTS.kartenStil, 'papier'); assert.equal(DEFAULTS.hintergrund, 'landschaft'); // ohne Zutun bleibt alles wie bisher
+});
+await test('Vorschau: rechnet mit ungespeicherten Einstellungen, speichert nichts und schaltet den Timer nicht weiter', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const before = (await adminCall('GET', 'settings', null, cookie)).body.settings;
+  const r = await adminCall('POST', 'preview', { draft: { jahreszeit: 'winter', tageszeit: 'abend', kartenStil: 'glas', glasFarbe: '#5b4a8f', wordGoal: 777 } }, cookie);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.jahreszeit, 'winter'); assert.equal(r.body.tageszeit, 'abend');
+  assert.equal(r.body.stil, 'glas'); assert.equal(r.body.glas.farbe, '#5b4a8f'); assert.equal(r.body.words.goal, 777);
+  assert.deepEqual(r.body.hintergrund, { mode: 'landschaft' });
+  const after = (await adminCall('GET', 'settings', null, cookie)).body.settings;
+  assert.deepEqual(after, before); // nichts gespeichert
+  assert.equal((await adminCall('POST', 'preview', { draft: { glasFarbe: 'x' } }, cookie)).status, 400); // ungültig: Fehler statt Absturz
+  assert.equal((await admin(new Request('https://x/api/admin/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))).status, 401);
+});
+await test('Hintergrundbild: hochladen, ausliefern, im Overlay-Stand, entfernen', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('POST', 'hintergrund', { data: 'data:text/html;base64,PGI+' }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'hintergrund', { data: 'keinbild' }, cookie)).status, 400);
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg'))).status, 404); // noch keins
+  const up = await adminCall('POST', 'hintergrund', { data: PNG1 }, cookie);
+  assert.equal(up.status, 200); assert.ok(up.body.version > 0);
+  const img = await bgFn(new Request(`https://x/api/overlay-bg?v=${up.body.version}`));
+  assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png'); assert.match(img.headers.get('cache-control'), /immutable/);
+  assert.equal(Buffer.from(await img.arrayBuffer()).subarray(1, 4).toString(), 'PNG');
+  assert.equal((await viewNow()).hintergrund.mode, 'landschaft'); // hochgeladen, aber noch nicht ausgewählt
+  await saveSettings({ hintergrund: 'bild' });
+  assert.deepEqual((await viewNow()).hintergrund, { mode: 'bild', url: `/api/overlay-bg?v=${up.body.version}` });
+  assert.ok((await backupLib.buildBackup()).entries['bg/image']); // im Backup
+  const del = await adminCall('DELETE', 'hintergrund', null, cookie);
+  assert.equal(del.status, 200);
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg'))).status, 404);
+  assert.equal((await getSettings()).hintergrund, 'landschaft');
+});
+await test('Admin-Seite: Vorschau-Seiten gibt es im Menü, Regler haben Grenzen', async () => {
+  const { PAGES, PREVIEW_PAGES } = await import('../public/admin/nav.js');
+  for (const k of PREVIEW_PAGES) assert.ok(PAGES.some((p) => p[0] === k), `Seite ${k}`);
+  assert.ok(PAGES.some((p) => p[0] === 'design'));
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

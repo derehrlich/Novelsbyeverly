@@ -3,7 +3,7 @@ import { db } from './store.mjs';
 import { RAENGE, unlockedDeko } from '../../public/js/katalog.mjs';
 import { activeSeats, capacity, communityMinutes, resolveSlots } from './people.mjs';
 import { eventCursor } from './util.mjs';
-import { sprintsToday, tick } from './timer.mjs';
+import { getTimer, sprintsToday, tick } from './timer.mjs';
 import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
@@ -41,8 +41,9 @@ export async function buildZiel(settings, { words, done, now }) {
   return { ziel, zeit };
 }
 
-export async function buildView(settings, since, now = Date.now()) {
-  const timer = await tick(settings, now);
+// preview: Vorschau im Admin mit noch nicht gespeicherten Einstellungen. Dann wird der Timer nur gelesen, nie weitergeschaltet.
+export async function buildView(settings, since, now = Date.now(), { preview = false } = {}) {
+  const timer = preview ? await getTimer() : await tick(settings, now);
   const seats = resolveSlots(await activeSeats(settings, now), capacity(settings));
   const keys = await db.list('event/');
   const cursor = keys.at(-1) ?? eventCursor(now);
@@ -80,6 +81,9 @@ export async function buildView(settings, since, now = Date.now()) {
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
+    stil: settings.kartenStil,
+    glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
+    hintergrund: settings.hintergrund === 'bild' && settings.hintergrundVersion ? { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` } : { mode: 'landschaft' },
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),

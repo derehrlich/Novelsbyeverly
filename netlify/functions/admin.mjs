@@ -7,11 +7,13 @@ import { musik, pages, seats, stream, tasks, tests, timer, words } from '../lib/
 import { exportCsv, users } from '../lib/admin/users.mjs';
 import { backup } from '../lib/admin/backup.mjs';
 import { update } from '../lib/admin/update.mjs';
+import { preview } from '../lib/admin/preview.mjs';
+import { hintergrund } from '../lib/admin/hintergrund.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update };
+const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);

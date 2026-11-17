@@ -152,6 +152,26 @@
       <div class="reihe"><button class="gruen" id="layoutSpeichern">Anordnung speichern</button><button class="hell" id="layoutZurueck">Standard</button><button class="hell" id="layoutLaden">Neu laden</button></div>
     </section>
     </div>
+    <div class="tab-panel" data-panel="design" hidden>
+      <h1>Design und Hintergrund</h1>
+      <p class="leise lead">Wie die Karten im Overlay aussehen und was dahinter zu sehen ist. Die Vorschau rechts zeigt jede Änderung sofort, gespeichert wird mit dem Knopf unten.</p>
+      <section class="karte">
+        <h2>Farbvorschläge für Glas</h2>
+        <div class="farben" id="glasFarben"></div>
+        <p class="leise">Ein Klick setzt die Tönung der Glaskacheln. Das Glas wirkt am besten, wenn Stil „Glas“ gewählt ist und dahinter ein Bild oder die Landschaft liegt.</p>
+      </section>
+      <div class="folds" data-schema="Kartenstil|Hintergrund"></div>
+      <section class="karte">
+        <h2>Eigenes Hintergrundbild</h2>
+        <div class="bg-zeile"><div class="bg-vorschau" id="bgVorschau"><span class="leise">Noch kein Bild</span></div>
+          <div>
+            <p class="leise" id="bgStatus">–</p>
+            <div class="reihe"><label class="knopf" for="bgDatei">Bild wählen …</label><input type="file" id="bgDatei" accept="image/jpeg,image/png,image/webp" hidden><button class="hell" id="bgLoeschen">Bild entfernen</button></div>
+            <p class="leise">Am besten 16:9 (z. B. 1920×1080). Das Bild wird vor dem Hochladen automatisch verkleinert. Danach unter „Hintergrund“ die Auswahl auf „Eigenes Bild“ stellen und speichern. Mit einem eigenen Bild verschwinden Landschaft und Pavillon, die Karten bleiben.</p>
+          </div>
+        </div>
+      </section>
+    </div>
     <div class="tab-panel" data-panel="adressen" hidden>
       <h1>OBS-Adressen und Test</h1>
       <p class="leise lead">Alle Adressen zum Kopieren, und Testereignisse für das Overlay.</p>
@@ -234,6 +254,10 @@
     <div class="folds" data-schema="Sicherung (nur Heimserver)"></div>
     </div>
     </main>
+    <aside id="vorschauBox" hidden>
+      <div class="vk"><b>Vorschau</b><span class="leise">auch ohne Speichern</span><button class="hell" id="vorschauZu" type="button" title="Vorschau ein- oder ausklappen">–</button></div>
+      <div id="vorschauRahmen"><iframe id="vorschauFrame" title="Vorschau des Overlays" tabindex="-1"></iframe></div>
+    </aside>
   </div>
 </div>
 <div class="meldung" id="meldung" hidden></div>
