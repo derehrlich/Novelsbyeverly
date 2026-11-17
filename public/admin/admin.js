@@ -120,7 +120,10 @@ for (const [id, delta] of [['pomoMinus', -1], ['pomoPlus', 1]]) $(id).onclick = 
 // ---- Landschaft (Jahreszeit, Tageszeit, Quelle) und Szene
 const AUSWAHL = {
   jahreszeiten: ['jahreszeit', [['auto', 'Auto'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']]],
-  tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']]],
+  tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']]],
+  dSzene: ['hintergrund', [['landschaft', 'Landschaft mit Pavillon'], ['bild', 'Eigenes Bild'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']]],
+  dTageszeit: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']]],
+  dWetter: ['wetter', [['klar', 'Klar'], ['wolkig', 'Wolkig'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['schnee', 'Schnee'], ['nebel', 'Nebel']]],
   quellen: ['wachstumQuelle', [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter'], ['pomodoro', 'Pomodoros'], ['kombi', 'Zeit + Ziel']]],
   zielArten: ['zielArt', [['woerter', 'Wörter schreiben'], ['seiten', 'Seiten lesen'], ['zeit', 'Streamzeit'], ['pomodoros', 'Pomodoros']]],
   tat: ['stefanieTaetigkeit', [['auto', 'Automatisch'], ['laptop', 'Am Laptop'], ['buch', 'Mit Buch']]],
@@ -187,11 +190,12 @@ const OPT = {
   szeneModus: [['wachstum', 'Landschaft (wächst mit dem Fortschritt)'], ['zimmer', 'Zimmer mit Tischen und Figuren der Zuschauer (pausiert)']],
   jahreszeit: [['auto', 'Automatisch (nach Datum)'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']],
   stefanieTaetigkeit: [['auto', 'Automatisch (Laptop beim Fokus, Buch in der Pause)'], ['laptop', 'Immer am Laptop'], ['buch', 'Immer mit Buch']],
-  tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend']],
+  tageszeit: [['auto', 'Automatisch (nach Uhrzeit)'], ['morgen', 'Morgengrauen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht (nur in den Szenen, in der Landschaft wie Abend)']],
+  wetter: [['klar', 'Klar'], ['wolkig', 'Wolkig'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['schnee', 'Schnee'], ['nebel', 'Nebel']],
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
   kartenStil: [['papier', 'Papier (warme Karten, wie bisher)'], ['glas', 'Glas (durchsichtig und getönt)']],
-  hintergrund: [['landschaft', 'Gemalte Landschaft'], ['bild', 'Eigenes Bild (Upload unten)']],
+  hintergrund: [['landschaft', 'Gemalte Landschaft mit Pavillon'], ['bild', 'Eigenes Bild (Upload unten)'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
@@ -252,8 +256,13 @@ const SCHEMA = [
     ['glasStaerke', 'Glas: Tönung (0 = klar, 90 = fast deckend)', 'range'],
     ['glasUnschaerfe', 'Glas: Unschärfe des Hintergrunds (Pixel)', 'range'],
   ]],
+  ['Szenen (Ausblick und Wetter)', [
+    ['wetter', 'Wetter in den Szenen', 'select', 'Gilt für Zugabteil, Sitzecke, Stadt und See. Im Chat ändern Moderatoren es mit „!wetter regen“.'],
+    ['wind', 'Wind (0 bis 100)', 'range', 'Wie stark sich Bäume und Wasser bewegen und wie schräg der Regen fällt.'],
+    ['kulisseTempo', 'Tempo des Zuges (0 bis 100)', 'range', 'Wie schnell die Landschaft am Zugfenster vorbeizieht.'],
+  ]],
   ['Hintergrund', [
-    ['hintergrund', 'Was liegt hinter den Karten?', 'select', 'Mit „Eigenes Bild“ ersetzt dein Bild die gemalte Landschaft (samt Pavillon und Modulen).'],
+    ['hintergrund', 'Was liegt hinter den Karten?', 'select', 'Mit einer Szene oder einem eigenen Bild ersetzt sie die gemalte Landschaft samt Pavillon und Modulen. Die Raumbilder der Szenen lädst du unten hoch.'],
   ]],
   ['Zimmer-Modus (pausiert)', [
     ['appearOn', 'Figur erscheint bei', 'select', 'Umschaltbar jederzeit. Der Reward wird beim Speichern automatisch bei Twitch abgeglichen.'],
@@ -271,7 +280,7 @@ const TOGGLE_GROUPS = new Set(['Check-in und Streak', 'Punkte und Rangliste', 'S
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
 const SYNC_KEYS = ['checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
-const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60] };
+const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100] };
 
 function fieldHtml([key, label, type, hint], settings) {
   const v = settings[key];
@@ -457,7 +466,7 @@ $('restoreDatei').onchange = run(async (e) => {
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
 let previewTimer = 0, previewBusy = false, previewAgain = false;
-const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {
@@ -535,12 +544,12 @@ async function loadBg() {
   $('bgLoeschen').disabled = !b.vorhanden;
 }
 // Bild im Browser verkleinern (höchstens 1920×1080), damit der Upload klein bleibt
-async function shrinkImage(file) {
+async function shrinkImage(file, quality = 0.86) {
   const bmp = await createImageBitmap(file);
   const f = Math.min(1, 1920 / bmp.width, 1080 / bmp.height);
   const c = document.createElement('canvas'); c.width = Math.round(bmp.width * f); c.height = Math.round(bmp.height * f);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.86);
+  return c.toDataURL('image/jpeg', quality);
 }
 $('bgDatei').onchange = run(async (e) => {
   const file = e.target.files[0]; e.target.value = '';
@@ -559,13 +568,32 @@ $('bgLoeschen').onclick = run(async () => {
   await loadBg(); schedulePreview(0); meldung('Bild entfernt');
 });
 
+
+// ---- Szenen: Raumbilder (Bild mit Fenster in Magenta) hochladen
+const RAUM_SZENEN = [['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']];
+async function loadRaeume() {
+  const { raeume } = await api('GET', 'hintergrund/raum');
+  $('raeume').innerHTML = RAUM_SZENEN.map(([k, label]) => `<div class="raum"><b>${label}</b>
+    <div class="bg-vorschau">${raeume[k] ? `<img src="/api/overlay-bg?plate=${k}&v=${raeume[k]}" alt="Raumbild ${label}">` : '<span class="leise">Einfacher Raum (kein eigenes Bild)</span>'}</div>
+    <div class="reihe"><label class="knopf hell" for="raum-${k}">Raumbild wählen …</label><input type="file" id="raum-${k}" data-raum="${k}" accept="image/jpeg,image/png,image/webp" hidden>${raeume[k] ? `<button class="hell" data-weg="${k}">Entfernen</button>` : ''}</div></div>`).join('');
+  for (const inp of $('raeume').querySelectorAll('[data-raum]')) inp.onchange = run(async (e) => {
+    const file = e.target.files[0]; const k = inp.dataset.raum; e.target.value = '';
+    if (!file) return;
+    await api('POST', `hintergrund/raum/${k}`, { data: await shrinkImage(file, 0.92) });
+    const r = await api('PUT', 'settings', { hintergrund: k });
+    current = r.settings; renderScenes(r.settings); renderFolds(r.settings);
+    await loadRaeume(); schedulePreview(0); meldung('Raumbild hochgeladen, die Szene ist ausgewählt');
+  });
+  for (const b of $('raeume').querySelectorAll('[data-weg]')) b.onclick = run(async () => { await api('DELETE', `hintergrund/raum/${b.dataset.weg}`); await loadRaeume(); schedulePreview(0); meldung('Raumbild entfernt'); });
+}
+
 let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

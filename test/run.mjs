@@ -421,7 +421,8 @@ await test('Jahres- und Tageszeit: automatisch nach Datum und Uhrzeit, oder fest
   assert.equal(resolveSeason(s, new Date('2026-12-24T12:00:00Z')), 'winter');
   assert.equal(resolveTime(s, new Date('2026-06-01T05:30:00Z')), 'morgen'); // 7:30 Uhr in Berlin
   assert.equal(resolveTime(s, new Date('2026-06-01T11:00:00Z')), 'mittag');
-  assert.equal(resolveTime(s, new Date('2026-06-01T20:00:00Z')), 'abend');
+  assert.equal(resolveTime(s, new Date('2026-06-01T17:00:00Z')), 'abend'); // 19 Uhr
+  assert.equal(resolveTime(s, new Date('2026-06-01T20:00:00Z')), 'nacht'); // 22 Uhr
   assert.equal(resolveSeason({ ...s, jahreszeit: 'winter' }), 'winter'); assert.equal(resolveTime({ ...s, tageszeit: 'morgen' }), 'morgen');
 });
 await test('Fortschritt der Landschaft: Wörter oder Pomodoros', async () => {
@@ -831,6 +832,60 @@ await test('Admin-Seite: Vorschau-Seiten gibt es im Menü, Regler haben Grenzen'
   const { PAGES, PREVIEW_PAGES } = await import('../public/admin/nav.js');
   for (const k of PREVIEW_PAGES) assert.ok(PAGES.some((p) => p[0] === k), `Seite ${k}`);
   assert.ok(PAGES.some((p) => p[0] === 'design'));
+});
+
+console.log('Szenen mit bewegtem Ausblick');
+await test('Szenen, Wetter und Tageszeiten im Overlay-Code passen zu den Einstellungen', async () => {
+  const k = await import('../public/js/kulisse.mjs');
+  assert.deepEqual(k.WETTER, ['klar', 'wolkig', 'regen', 'gewitter', 'schnee', 'nebel']);
+  assert.deepEqual(k.ZEITEN, ['morgen', 'mittag', 'abend', 'nacht']);
+  for (const w of k.WETTER) assert.equal(normalize({ wetter: w }).settings.wetter, w);
+  for (const z of k.ZEITEN) assert.equal(normalize({ tageszeit: z }).settings.tageszeit, z);
+  for (const sz of k.SZENEN) assert.equal(normalize({ hintergrund: sz }).settings.hintergrund, sz);
+  assert.equal(normalize({ wetter: 'hagel' }).error, 'wetter: unbekannter Wert');
+  assert.equal(normalize({ wind: 400 }).settings.wind, 100);
+});
+await test('Szene im Overlay-Stand: Tageszeit und Wetter, Landschaft kennt keine Nacht', async () => {
+  await saveSettings({ hintergrund: 'zug', tageszeit: 'nacht', wetter: 'regen', wind: 70, kulisseTempo: 80 });
+  const v = await viewNow();
+  assert.equal(v.hintergrund.mode, 'kulisse');
+  assert.deepEqual({ ...v.hintergrund.kulisse, saison: undefined }, { name: 'zug', zeit: 'nacht', saison: undefined, wetter: 'regen', wind: 70, tempo: 80, plate: null });
+  assert.equal(v.tageszeit, 'abend'); // die gemalte Landschaft hat keine eigene Nacht
+  await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto', wetter: 'klar' });
+  assert.equal((await viewNow()).hintergrund.mode, 'landschaft');
+});
+await test('Raumbilder: hochladen je Szene, ausliefern, entfernen', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('POST', 'hintergrund/raum/keller', { data: PNG1 }, cookie)).status, 404);
+  assert.equal((await adminCall('POST', 'hintergrund/raum/stadt', { data: 'quatsch' }, cookie)).status, 400);
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg?plate=stadt'))).status, 404);
+  const up = await adminCall('POST', 'hintergrund/raum/stadt', { data: PNG1 }, cookie);
+  assert.equal(up.status, 200);
+  assert.equal((await adminCall('GET', 'hintergrund/raum', null, cookie)).body.raeume.stadt, up.body.version);
+  const img = await bgFn(new Request(`https://x/api/overlay-bg?plate=stadt&v=${up.body.version}`));
+  assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png');
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg?plate=../../config'))).status, 404);
+  await saveSettings({ hintergrund: 'stadt' });
+  assert.equal((await viewNow()).hintergrund.kulisse.plate, `/api/overlay-bg?plate=stadt&v=${up.body.version}`);
+  assert.ok((await backupLib.buildBackup()).entries['bg/plate/stadt']);
+  assert.equal((await adminCall('DELETE', 'hintergrund/raum/stadt', null, cookie)).status, 200);
+  assert.equal((await viewNow()).hintergrund.kulisse.plate, null);
+  await saveSettings({ hintergrund: 'landschaft' });
+});
+await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', async () => {
+  const mod = { badges: [{ set_id: 'moderator' }] };
+  const before = chatSent().length;
+  await say('61', 'Zuschauer', '!wetter regen');
+  assert.equal(chatSent().length, before); assert.equal((await getSettings()).wetter, 'klar'); // nicht erlaubt
+  assert.match((await say('62', 'Mod', '!wetter Regen', mod)).message, /Wetter: Regen/);
+  assert.equal((await getSettings()).wetter, 'regen');
+  assert.match((await say('62', 'Mod', '!tageszeit nacht', mod)).message, /Tageszeit: Nacht/);
+  assert.match((await say('62', 'Mod', '!hintergrund see', mod)).message, /Hintergrund: See/);
+  assert.equal((await getSettings()).hintergrund, 'see');
+  assert.match((await say('62', 'Mod', '!wetter hagel', mod)).message, /gibt es nicht.*klar, wolkig/);
+  assert.match((await say('62', 'Mod', '!wetter', mod)).message, /Wetter: Regen\. Ändern mit !wetter/);
+  await saveSettings({ wetter: 'klar', tageszeit: 'auto', hintergrund: 'landschaft' });
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

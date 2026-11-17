@@ -19,6 +19,19 @@ export async function streamerId() {
   return (await storedTokens('broadcaster'))?.user_id ?? STREAMER_TASKS;
 }
 
+export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
+const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
+// Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
+export function hintergrundOf(settings, zeit, saison) {
+  const h = settings.hintergrund;
+  if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
+  if (SZENEN_KULISSE.includes(h)) {
+    const v = settings[RAUM_KEY[h]];
+    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null } };
+  }
+  return { mode: 'landschaft' };
+}
+
 const frac = (n, goal) => (goal > 0 ? n / goal : 0);
 
 // Die Ziel-Karte (Wörter, Seiten, Streamzeit oder Pomodoros) und die Streamzeit für die Landschaft
@@ -74,7 +87,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     now,
     modus: settings.szeneModus,
     jahreszeit: resolveSeason(settings, new Date(now)),
-    tageszeit: resolveTime(settings, new Date(now)),
+    tageszeit: resolveTime(settings, new Date(now)) === 'nacht' ? 'abend' : resolveTime(settings, new Date(now)), // die Landschaft mit Pavillon kennt keine eigene Nacht
     progress: Math.min(1, Math.max(0, progress)),
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
     ziel,
@@ -83,7 +96,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     layout: settings.layout,
     stil: settings.kartenStil,
     glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
-    hintergrund: settings.hintergrund === 'bild' && settings.hintergrundVersion ? { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` } : { mode: 'landschaft' },
+    hintergrund: hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now))),
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),

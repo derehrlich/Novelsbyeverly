@@ -34,11 +34,12 @@ const COMMANDS = {
   pause: 'pause',
   stop: 'stop', stopp: 'stop',
   szene: 'scene', ort: 'scene',
+  wetter: 'weather', tageszeit: 'daytime', zeit: 'daytime', hintergrund: 'backdrop',
   streak: 'streak', besuche: 'streak',
   rangliste: 'ranking', top: 'ranking', punkte: 'points',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream']);
+const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -92,6 +93,7 @@ async function run(action, ctx) {
   const { id, name, args, settings } = ctx;
   switch (action) {
     case 'sit': return doSit(ctx);
+    case 'weather': case 'daytime': case 'backdrop': return setLook(action, args, settings);
     case 'streak': return (await cooling(`streak-${id}`, settings.commandCooldown)) ? null : streakReply(settings, id, name);
     case 'ranking': return (await cooling('ranking', settings.commandCooldown)) ? null : rankReply(settings, id);
     case 'points': return (await cooling(`points-${id}`, settings.commandCooldown)) ? null : pointsReply(settings, id, name);
@@ -289,4 +291,20 @@ async function saveFigure(id, user, figur, settings, message) {
     await db.set(`seat/${id}`, seat);
   }
   return message;
+}
+
+// Wetter, Tageszeit und Hintergrund per Chat (nur Moderation): z. B. !wetter regen, !tageszeit nacht, !hintergrund stadt
+const LOOK = {
+  weather: { key: 'wetter', name: 'Wetter', values: { klar: 'klar', wolkig: 'wolkig', regen: 'Regen', gewitter: 'Gewitter', schnee: 'Schnee', nebel: 'Nebel' }, icon: '🌦️' },
+  daytime: { key: 'tageszeit', name: 'Tageszeit', values: { auto: 'automatisch', morgen: 'Morgen', mittag: 'Mittag', abend: 'Abend', nacht: 'Nacht' }, icon: '🕒' },
+  backdrop: { key: 'hintergrund', name: 'Hintergrund', values: { landschaft: 'Landschaft mit Pavillon', zug: 'Zugabteil', sitzecke: 'Sitzecke am Fenster', stadt: 'Stadt', see: 'See', bild: 'eigenes Bild' }, icon: '🎬' },
+};
+async function setLook(action, args, settings) {
+  const L = LOOK[action]; const want = norm(args[0] ?? '');
+  const list = Object.keys(L.values).join(', ');
+  if (!want) return `${L.icon} ${L.name}: ${L.values[settings[L.key]] ?? settings[L.key]}. Ändern mit ${settings.commandPrefix}${Object.keys(COMMANDS).find((k) => COMMANDS[k] === action)} <${list}>`;
+  const value = Object.keys(L.values).find((v) => norm(v) === want || norm(L.values[v]) === want);
+  if (!value) return `${L.name} „${args[0]}“ gibt es nicht. Möglich: ${list}`;
+  const { error } = await saveSettings({ [L.key]: value });
+  return error ? null : `${L.icon} ${L.name}: ${L.values[value]}`;
 }

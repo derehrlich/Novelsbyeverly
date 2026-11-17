@@ -1,4 +1,4 @@
-// Jahres- und Tageszeit für die Landschaft: fest eingestellt oder nach Datum und Uhrzeit in der eingestellten Zeitzone.
+// Jahres- und Tageszeit (morgen, mittag, abend, nacht) für die Landschaft und die Szenen: fest eingestellt oder nach Datum und Uhrzeit in der eingestellten Zeitzone.
 const part = (settings, date, opts) => Number(new Intl.DateTimeFormat('en-US', { timeZone: settings.timezone, ...opts }).format(date));
 
 export function resolveSeason(settings, date = new Date()) {
@@ -10,5 +10,5 @@ export function resolveSeason(settings, date = new Date()) {
 export function resolveTime(settings, date = new Date()) {
   if (settings.tageszeit !== 'auto') return settings.tageszeit;
   const h = part(settings, date, { hour: 'numeric', hourCycle: 'h23' });
-  return h >= 5 && h < 10 ? 'morgen' : h >= 10 && h < 17 ? 'mittag' : 'abend';
+  return h >= 5 && h < 10 ? 'morgen' : h >= 10 && h < 17 ? 'mittag' : h >= 17 && h < 21 ? 'abend' : 'nacht';
 }
