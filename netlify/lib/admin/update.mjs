@@ -25,6 +25,6 @@ export async function update({ route, method }) {
   if (r.status === 401 || r.status === 403) return json({ error: 'Watchtower hat den Schlüssel abgelehnt. WATCHTOWER_TOKEN muss in beiden Apps gleich sein.' }, 502);
   if (r.status >= 300) return json({ error: `Watchtower antwortet mit Fehler ${r.status}` }, 502);
   // Neuere Watchtower-Versionen melden mit, wie viele Container sie geprüft haben. Null heißt: sie hat die Everly-Bot gar nicht gefunden.
-  try { const d = JSON.parse(r.text); if ((d.summary ?? d).scanned === 0) return json({ error: 'Watchtower hat keinen Container zum Aktualisieren gefunden. Heißt die App „novelsbyeverly“? (Name bei „command“ in der Watchtower-App)' }, 502); } catch { /* keine Zusammenfassung: dann wie bisher */ }
+  try { const d = JSON.parse(r.text); if ((d.summary ?? d).scanned === 0) return json({ error: 'Watchtower hat keinen Container zum Aktualisieren gefunden. Der Container heißt „everly“. Dieser Name muss in der Watchtower-App bei „command“ stehen, bei mehreren Apps als getrennte Einträge (zum Beispiel „stadtwache“ und „everly“).' }, 502); } catch { /* keine Zusammenfassung: dann wie bisher */ }
   return json({ done: true }); // Watchtower ist fertig, ohne dass die Everly-Bot dabei neu gestartet wurde: nichts Neues da
 }
