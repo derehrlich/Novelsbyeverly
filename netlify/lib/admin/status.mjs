@@ -1,6 +1,6 @@
 // GET /api/admin/state: Umgebungsvariablen, Twitch-Verbindungen, Reward, Webhooks und Überblick.
 import { db } from '../store.mjs';
-import { getSettings, needsReward } from '../settings.mjs';
+import { getSettings, needsChat, needsReward } from '../settings.mjs';
 import { activeSeats, communityMinutes } from '../people.mjs';
 import { getTimer, sprintsToday } from '../timer.mjs';
 import { getWords } from '../words.mjs';
@@ -21,7 +21,7 @@ export async function status({ req, route, method }) {
   if (channel && process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET) {
     try {
       const subs = await listSubscriptions(webhookUrl);
-      const expected = 1 + (needsReward(settings) && state.rewardId ? 1 : 0);
+      const expected = (needsChat(settings) ? 1 : 0) + (needsReward(settings) && state.rewardId ? 1 : 0);
       const notReady = subs.find((x) => x.status !== 'enabled');
       subscription = !subs.length ? 'keine' : notReady ? notReady.status : subs.length < expected ? 'unvollständig – bitte neu einrichten' : 'enabled';
     } catch (e) { subscriptionError = e.message; }
@@ -40,7 +40,7 @@ export async function status({ req, route, method }) {
     rewardId: state.rewardId ?? null,
     revoked: state.revoked ?? null,
     subscription, subscriptionError,
-    urls: { site: siteUrl(req), redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, words: `${siteUrl(req)}/api/words` },
+    urls: { site: siteUrl(req), rangliste: `${siteUrl(req)}/rangliste`, redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, words: `${siteUrl(req)}/api/words` },
     timer: await getTimer(),
     pomodoro: { done: await sprintsToday(settings), goal: settings.pomodoroGoal },
     modus: settings.szeneModus,

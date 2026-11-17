@@ -1,0 +1,36 @@
+# Update-Helfer für den Everly-Bot. In CasaOS: App-Store → „Benutzerdefinierte App installieren“ → diese Datei einfügen. Nur einmal nötig.
+# Watchtower tut nichts von allein. Im Admin (Allgemein → Updates) auf „Auf Updates prüfen“ drücken: dann schaut es, ob es ein neueres Image
+# gibt (nach jedem Merge in main baut GitHub eins), lädt es und startet den Everly-Bot mit denselben Einstellungen neu.
+# Es berührt nur die App „everly“ (der Name steht unten bei „command“), sonst nichts.
+# HIER_UPDATE_SCHLUESSEL durch ein langes Geheimwort ersetzen (nur Buchstaben und Zahlen). Derselbe Wert kommt beim Everly-Bot als WATCHTOWER_TOKEN hinein.
+# Läuft auf demselben NAS schon Watchtower für die Stadtwache, brauchst du diese App NICHT: Trag dort bei „command“ einfach beide Namen ein (stadtwache everly).
+# Die Daten des Everly-Bots liegen im Ordner /DATA/AppData/everly/data und bleiben dabei erhalten.
+name: watchtower
+services:
+  watchtower:
+    image: ghcr.io/nicholas-fedor/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    command: everly # nur diesen Container aktualisieren (Name der Everly-Bot-App)
+    ports:
+      - "8081:8080" # nur im Heimnetz erreichbar, Befehle nimmt es nur mit dem Schlüssel an
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: Europe/Berlin
+      WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_TOKEN: HIER_UPDATE_SCHLUESSEL
+      WATCHTOWER_CLEANUP: "true"
+x-casaos:
+  architectures:
+    - amd64
+  main: watchtower
+  author: Novels by Everly
+  category: Twitch
+  description:
+    de_de: Spielt Updates des Everly-Bots auf Knopfdruck im Admin ein
+    en_us: Installs Everly-Bot updates on a button press in the admin
+  title:
+    custom: Watchtower
+  port_map: ""
+  index: /

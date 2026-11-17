@@ -11,6 +11,7 @@ import { storedTokens } from './twitch.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
 import { addPages, getPages, setPages } from './pages.mjs';
 import { fmtHM, startStream, stopStream, streamInfo } from './streamzeit.mjs';
+import { countChat, pointsReply, rankReply, streakReply } from './punkte.mjs';
 
 const MAX_VIEWER_WORDS = 3000;
 const num = (s) => { const n = Number(String(s ?? '').replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -33,6 +34,8 @@ const COMMANDS = {
   pause: 'pause',
   stop: 'stop', stopp: 'stop',
   szene: 'scene', ort: 'scene',
+  streak: 'streak', besuche: 'streak',
+  rangliste: 'ranking', top: 'ranking', punkte: 'points',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
 const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream']);
@@ -62,6 +65,7 @@ export async function handleChat(e, settings = null) {
   const isMod = isBroadcaster || hasBadge(e, 'moderator');
 
   await touchSeat(id); // wer schreibt, behält seinen Platz
+  if (settings.pointsEnabled && id !== e.broadcaster_user_id && !(bot && bot.user_id === id)) await countChat(id, name, settings).catch((err) => console.warn('Punkte-Zählung fehlgeschlagen:', err.message));
   await tick(settings);
 
   const text = String(e.message?.text ?? '').trim();
@@ -71,6 +75,8 @@ export async function handleChat(e, settings = null) {
   if (!action) return { ok: true };
   if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true }; // doppelt zugestellt
   if (ZIMMER_ONLY.has(action) && settings.szeneModus !== 'zimmer') return { ok: true };
+  if (action === 'streak' && !settings.checkinEnabled) return { ok: true };
+  if ((action === 'ranking' || action === 'points') && !settings.pointsEnabled) return { ok: true };
   if (MOD_ONLY.has(action) && !isMod) return { ok: true };
   if (BROADCASTER_ONLY.has(action) && !isBroadcaster) return { ok: true };
 
@@ -86,6 +92,9 @@ async function run(action, ctx) {
   const { id, name, args, settings } = ctx;
   switch (action) {
     case 'sit': return doSit(ctx);
+    case 'streak': return (await cooling(`streak-${id}`, settings.commandCooldown)) ? null : streakReply(settings, id, name);
+    case 'ranking': return (await cooling('ranking', settings.commandCooldown)) ? null : rankReply(settings, id);
+    case 'points': return (await cooling(`points-${id}`, settings.commandCooldown)) ? null : pointsReply(settings, id, name);
     case 'leave': {
       const timer = await getTimer();
       const r = await leave(id, name, settings, timer);
@@ -186,9 +195,10 @@ async function run(action, ctx) {
     }
     case 'help': {
       const p = pre(settings);
-      if (settings.szeneModus !== 'zimmer') return `📖 ${p}task Text · ${p}done · ${p}tasks · ${p}wörter 300`;
+      const extra = `${settings.checkinEnabled ? ` · ${p}streak` : ''}${settings.pointsEnabled ? ` · ${p}punkte · ${p}rangliste` : ''}`;
+      if (settings.szeneModus !== 'zimmer') return `📖 ${p}task Text · ${p}done · ${p}tasks · ${p}wörter 300${extra}`;
       const sit = allowsSit(settings) ? `${p}sitzen · ` : needsReward(settings) ? `Platz per Reward „${settings.checkinRewardTitle}“ · ` : '';
-      return `📖 ${sit}${p}aufstehen · ${p}figur · ${p}task Text · ${p}done · ${p}wörter 300 · ${p}rang`;
+      return `📖 ${sit}${p}aufstehen · ${p}figur · ${p}task Text · ${p}done · ${p}wörter 300 · ${p}rang${extra}`;
     }
     default: return null;
   }

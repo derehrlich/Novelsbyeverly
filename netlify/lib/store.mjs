@@ -1,4 +1,4 @@
-// Speicher: Netlify Blobs in der Cloud. Mit LOCAL_STORE_DIR (nur für Tests und lokale Entwicklung) landen die Daten in Dateien.
+// Speicher: Netlify Blobs in der Cloud. Mit LOCAL_STORE_DIR (Betrieb zu Hause per server.mjs, Tests, lokale Entwicklung) landen die Daten in Dateien.
 //
 // Schlüssel:
 //   config/settings|tokens|bot-tokens|state   Einstellungen, Twitch-Verbindungen (Kanal und Bot), IDs der Rewards
@@ -18,16 +18,19 @@ import path from 'node:path';
 
 function fileStore(name) {
   const dir = path.join(process.env.LOCAL_STORE_DIR, name);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const f = (k) => path.join(dir, encodeURIComponent(k));
+  const TMP = '.tmp-'; // Hilfsdateien beim Schreiben; kein Schlüssel beginnt so
+  const tmp = () => path.join(dir, `${TMP}${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return {
     async get(k) { try { return JSON.parse(fs.readFileSync(f(k), 'utf8')); } catch { return null; } },
-    async set(k, v) { fs.writeFileSync(f(k), JSON.stringify(v)); },
+    // Erst in eine Hilfsdatei, dann umbenennen: Bricht der Strom mitten im Schreiben ab, bleibt der alte Stand ganz erhalten.
+    async set(k, v) { const t = tmp(); fs.writeFileSync(t, JSON.stringify(v), { mode: 0o600 }); fs.renameSync(t, f(k)); },
     async setIfNew(k, v) {
-      try { fs.writeFileSync(f(k), JSON.stringify(v), { flag: 'wx' }); return true; } catch { return false; }
+      try { fs.writeFileSync(f(k), JSON.stringify(v), { flag: 'wx', mode: 0o600 }); return true; } catch { return false; }
     },
     async delete(k) { fs.rmSync(f(k), { force: true }); },
-    async list(prefix = '') { return fs.readdirSync(dir).map(decodeURIComponent).filter((k) => k.startsWith(prefix)).sort(); },
+    async list(prefix = '') { return fs.readdirSync(dir).filter((n) => !n.startsWith(TMP)).map(decodeURIComponent).filter((k) => k.startsWith(prefix)).sort(); },
   };
 }
 

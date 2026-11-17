@@ -45,6 +45,32 @@ export const DEFAULTS = {
   // Check-in-Reward (nur nötig, wenn appearOn 'checkin' oder 'both' ist)
   checkinRewardTitle: 'Check-in',
   checkinRewardCost: 1,
+  // Check-in mit Besuchszähler und Streak (Kanalpunkte-Reward). Ist er an, braucht es den Reward auch ohne „Zimmer-Modus“.
+  checkinEnabled: false,
+  streakGrace: 1, // so viele Streams darf man verpassen, ohne dass die Streak reißt
+  milestoneEnabled: true,
+  milestoneLevels: '10,25,50,100,250,500,1000',
+  visitTemplate: '✅ {user} ist eingecheckt – Besuch #{count}, 🔥 Streak {streak}! Schön, dass du da bist.',
+  milestoneTemplate: '🏆 {user} ist zum {count}. Mal dabei – Meilenstein! Danke für deine Treue ❤️',
+  visitDuplicateTemplate: '{user}, du bist heute schon eingecheckt (Besuch #{count}) ✅ Deine Punkte bekommst du zurück.',
+  streakCmdTemplate: '📊 {user}: {count} Besuche · 🔥 Streak {streak} (Rekord {record}) · Platz {rank} von {total}',
+  streakCmdNone: '{user}, ich habe noch keinen Check-in von dir – löse den Check-in-Reward ein ✅',
+  // Punkte und Monatsrangliste (Twitch-Chat und Check-ins)
+  pointsEnabled: false,
+  pointsWeightMsg: 1,
+  pointsWeightDay: 10,
+  pointsWeightCheckin: 20,
+  pointsMsgCap: 30, // gezählte Nachrichten pro Tag (höchstens)
+  pointsMsgGap: 60, // Mindestabstand zwischen zwei gezählten Nachrichten (Sekunden)
+  pointsRankSize: 5, // Plätze im Chat
+  pointsRankTemplate: '🏆 Rangliste {month}: {list}{me} · Alle Plätze: {url}',
+  pointsRankEmpty: '🏆 In der Rangliste {month} stehen noch keine Punkte. Schreib im Chat und check dich ein! {url}',
+  pointsMeTemplate: '⭐ {user}: {points} Punkte im {month} · Platz {rank} von {total}. Rangliste: {url}',
+  pointsMeNone: '{user}, du hast im {month} noch keine Punkte. Schreib im Chat und check dich ein ✅',
+  // Sicherung (nur auf dem Heimserver)
+  backupAutoEnabled: true,
+  backupHour: 3,
+  backupKeep: 7,
   // Chat
   chatEnabled: true, // der Bot darf schreiben
   chatCommands: true, // der Bot versteht Befehle
@@ -69,11 +95,14 @@ export const DEFAULTS = {
   goalTemplate: '🎯 Tagesziel erreicht: {words} Wörter! Ihr seid großartig.',
 };
 
-const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10] };
-const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint'];
+const INT = { seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10], streakGrace: [0, 5], pointsWeightMsg: [0, 1000], pointsWeightDay: [0, 1000], pointsWeightCheckin: [0, 1000], pointsMsgCap: [1, 500], pointsMsgGap: [0, 3600], pointsRankSize: [1, 10], backupHour: [0, 23], backupKeep: [1, 60] };
+const BOOL = ['autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint', 'checkinEnabled', 'milestoneEnabled', 'pointsEnabled', 'backupAutoEnabled'];
 const ENUM = { appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'] };
 
-export const needsReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
+export const seatsOnReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
+// Der Chat-Webhook wird gebraucht, wenn der Bot Befehle versteht oder Chat-Punkte zählt
+export const needsChat = (s) => s.chatCommands || s.pointsEnabled;
+export const needsReward = (s) => s.checkinEnabled || seatsOnReward(s);
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';
 
 export function validTimezone(tz) {

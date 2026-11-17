@@ -149,8 +149,19 @@
         <button data-test="seats">Testfiguren setzen</button><button class="hell" data-test="clear">Testfiguren entfernen</button>
         <button class="hell" data-event="sprint">Pomodoro-Ende</button><button class="hell" data-event="goal">Tagesziel</button>
         <button class="hell" data-event="rankup">Rang</button><button class="hell" data-event="unlock">Freischaltung</button>
+        <button class="hell" data-event="checkin">Check-in</button><button class="hell" data-event="meilenstein">Meilenstein</button>
         <button class="hell" data-event="deko">Zimmer wächst</button><button class="hell" data-event="taskdone">Aufgabe erledigt</button>
       </div>
+    </section>
+
+    <section class="karte">
+      <h2>System</h2>
+      <h3>Update</h3>
+      <div class="reihe"><span class="leise" id="version">–</span><button class="hell" id="updatePruefen">Auf Updates prüfen</button></div>
+      <p class="leise" id="updateHinweis"></p>
+      <h3>Sicherung</h3>
+      <div class="reihe"><button class="hell" id="sichernJetzt">Jetzt sichern</button><a class="knopf hell" href="/api/admin/backup">Sicherung herunterladen</a><label class="knopf hell" for="restoreDatei">Wiederherstellen …</label><input type="file" id="restoreDatei" accept="application/json,.json" hidden></div>
+      <p class="leise" id="sicherungStatus">–</p>
     </section>
 
     <section class="karte">
@@ -161,6 +172,7 @@
         <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>
         <tr><td><code>!wörter 300</code></td><td>Zuschauer: gemeldete Wörter · Streamerin: <code>!wörter 4231</code> (Stand) oder <code>!wörter +300</code></td></tr>
         <tr><td><code>!song Titel - Interpret</code> · <code>!song aus</code></td><td>Musik-Anzeige von Hand (Moderation)</td></tr>
+        <tr><td><code>!streak</code> · <code>!punkte</code> · <code>!rangliste</code></td><td>Eigene Besuche und Streak, eigene Punkte, Monatsrangliste (wenn Check-in bzw. Punkte eingeschaltet sind)</td></tr>
         <tr><td><code>!hilfe</code></td><td>Befehlsübersicht</td></tr>
         <tr><td><i>Zimmer-Modus (pausiert):</i> <code>!sitzen</code> · <code>!aufstehen</code> · <code>!figur</code> · <code>!rang</code> · <code>!szene</code></td><td>Figuren der Zuschauer an Tischen, nur wenn „Darstellung: Zimmer“ gewählt ist</td></tr>
       </table>
