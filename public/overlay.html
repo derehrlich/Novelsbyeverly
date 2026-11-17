@@ -94,12 +94,47 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 @keyframes rein { from { transform: translateY(-140px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes raus { to { transform: translateY(-120px); opacity: 0; } }
 #konfetti { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
+
+/* ---- Glas-Stil (Einstellung „Stil der Karten“): durchsichtige, getönte Kacheln, die das Bild dahinter verschwimmen lassen.
+   --glas = Tönung, --glas-a = Stärke in Prozent, --glas-blur = Unschärfe. Werte kommen aus dem Admin (Seite „Design und Hintergrund“). */
+#kulisse { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+#bg { position: absolute; inset: 0; width: 1920px; height: 1080px; background-size: cover; background-position: center; }
+body.glas { --text: #fff; --leise: rgba(255, 255, 255, .74); --rand: rgba(255, 255, 255, .42); --fokus: rgba(255, 255, 255, .95); --pause: #ffd9a0; --bereit: rgba(255, 255, 255, .5); }
+body.glas .card, body.glas .ereignis, body.glas .modul {
+  background: linear-gradient(135deg, rgba(255, 255, 255, .26) 0%, rgba(255, 255, 255, .05) 46%, rgba(255, 255, 255, .1) 100%),
+    color-mix(in srgb, var(--glas, #3b6f94) calc(var(--glas-a, 38) * 1%), transparent);
+  -webkit-backdrop-filter: blur(var(--glas-blur, 22px)) saturate(1.5); backdrop-filter: blur(var(--glas-blur, 22px)) saturate(1.5);
+  border: 1.5px solid rgba(255, 255, 255, .34); border-top-color: rgba(255, 255, 255, .62); border-left-color: rgba(255, 255, 255, .5);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .5), inset 0 -14px 28px rgba(255, 255, 255, .05), 0 18px 44px rgba(10, 25, 40, .34);
+  color: #fff; text-shadow: 0 1px 8px rgba(10, 25, 40, .28);
+}
+body.glas .card { border-radius: 38px; }
+body.glas .card > *, body.glas .ereignis > * { position: relative; }
+body.glas .card::before, body.glas .ereignis::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(118deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .06) 34%, rgba(255, 255, 255, 0) 52%); pointer-events: none; }
+body.glas .ereignis { position: relative; border-radius: 40px; }
+body.glas .ereignis.gold { background: linear-gradient(135deg, rgba(255, 236, 190, .4), rgba(255, 255, 255, .06)), color-mix(in srgb, #d9a64a calc(var(--glas-a, 38) * 1%), transparent); }
+body.glas .modul { border-radius: 16px; }
+body.glas .bar { background: rgba(255, 255, 255, .2); box-shadow: inset 0 1px 2px rgba(10, 25, 40, .18); }
+body.glas .bar i { background: linear-gradient(180deg, #fff, rgba(255, 255, 255, .8)); box-shadow: 0 0 12px rgba(255, 255, 255, .5); }
+body.glas .chip { background: rgba(255, 255, 255, .26); border: 1px solid rgba(255, 255, 255, .45); }
+body.glas .phase-focus .chip { background: rgba(255, 255, 255, .9); color: #1d4560; text-shadow: none; }
+body.glas .phase-break .chip { background: rgba(255, 217, 160, .9); color: #5a3a10; text-shadow: none; }
+body.glas .pomo i { border-color: rgba(255, 255, 255, .6); }
+body.glas .pomo i.fertig { background: #fff; border-color: #fff; } body.glas .pomo i.aktiv { background: conic-gradient(#fff var(--p, 0%), rgba(255, 255, 255, .14) 0); }
+body.glas #woerter.geschafft .zahl { color: #ffe6a8; } body.glas #woerter.geschafft .bar i { background: #ffe6a8; }
+body.glas #woerter .sprint { background: rgba(255, 255, 255, .9); color: #1d4560; text-shadow: none; }
+body.glas #tasks li::before { border-color: rgba(255, 255, 255, .8); background: rgba(255, 255, 255, .12); }
+body.glas #tasks li.fertig::before { background: #fff; border-color: #fff; color: #1d4560; }
+body.glas #musik .cover { box-shadow: 0 6px 18px rgba(10, 25, 40, .35); border: 1px solid rgba(255, 255, 255, .4); }
+body.glas #musik .eq i, body.glas #musik .eq i:nth-child(n) { background: rgba(255, 255, 255, .92); }
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <div id="stage">
   <div id="kamera" hidden>Kamera</div>
+  <div id="bg" hidden></div>
+  <canvas id="kulisse" width="1920" height="1080" hidden></canvas>
   <canvas id="szene" hidden></canvas>
   <div id="namen"></div>
   <div id="module"></div>
@@ -132,6 +167,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 
 <script type="module">
 import { Szene, seatPos, moduleLayout } from './js/szene.mjs';
+import { Kulisse } from './js/kulisse.mjs';
 import { nowPlaying } from './js/jetztlaeuft.mjs';
 
 const q = new URLSearchParams(location.search);
@@ -229,7 +265,7 @@ function handleEvent(ev) {
 const pad = (n) => String(n).padStart(2, '0');
 function renderNames() {
   const box = $('namen');
-  if (!szene) { box.textContent = ''; return; }
+  if (!szene || bildModus) { box.textContent = ''; return; }
   const seen = new Set();
   for (const s of view.seats) {
     seen.add(s.id);
@@ -248,7 +284,7 @@ function renderNames() {
 
 function renderModules() {
   const box = $('module');
-  if (!szene) { box.textContent = ''; return; }
+  if (!szene || bildModus) { box.textContent = ''; return; }
   const layout = moduleLayout(view.modules, view.layout, view.modus);
   const keep = new Set(layout.map((m) => m.id));
   for (const m of layout) {
@@ -371,20 +407,46 @@ function renderMusik() {
   applyLayout();
 }
 
+// Stil (Papier oder Glas) und Hintergrund (Landschaft oder eigenes Bild)
+let bildModus = false, kulisseModus = false, kulisse = null;
+function applyDesign() {
+  const v = view;
+  document.body.classList.toggle('glas', v.stil === 'glas');
+  const g = v.glas ?? {};
+  document.body.style.setProperty('--glas', g.farbe ?? '#3b6f94');
+  document.body.style.setProperty('--glas-a', String(g.staerke ?? 38));
+  document.body.style.setProperty('--glas-blur', `${g.unschaerfe ?? 22}px`);
+  const mode = v.hintergrund?.mode;
+  kulisseModus = mode === 'kulisse';
+  bildModus = mode === 'bild' || kulisseModus; // beides ersetzt die gemalte Landschaft samt Pavillon und Modulen
+  const bg = $('bg');
+  bg.hidden = !(mode === 'bild' && teile.has('szene'));
+  if (mode === 'bild') { const url = `url("${v.hintergrund.url}")`; if (bg.style.backgroundImage !== url) bg.style.backgroundImage = url; }
+  $('kulisse').hidden = !(kulisseModus && teile.has('szene'));
+  if (kulisseModus) { kulisse ??= new Kulisse($('kulisse')); kulisse.set(v.hintergrund.kulisse); }
+  $('szene').hidden = !teile.has('szene') || bildModus;
+}
+
 function apply(data) {
   const first = view === null;
   offset = data.now - Date.now();
   view = data;
   for (const ev of data.events ?? []) handleEvent(ev);
   if (data.cursor) cursor = data.cursor;
-  szene?.update(view);
+  applyDesign();
+  if (!bildModus) szene?.update(view);
   renderNames(); renderModules(); renderTasks(); renderWords(); renderTimer(); applyLayout();
   updateMusik();
   if (first) shownWords = targetWords;
 }
 
 // ---- Anordnungs-Editor im Admin schickt neue Positionen, damit man sie live sieht
-if (q.has('editor')) addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'layout' && view) { view.layout = e.data.layout; szene?.update(view); renderModules(); applyLayout(); } });
+if (q.has('editor')) addEventListener('message', (e) => {
+  if (e.origin !== location.origin) return;
+  if (e.data?.type === 'layout' && view) { view.layout = e.data.layout; if (!bildModus) szene?.update(view); renderModules(); applyLayout(); }
+  // Vorschau im Admin: ganzer Stand mit noch nicht gespeicherten Einstellungen (siehe /api/admin/preview)
+  if (e.data?.type === 'view' && e.data.view) apply({ ...e.data.view, events: [] });
+});
 
 // ---- Abrufen
 async function poll() {
@@ -393,7 +455,10 @@ async function poll() {
     if (res.ok) apply(await res.json());
   } catch { /* beim nächsten Mal wieder */ }
 }
-if (demo) {
+if (q.has('vorschau')) {
+  // Vorschau im Admin: kein Abrufen, der Admin schickt den Stand per Nachricht
+  parent.postMessage({ type: 'overlay-ready' }, location.origin);
+} else if (demo) {
   // Vorschau ohne Bot: Beispieldaten
   const { DEFAULT_LAYOUT } = await import('./js/layout.mjs');
   const mk = () => ({
@@ -416,9 +481,10 @@ if (demo) {
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  if (t - last < 70) return; // ca. 14 Bilder pro Sekunde reichen für Pixel-Optik
+  if (t - last < (kulisseModus ? 33 : 70)) return; // Pixel-Optik: ca. 14 Bilder pro Sekunde, die Szenen mit Wetter laufen mit ca. 30
   last = t;
-  if (szene && view) szene.draw(t);
+  if (szene && view && !bildModus) szene.draw(t);
+  if (kulisseModus && teile.has('szene')) kulisse?.draw(t);
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
   if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();

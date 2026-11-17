@@ -3,11 +3,13 @@
 export const NAV = [
   ['', [['start', '🏠', 'Übersicht']]],
   ['Stream', [['pomodoro', '🍅', 'Pomodoro'], ['ziel', '🎯', 'Ziel'], ['landschaft', '🌳', 'Landschaft und Stefanie'], ['todo', '📝', 'To-Do-Liste'], ['musik', '🎵', 'Musik']]],
-  ['Overlay', [['anordnung', '🧩', 'Anordnung'], ['adressen', '🔗', 'OBS-Adressen und Test']]],
+  ['Overlay', [['anordnung', '🧩', 'Anordnung'], ['design', '🎨', 'Design und Hintergrund'], ['adressen', '🔗', 'OBS-Adressen und Test']]],
   ['Zuschauer', [['checkin', '✅', 'Check-in, Streak und Punkte'], ['mitschreibende', '👥', 'Mitschreibende']]],
   ['Chat', [['chat', '💬', 'Chat und Befehle']]],
   ['Verwaltung', [['einrichtung', '🔌', 'Einrichtung'], ['system', '⚙️', 'System']]],
 ];
+// Seiten, auf denen rechts die Live-Vorschau des Overlays steht („Anordnung“ hat ihre eigene)
+export const PREVIEW_PAGES = ['pomodoro', 'ziel', 'landschaft', 'musik', 'design'];
 export const PAGES = NAV.flatMap(([, items]) => items);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);

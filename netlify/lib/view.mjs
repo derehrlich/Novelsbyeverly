@@ -3,7 +3,7 @@ import { db } from './store.mjs';
 import { RAENGE, unlockedDeko } from '../../public/js/katalog.mjs';
 import { activeSeats, capacity, communityMinutes, resolveSlots } from './people.mjs';
 import { eventCursor } from './util.mjs';
-import { sprintsToday, tick } from './timer.mjs';
+import { getTimer, sprintsToday, tick } from './timer.mjs';
 import { getTasks, visibleTasks } from './tasks.mjs';
 import { getWords, viewerWordsToday } from './words.mjs';
 import { storedTokens } from './twitch.mjs';
@@ -17,6 +17,19 @@ export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch n
 
 export async function streamerId() {
   return (await storedTokens('broadcaster'))?.user_id ?? STREAMER_TASKS;
+}
+
+export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
+const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
+// Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
+export function hintergrundOf(settings, zeit, saison) {
+  const h = settings.hintergrund;
+  if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
+  if (SZENEN_KULISSE.includes(h)) {
+    const v = settings[RAUM_KEY[h]];
+    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null } };
+  }
+  return { mode: 'landschaft' };
 }
 
 const frac = (n, goal) => (goal > 0 ? n / goal : 0);
@@ -41,8 +54,9 @@ export async function buildZiel(settings, { words, done, now }) {
   return { ziel, zeit };
 }
 
-export async function buildView(settings, since, now = Date.now()) {
-  const timer = await tick(settings, now);
+// preview: Vorschau im Admin mit noch nicht gespeicherten Einstellungen. Dann wird der Timer nur gelesen, nie weitergeschaltet.
+export async function buildView(settings, since, now = Date.now(), { preview = false } = {}) {
+  const timer = preview ? await getTimer() : await tick(settings, now);
   const seats = resolveSlots(await activeSeats(settings, now), capacity(settings));
   const keys = await db.list('event/');
   const cursor = keys.at(-1) ?? eventCursor(now);
@@ -73,13 +87,16 @@ export async function buildView(settings, since, now = Date.now()) {
     now,
     modus: settings.szeneModus,
     jahreszeit: resolveSeason(settings, new Date(now)),
-    tageszeit: resolveTime(settings, new Date(now)),
+    tageszeit: resolveTime(settings, new Date(now)) === 'nacht' ? 'abend' : resolveTime(settings, new Date(now)), // die Landschaft mit Pavillon kennt keine eigene Nacht
     progress: Math.min(1, Math.max(0, progress)),
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
     ziel,
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
+    stil: settings.kartenStil,
+    glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
+    hintergrund: hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now))),
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),
