@@ -226,7 +226,7 @@ function placeholderRoom(name) {
 }
 // Magenta-Fläche im Bild in Durchsichtigkeit umwandeln (mit weichem Rand und ohne rosa Saum).
 // Erkannt wird alles, was „magenta-artig“ ist: Rot und Blau hoch, Grün deutlich niedriger. Auch der helle, rosa Lichtschein einer Lampe auf der Fläche zählt dazu.
-function cutWindow(img) {
+function cutWindow(img, mode = 'fenster') {
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d', { willReadFrequently: true });
   const f = Math.max(W / img.width, H / img.height); const dw = img.width * f, dh = img.height * f; c.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
   const id = c.getImageData(0, 0, W, H), d = id.data; const N = W * H;
@@ -240,13 +240,15 @@ function cutWindow(img) {
   // 1) Magenta-artige Pixel: Rot und Blau hoch, Grün deutlich niedriger
   for (let p = 0; p < N; p += 1) {
     const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2], m = Math.min(r, b) - g;
-    if (m > 20 && r > 170 && b > 170 && Math.abs(r - b) < 70) d[i + 3] = Math.round(clamp(1 - (m - 24) / 28, 0, 1) * 255);
+    if (mode === 'streng') { if (m > 100 && r > 190 && b > 190 && Math.abs(r - b) < 50) d[i + 3] = Math.round(clamp(1 - (m - 105) / 55, 0, 1) * 255); } // nur echtes Magenta, rosa Blüten bleiben stehen
+    else if (m > 20 && r > 170 && b > 170 && Math.abs(r - b) < 70) d[i + 3] = Math.round(clamp(1 - (m - 24) / 28, 0, 1) * 255);
   }
+  const fenster = mode === 'fenster';
   // 2) Der helle rosa Lichtschein einer Lampe auf der Fläche: nahe am Fenster zählt jedes blasse Rosa dazu
   let dist = distance();
-  for (let p = 0; p < N; p += 1) { if (dist[p] > 140 || d[p * 4 + 3] < 128) continue; const i = p * 4; if (d[i] > 130 && d[i + 2] > 130 && Math.min(d[i], d[i + 2]) - d[i + 1] > 6) d[i + 3] = 0; }
+  if (fenster) for (let p = 0; p < N; p += 1) { if (dist[p] > 140 || d[p * 4 + 3] < 128) continue; const i = p * 4; if (d[i] > 130 && d[i + 2] > 130 && Math.min(d[i], d[i + 2]) - d[i + 1] > 6) d[i + 3] = 0; }
   // 2b) Fast weißer Schein direkt am Rand der Fläche (Mitte des Lampenscheins) ebenfalls ausschneiden
-  for (let p = 0; p < N; p += 1) { if (dist[p] > 26 || d[p * 4 + 3] < 128) continue; const i = p * 4; if (d[i] > 215 && d[i + 2] > 215 && d[i + 1] > 185 && d[i] - d[i + 1] < 70) d[i + 3] = 0; }
+  if (fenster) for (let p = 0; p < N; p += 1) { if (dist[p] > 26 || d[p * 4 + 3] < 128) continue; const i = p * 4; if (d[i] > 215 && d[i + 2] > 215 && d[i + 1] > 185 && d[i] - d[i + 1] < 70) d[i + 3] = 0; }
   dist = distance();
   // 3) Rosa Saum an der Kante entfernen und Fensterfläche vermessen
   let n = 0, minX = W, minY = H, maxX = 0, maxY = 0;
@@ -255,7 +257,7 @@ function cutWindow(img) {
     if (dist[p] === 0) { n += 1; const x = p % W, y = (p / W) | 0; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; continue; }
     if (dist[p] > 4) continue;
     const g = d[i + 1], m = Math.min(d[i], d[i + 2]) - g;
-    if (m > 6) { const k = clamp(m / 40, 0, 1); d[i] -= (d[i] - Math.min(d[i], g + 8)) * k; d[i + 2] -= (d[i + 2] - Math.min(d[i + 2], g + 8)) * k; }
+    if (m > (fenster ? 6 : 30)) { const k = clamp(m / 40, 0, 1); d[i] -= (d[i] - Math.min(d[i], g + 8)) * k; d[i + 2] -= (d[i + 2] - Math.min(d[i + 2], g + 8)) * k; }
   }
   c.putImageData(id, 0, 0);
   return { cv, found: n > W * H * 0.01, win: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } };
@@ -459,3 +461,6 @@ export class Kulisse {
     c.restore();
   }
 }
+
+// Für die Jahreszeiten-Landschaft (public/js/jahreszeiten.mjs)
+export { ZEIT, WET, tone, sky, css, mix, clamp, rng, makeParticles, cutWindow, loadImage, glowDot };

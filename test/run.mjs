@@ -873,6 +873,28 @@ await test('Raumbilder: hochladen je Szene, ausliefern, entfernen', async () => 
   assert.equal((await viewNow()).hintergrund.kulisse.plate, null);
   await saveSettings({ hintergrund: 'landschaft' });
 });
+await test('Jahreszeiten-Landschaft: Bilder hochladen, ausliefern, Rückfall auf die gemalte Landschaft', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('POST', 'hintergrund/jz/keller', { data: PNG1 }, cookie)).status, 404);
+  assert.equal((await adminCall('POST', 'hintergrund/jz/winterA', { data: 'quatsch' }, cookie)).status, 400);
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg?jz=winterA'))).status, 404);
+  assert.equal((await bgFn(new Request('https://x/api/overlay-bg?jz=../../config'))).status, 404);
+  await saveSettings({ hintergrund: 'jahreszeiten' });
+  assert.equal((await viewNow()).hintergrund.mode, 'landschaft'); // noch keine Bilder
+  const a = await adminCall('POST', 'hintergrund/jz/winterA', { data: PNG1 }, cookie);
+  const b = await adminCall('POST', 'hintergrund/jz/winterB', { data: PNG1 }, cookie);
+  const s = await adminCall('POST', 'hintergrund/jz/blumen', { data: PNG1 }, cookie);
+  assert.equal(a.status, 200); assert.equal(b.status, 200); assert.equal(s.status, 200);
+  assert.ok((await adminCall('GET', 'hintergrund/jz', null, cookie)).body.slots.winterA);
+  const img = await bgFn(new Request(`https://x/api/overlay-bg?jz=winterA&v=${a.body.version}`));
+  assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png');
+  assert.ok(['jahreszeit', 'landschaft'].includes((await viewNow()).hintergrund.mode));
+  assert.ok((await backupLib.buildBackup()).entries['bg/jz/winterA']);
+  assert.equal((await adminCall('DELETE', 'hintergrund/jz/winterA', null, cookie)).status, 200);
+  assert.equal((await adminCall('DELETE', 'hintergrund/jz/winterB', null, cookie)).status, 200);
+  await saveSettings({ hintergrund: 'landschaft' });
+});
 await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', async () => {
   const mod = { badges: [{ set_id: 'moderator' }] };
   const before = chatSent().length;

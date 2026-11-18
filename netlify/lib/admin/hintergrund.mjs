@@ -38,10 +38,29 @@ async function plate({ route, method, body }) {
   }
 }
 
+// Jahreszeiten-Landschaft: je Jahreszeit ein Anfangs- und Endbild (Himmel in Magenta) und drei Blätter mit Blumen, Herbstblättern und Blüten (Hintergrund Magenta)
+export const JZ_SLOTS = { fruehlingA: 'jzFruehlingA', fruehlingB: 'jzFruehlingB', sommerA: 'jzSommerA', sommerB: 'jzSommerB', herbstA: 'jzHerbstA', herbstB: 'jzHerbstB', winterA: 'jzWinterA', winterB: 'jzWinterB', blumen: 'jzBlumen', blaetter: 'jzBlaetter', bluete: 'jzBluete' };
+async function jz({ route, method, body }) {
+  const name = route[2];
+  if (!name) { if (method !== 'GET') return; const s = await getSettings(); return json({ slots: Object.fromEntries(Object.entries(JZ_SLOTS).map(([n, k]) => [n, s[k]])) }); }
+  if (!JZ_SLOTS[name]) return json({ error: 'Unbekannter Platz' }, 404);
+  if (method === 'POST') {
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(body.data ?? ''));
+    if (!m) return json({ error: 'Bitte ein Bild (JPG, PNG oder WebP) wählen' }, 400);
+    const size = Math.floor((m[2].length * 3) / 4);
+    if (size > MAX_PLATE_BYTES) return json({ error: 'Das Bild ist zu groß (höchstens 8 MB)' }, 413);
+    await db.set(`bg/jz/${name}`, { type: m[1], b64: m[2], size });
+    const { settings } = await saveSettings({ [JZ_SLOTS[name]]: Date.now() });
+    return json({ ok: true, version: settings[JZ_SLOTS[name]], size });
+  }
+  if (method === 'DELETE') { await db.delete(`bg/jz/${name}`); await saveSettings({ [JZ_SLOTS[name]]: 0 }); return json({ ok: true, version: 0 }); }
+}
+
 export async function hintergrund(ctx) {
   const { route, method, body } = ctx;
   if (route[0] !== 'hintergrund') return;
   if (route[1] === 'raum') return plate(ctx);
+  if (route[1] === 'jz') return jz(ctx);
   if (method === 'GET') {
     const s = await getSettings();
     const img = await db.get('bg/image');
