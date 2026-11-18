@@ -128,14 +128,13 @@ const SCENES = {
     return { layers: L, hor, fire: Array.from({ length: 34 }, (_, i) => ({ x: rng(seed + i)() * ww, y: wh * (0.5 + rng(seed + i + 50)() * 0.45), p: i })) };
   },
   stadt(ww, wh, pal, w, seed) {
-    const SW = ww + 260; const hor = wh * 0.8;
+    const SW = ww + 260; const hor = wh * 0.86;
     // Drei Reihen Hochhäuser von fern nach nah: ferne sind blasser (Dunst), nahe dunkel und detailreicher
     const DEFS = [
       { minH: 130, maxH: 320, minW: 34, maxW: 82, depth: 0.05, haze: 0.62, win: [3, 4, 7, 9], dens: 0.5, yoff: 0 },
       { minH: 180, maxH: 400, minW: 46, maxW: 104, depth: 0.4, haze: 0.36, win: [4, 5, 9, 11], dens: 0.55, yoff: 16 },
       { minH: 230, maxH: 520, minW: 62, maxW: 132, depth: 0.85, haze: 0.1, win: [5, 6, 11, 13], dens: 0.62, yoff: 34 },
     ];
-    const gaps = [SW * 0.2, SW * 0.52, SW * 0.82];
     const WARM = css(pal.light), COOL = '#9fdcff', PINK = '#ffb0d0', WHITE = '#fff4e0';
     const L = DEFS.map((D, i) => {
       const body = tone(mix(mix(pal.far, pal.near, D.depth), pal.haze, D.haze), w); const top = mix(body, pal.haze, 0.2);
@@ -143,9 +142,7 @@ const SCENES = {
       out.strip = strip(SW, wh, (c, sw, sh) => {
         const r = rng(seed + 30 + i); let x = -12;
         while (x < sw) {
-          // In der vordersten Reihe bleiben drei Lücken (Straßenschluchten), durch die man die Hochstraße und die Reihen dahinter sieht
           const bw = D.minW + r() * (D.maxW - D.minW), bh = D.minH + r() * (D.maxH - D.minH), bx = x, by = hor - bh + D.yoff;
-          const gp = i === 2 ? gaps.find((g) => g >= x && g < x + bw) : undefined; if (gp !== undefined) { x = gp + 70 + r() * 50; continue; }
           x += bw + 2 + r() * 8;
           const g = c.createLinearGradient(0, by, 0, by + bh); g.addColorStop(0, css(top)); g.addColorStop(1, css(body)); c.fillStyle = g; c.fillRect(bx, by, bw, bh + 220);
           c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(bx + bw * 0.78, by, bw * 0.22, bh + 220); // Schattenseite
@@ -167,9 +164,7 @@ const SCENES = {
       const g2 = document.createElement('canvas'); g2.width = out.glow.width; g2.height = out.glow.height; const gc = g2.getContext('2d'); if ('filter' in gc) gc.filter = `blur(${4 + i}px)`; gc.drawImage(out.glow, 0, 0); out.glow = g2;
       return out;
     });
-    // Autos auf einer Hochstraße zwischen mittlerer und vorderer Reihe
-    const roadY = hor - 96; const cars = Array.from({ length: 22 }, (_, i) => { const r = rng(seed + 90 + i); return { dir: i % 2 ? 1 : -1, x: r() * (ww + 120), v: 34 + r() * 46, lane: i % 2 ? 0 : 1, big: r() < 0.12, c: ['#ffd9a0', '#fff1d0', '#cfe8ff'][i % 3], day: ['#c0453a', '#e8e0d0', '#3f6aa8', '#2a2a30', '#d9a03a'][i % 5] }; });
-    return { layers: L, hor, roadY, cars, DEFS };
+    return { layers: L, hor };
   },
   see(ww, wh, pal, w, seed) {
     const SW = ww * 1.5; const hor = wh * 0.58; const L = {};
@@ -267,6 +262,26 @@ function cutWindow(img) {
 }
 const loadImage = (url) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
 
+// ---- Video als Ausblick: läuft in der Schleife, am Ende wird sanft ins Neue überblendet (zwei Abspieler im Wechsel)
+const FADE_S = 1.2;
+class VideoLoop {
+  constructor(url) { this.url = url; this.a = this.make(); this.b = this.make(); this.cur = this.a; this.failed = false; }
+  make() { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.loop = false; v.src = this.url; v.onerror = () => { this.failed = true; }; v.play().catch(() => {}); return v; }
+  get ready() { return !this.failed && this.cur.readyState >= 2; }
+  draw(c, ww, wh) {
+    const v = this.cur, o = v === this.a ? this.b : this.a; const dur = v.duration;
+    if (!(dur > 0)) return;
+    const fade = Math.min(FADE_S, dur / 3), rem = dur - v.currentTime;
+    if (rem < fade && o.paused) { o.currentTime = 0; o.play().catch(() => {}); }
+    cover(c, v, ww, wh);
+    if (!o.paused && o.readyState >= 2) { c.globalAlpha = clamp(1 - rem / fade, 0, 1); cover(c, o, ww, wh); c.globalAlpha = 1; }
+    if (v.ended || rem <= 0.04) { v.pause(); this.cur = o; if (o.paused) o.play().catch(() => {}); }
+  }
+  dispose() { for (const v of [this.a, this.b]) { v.pause(); v.removeAttribute('src'); v.load(); } }
+}
+// Bild so einpassen, dass die Fläche ganz gefüllt ist (Ränder werden abgeschnitten)
+function cover(c, el, ww, wh) { const vw = el.videoWidth || ww, vh = el.videoHeight || wh; const f = Math.max(ww / vw, wh / vh); c.drawImage(el, (ww - vw * f) / 2, (wh - vh * f) / 2, vw * f, vh * f); }
+
 export class Kulisse {
   constructor(canvas) {
     this.cv = canvas; this.c = canvas.getContext('2d'); this.cfg = null; this.key = ''; this.scene = null; this.room = null; this.graded = null;
@@ -278,6 +293,7 @@ export class Kulisse {
   set(cfg) {
     const old = this.cfg; this.cfg = cfg;
     if (!old || old.name !== cfg.name || old.plate !== cfg.plate) this.loadRoom(cfg);
+    if (!old || old.video !== cfg.video) { this.vid?.dispose(); this.vid = cfg.video ? new VideoLoop(cfg.video) : null; this.scene = null; }
     const key = `${cfg.name}|${cfg.zeit}|${cfg.wetter}`;
     if (key !== this.key) { this.key = key; this.scene = null; this.graded = null; }
   }
@@ -296,7 +312,7 @@ export class Kulisse {
   buildScene() {
     const { name, zeit, wetter } = this.cfg; const win = this.room.win;
     const pal = ZEIT[zeit] ?? ZEIT.abend; const w = WET[wetter] ?? WET.klar; const seed = 1234 + name.length * 77;
-    this.scene = { name, pal, w, ...SCENES[name](win.w, win.h, pal, w, seed) };
+    this.scene = { name, pal, w, ...(this.vid ? {} : SCENES[name](win.w, win.h, pal, w, seed)) }; // mit Video braucht es die Code-Schichten nicht
     this.p = makeParticles(win.w, win.h);
   }
 
@@ -327,6 +343,14 @@ export class Kulisse {
 
   drawOutside(c, ww, wh, t, dt) {
     const S = this.scene; const { pal, w } = S; const cfg = this.cfg; const tempo = (cfg.tempo ?? 50) / 50; const wind = (cfg.wind ?? 30) / 100;
+    if (this.vid?.ready) { // Video als Ausblick, Wetter legt der Bot darüber
+      this.vid.draw(c, ww, wh);
+      if (w.nebel > 0.4) { c.fillStyle = css(pal.haze, 0.14 * w.nebel); c.fillRect(0, 0, ww, wh); }
+      this.weather(c, ww, wh, t, dt, S, wind);
+      const gl2 = c.createLinearGradient(0, 0, ww, wh); gl2.addColorStop(0, 'rgba(255,255,255,.06)'); gl2.addColorStop(0.4, 'rgba(255,255,255,0)'); c.fillStyle = gl2; c.fillRect(0, 0, ww, wh);
+      return;
+    }
+    if (this.vid && !this.vid.failed) return; // Video lädt noch: kurz nichts zeigen statt der Code-Szene
     sky(c, ww, wh, t, pal, w, 99 + S.name.length, 0.7 + wind * 2);
     c.save();
     if (S.name === 'zug') {
@@ -355,7 +379,6 @@ export class Kulisse {
       const layer = (Ly, k) => { const o = ox(k); c.drawImage(Ly.strip, o, 0); if (night > 0.15) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.75 * night; c.drawImage(Ly.glow, o, 0); c.restore(); } return o; };
       const oA = layer(A, 0.4); this.mist(c, ww, wh, t, pal, w, hor - 90, 0.9);
       const oB = layer(B, 0.8); this.mist(c, ww, wh, t, pal, w, hor - 40, 0.55);
-      this.traffic(c, ww, wh, t, S, night);
       const oC = layer(C, 1.2);
       // Blinklichter auf den Antennen: weich ein- und ausblenden, nicht an und aus
       for (const [Ly, o] of [[B, oB], [C, oC]]) for (const [bx, by, p] of Ly.blink) { const a = Math.pow(0.5 + 0.5 * Math.sin(t / 650 + p), 2.2); c.fillStyle = css('#ff5a4a', 0.25 + 0.7 * a); c.fillRect(bx + o - 1.2, by - 1.2, 2.6, 2.6); if (a > 0.05) { c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, bx + o, by, 9, '#ff3a2a', 0.5 * a); c.restore(); } }
@@ -388,24 +411,6 @@ export class Kulisse {
     this.weather(c, ww, wh, t, dt, S, wind);
     // Glas: leichte Spiegelung
     const gl = c.createLinearGradient(0, 0, ww, wh); gl.addColorStop(0, 'rgba(255,255,255,.07)'); gl.addColorStop(0.4, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(255,255,255,.03)'); c.fillStyle = gl; c.fillRect(0, 0, ww, wh);
-  }
-
-  // Hochstraße mit Verkehr: Lampen am Rand und Autos mit Scheinwerfern (weiß) und Rücklichtern (rot), tagsüber kleine bunte Autos
-  traffic(c, ww, wh, t, S, night) {
-    const y = S.roadY, w = S.w; const dark = css(mix(S.layers[1].body, '#000000', 0.35));
-    c.fillStyle = dark; c.fillRect(0, y - 2, ww, 9); c.fillStyle = css(mix(S.layers[1].body, S.pal.haze, 0.3)); c.fillRect(0, y - 3, ww, 1.5);
-    for (let x = 18; x < ww; x += 78) { c.fillStyle = dark; c.fillRect(x, y - 15, 1.6, 13); if (night > 0.25) { c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, x + 1, y - 16, 9, S.pal.light, 0.5 * night); c.restore(); } }
-    const streak = w.regen ? 26 : 15;
-    for (const car of S.cars) {
-      const x = ((car.x + t * 0.001 * car.v * car.dir) % (ww + 120) + ww + 120) % (ww + 120) - 60, ly = y + 1 + car.lane * 3;
-      if (night > 0.25) {
-        c.save(); c.globalCompositeOperation = 'lighter';
-        const col = car.dir > 0 ? car.c : '#ff3a2a', back = -car.dir * streak;
-        const g = c.createLinearGradient(x, 0, x + back, 0); g.addColorStop(0, css(col, 0.5 * night)); g.addColorStop(1, css(col, 0)); c.fillStyle = g; c.fillRect(Math.min(x, x + back), ly - 0.8, Math.abs(back), 1.6);
-        for (const dx of car.big ? [-5, 5] : [-2.4, 2.4]) { glowDot(c, x + dx, ly, car.big ? 6 : 4.5, col, 0.55 * night); c.fillStyle = css(col, 0.95); c.fillRect(x + dx - 0.9, ly - 0.9, 1.8, 1.8); }
-        c.restore();
-      } else { c.fillStyle = car.day; c.fillRect(x - (car.big ? 8 : 4.5), ly - 2.4, car.big ? 16 : 9, 3.4); c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(x - 2, ly - 3.2, 4, 1.4); }
-    }
   }
 
   mist(c, ww, wh, t, pal, w, y, k = 1) {

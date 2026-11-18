@@ -587,13 +587,39 @@ async function loadRaeume() {
   for (const b of $('raeume').querySelectorAll('[data-weg]')) b.onclick = run(async () => { await api('DELETE', `hintergrund/raum/${b.dataset.weg}`); await loadRaeume(); schedulePreview(0); meldung('Raumbild entfernt'); });
 }
 
+// ---- Videos als Ausblick (Szene × Tageszeit)
+const VIDEO_ZEITEN = [['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']];
+const mb = (b) => `${(b / 1048576).toFixed(1).replace('.', ',')} MB`;
+async function loadVideos() {
+  const res = await fetch('/api/admin-video', { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { $('videos').innerHTML = `<span class="leise">${esc(data.error ?? 'Videos sind hier nicht verfügbar')}</span>`; return; }
+  $('videos').innerHTML = `<table><thead><tr><th>Szene</th>${VIDEO_ZEITEN.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>${RAUM_SZENEN.map(([k, label]) => `<tr><td><b>${label}</b></td>${VIDEO_ZEITEN.map(([z]) => {
+    const v = data.videos[k]?.[z];
+    return `<td>${v ? `<span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;
+  }).join('')}</tr>`).join('')}</tbody></table>`;
+  for (const inp of $('videos').querySelectorAll('input[type=file]')) inp.onchange = run(async (e) => {
+    const file = e.target.files[0]; const s = inp.dataset.s, z = inp.dataset.z; e.target.value = '';
+    if (!file) return;
+    $('videoStatus').textContent = `Lädt hoch: ${file.name} (${mb(file.size)}) …`;
+    const r = await fetch(`/api/admin-video?s=${s}&z=${z}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file });
+    const d = await r.json().catch(() => ({}));
+    $('videoStatus').textContent = '';
+    if (!r.ok) throw new Error(d.error ?? `Fehler ${r.status}`);
+    const st = await api('PUT', 'settings', { hintergrund: s, tageszeit: z });
+    current = st.settings; renderScenes(st.settings); renderFolds(st.settings);
+    await loadVideos(); schedulePreview(0); meldung('Video hochgeladen, Szene und Tageszeit sind ausgewählt');
+  });
+  for (const b of $('videos').querySelectorAll('[data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin-video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
+}
+
 let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

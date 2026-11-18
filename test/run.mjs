@@ -849,7 +849,7 @@ await test('Szene im Overlay-Stand: Tageszeit und Wetter, Landschaft kennt keine
   await saveSettings({ hintergrund: 'zug', tageszeit: 'nacht', wetter: 'regen', wind: 70, kulisseTempo: 80 });
   const v = await viewNow();
   assert.equal(v.hintergrund.mode, 'kulisse');
-  assert.deepEqual({ ...v.hintergrund.kulisse, saison: undefined }, { name: 'zug', zeit: 'nacht', saison: undefined, wetter: 'regen', wind: 70, tempo: 80, plate: null });
+  assert.deepEqual({ ...v.hintergrund.kulisse, saison: undefined }, { name: 'zug', zeit: 'nacht', saison: undefined, wetter: 'regen', wind: 70, tempo: 80, plate: null, video: null });
   assert.equal(v.tageszeit, 'abend'); // die gemalte Landschaft hat keine eigene Nacht
   await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto', wetter: 'klar' });
   assert.equal((await viewNow()).hintergrund.mode, 'landschaft');
@@ -886,6 +886,56 @@ await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', asy
   assert.match((await say('62', 'Mod', '!wetter hagel', mod)).message, /gibt es nicht.*klar, wolkig/);
   assert.match((await say('62', 'Mod', '!wetter', mod)).message, /Wetter: Regen\. Ändern mit !wetter/);
   await saveSettings({ wetter: 'klar', tageszeit: 'auto', hintergrund: 'landschaft' });
+});
+
+console.log('Videos als Ausblick');
+const videoUp = (await mod('functions/video-upload.mjs')).default;
+const videoGet = (await mod('functions/overlay-video.mjs')).default;
+const fakeMp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(2000, 7)]);
+const fakeWebm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(900, 3)]);
+await test('Videos: nur mit Anmeldung und eigenem Header, nur echte MP4/WebM-Dateien', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const put = (q, body, h = {}) => videoUp(new Request(`https://x/api/admin-video?${q}`, { method: 'PUT', headers: { 'x-upload': '1', cookie, ...h }, body }));
+  assert.equal((await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'PUT', headers: { 'x-upload': '1' }, body: fakeMp4 }))).status, 401);
+  assert.equal((await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'PUT', headers: { cookie }, body: fakeMp4 }))).status, 400); // ohne Header
+  assert.equal((await put('s=keller&z=nacht', fakeMp4)).status, 400);
+  assert.equal((await put('s=zug&z=mitternacht', fakeMp4)).status, 400);
+  assert.equal((await put('s=zug&z=nacht', Buffer.from('<html>kein video</html>'))).status, 400);
+  assert.equal((await put('s=zug&z=nacht', Buffer.alloc(0))).status, 400);
+  const ok = await put('s=zug&z=nacht', fakeMp4);
+  assert.equal(ok.status, 200); assert.equal((await ok.json()).size, fakeMp4.length);
+  assert.equal((await put('s=stadt&z=abend', fakeWebm)).status, 200);
+  const list = await (await videoUp(new Request('https://x/api/admin-video', { headers: { cookie } }))).json();
+  assert.equal(list.videos.zug.nacht.size, fakeMp4.length); assert.ok(list.videos.stadt.abend); assert.equal(list.videos.see.mittag, undefined);
+});
+await test('Videos: Ausliefern mit Range, Adresse im Overlay-Stand nur bei passender Tageszeit', async () => {
+  const full = await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht&v=1'));
+  assert.equal(full.status, 200); assert.equal(full.headers.get('content-type'), 'video/mp4'); assert.equal(full.headers.get('accept-ranges'), 'bytes');
+  assert.equal(Buffer.from(await full.arrayBuffer()).length, fakeMp4.length);
+  const part = await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht', { headers: { range: 'bytes=4-11' } }));
+  assert.equal(part.status, 206); assert.equal(part.headers.get('content-range'), `bytes 4-11/${fakeMp4.length}`);
+  assert.equal(Buffer.from(await part.arrayBuffer()).toString('latin1'), 'ftypisom');
+  const tail = await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht', { headers: { range: 'bytes=-5' } }));
+  assert.equal(tail.status, 206); assert.equal((await tail.arrayBuffer()).byteLength, 5);
+  assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht', { headers: { range: 'bytes=999999-' } }))).status, 416);
+  assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=zug&z=morgen'))).status, 404);
+  assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=../../config&z=nacht'))).status, 404);
+  await saveSettings({ hintergrund: 'zug', tageszeit: 'nacht' });
+  assert.match((await viewNow()).hintergrund.kulisse.video, /^\/api\/overlay-video\?s=zug&z=nacht&v=\d+$/);
+  await saveSettings({ tageszeit: 'mittag' });
+  assert.equal((await viewNow()).hintergrund.kulisse.video, null); // für diese Tageszeit gibt es keins: der Bot nimmt die gezeichnete Landschaft
+  await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto' });
+});
+await test('Videos: entfernen löscht Datei und Eintrag', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const del = await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
+  assert.equal(del.status, 200);
+  assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht'))).status, 404);
+  const list = await (await videoUp(new Request('https://x/api/admin-video', { headers: { cookie } }))).json();
+  assert.equal(list.videos.zug.nacht, undefined); assert.ok(list.videos.stadt.abend);
+  await videoUp(new Request('https://x/api/admin-video?s=stadt&z=abend', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);
