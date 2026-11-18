@@ -12,6 +12,7 @@ import { resolveSeason, resolveTime } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
 import { cleanFigur } from '../../public/js/katalog.mjs';
+import { videoUrl } from './videos.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -22,12 +23,12 @@ export async function streamerId() {
 export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
 const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
 // Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
-export function hintergrundOf(settings, zeit, saison) {
+export async function hintergrundOf(settings, zeit, saison) {
   const h = settings.hintergrund;
   if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
   if (SZENEN_KULISSE.includes(h)) {
     const v = settings[RAUM_KEY[h]];
-    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null } };
+    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null, video: await videoUrl(h, zeit) } };
   }
   return { mode: 'landschaft' };
 }
@@ -96,7 +97,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     layout: settings.layout,
     stil: settings.kartenStil,
     glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
-    hintergrund: hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now))),
+    hintergrund: await hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now))),
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),
