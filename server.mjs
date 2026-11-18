@@ -76,9 +76,13 @@ export function resolveStatic(pathname, publicDir = PUBLIC_DIR) {
 async function serveFile(req, res, file) {
   const s = fs.statSync(file);
   const etag = `"${s.size.toString(16)}-${Math.floor(s.mtimeMs).toString(16)}"`;
+  const ext = path.extname(file).toLowerCase();
+  // Seiten und Programmteile (HTML, JS, CSS) nie zwischenspeichern: Zwischenspeicher im Browser oder bei Cloudflare lieferten sonst nach einem Update noch die alte Admin-Seite aus.
+  // Bilder, Schriften und Töne dürfen weiter mit Rückfrage (ETag) aus dem Speicher kommen.
+  const live = ['.html', '.js', '.mjs', '.css', '.json'].includes(ext);
   const headers = {
-    'content-type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'cache-control': 'public, max-age=0, must-revalidate',
+    'content-type': MIME[ext] ?? 'application/octet-stream',
+    'cache-control': live ? 'no-store' : 'public, max-age=0, must-revalidate',
     etag,
   };
   if (req.headers['if-none-match'] === etag) { res.writeHead(304, headers); return res.end(); }
