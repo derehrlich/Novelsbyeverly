@@ -889,16 +889,16 @@ await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', asy
 });
 
 console.log('Videos als Ausblick');
-const videoUp = (await mod('functions/video-upload.mjs')).default;
+const videoUp = admin; // der Upload ist eine Admin-Route: /api/admin/video
 const videoGet = (await mod('functions/overlay-video.mjs')).default;
 const fakeMp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(2000, 7)]);
 const fakeWebm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(900, 3)]);
 await test('Videos: nur mit Anmeldung und eigenem Header, nur echte MP4/WebM-Dateien', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const put = (q, body, h = {}) => videoUp(new Request(`https://x/api/admin-video?${q}`, { method: 'PUT', headers: { 'x-upload': '1', cookie, ...h }, body }));
-  assert.equal((await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'PUT', headers: { 'x-upload': '1' }, body: fakeMp4 }))).status, 401);
-  assert.equal((await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'PUT', headers: { cookie }, body: fakeMp4 }))).status, 400); // ohne Header
+  const put = (q, body, h = {}) => videoUp(new Request(`https://x/api/admin/video?${q}`, { method: 'PUT', headers: { 'x-upload': '1', cookie, ...h }, body }));
+  assert.equal((await videoUp(new Request('https://x/api/admin/video?s=zug&z=nacht', { method: 'PUT', headers: { 'x-upload': '1' }, body: fakeMp4 }))).status, 401);
+  assert.equal((await videoUp(new Request('https://x/api/admin/video?s=zug&z=nacht', { method: 'PUT', headers: { cookie }, body: fakeMp4 }))).status, 400); // ohne Header
   assert.equal((await put('s=keller&z=nacht', fakeMp4)).status, 400);
   assert.equal((await put('s=zug&z=mitternacht', fakeMp4)).status, 400);
   assert.equal((await put('s=zug&z=nacht', Buffer.from('<html>kein video</html>'))).status, 400);
@@ -906,7 +906,7 @@ await test('Videos: nur mit Anmeldung und eigenem Header, nur echte MP4/WebM-Dat
   const ok = await put('s=zug&z=nacht', fakeMp4);
   assert.equal(ok.status, 200); assert.equal((await ok.json()).size, fakeMp4.length);
   assert.equal((await put('s=stadt&z=abend', fakeWebm)).status, 200);
-  const list = await (await videoUp(new Request('https://x/api/admin-video', { headers: { cookie } }))).json();
+  const list = await (await videoUp(new Request('https://x/api/admin/video', { headers: { cookie } }))).json();
   assert.equal(list.videos.zug.nacht.size, fakeMp4.length); assert.ok(list.videos.stadt.abend); assert.equal(list.videos.see.mittag, undefined);
 });
 await test('Videos: Ausliefern mit Range, Adresse im Overlay-Stand nur bei passender Tageszeit', async () => {
@@ -930,12 +930,12 @@ await test('Videos: Ausliefern mit Range, Adresse im Overlay-Stand nur bei passe
 await test('Videos: entfernen löscht Datei und Eintrag', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];
-  const del = await videoUp(new Request('https://x/api/admin-video?s=zug&z=nacht', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
+  const del = await videoUp(new Request('https://x/api/admin/video?s=zug&z=nacht', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
   assert.equal(del.status, 200);
   assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=zug&z=nacht'))).status, 404);
-  const list = await (await videoUp(new Request('https://x/api/admin-video', { headers: { cookie } }))).json();
+  const list = await (await videoUp(new Request('https://x/api/admin/video', { headers: { cookie } }))).json();
   assert.equal(list.videos.zug.nacht, undefined); assert.ok(list.videos.stadt.abend);
-  await videoUp(new Request('https://x/api/admin-video?s=stadt&z=abend', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
+  await videoUp(new Request('https://x/api/admin/video?s=stadt&z=abend', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);
