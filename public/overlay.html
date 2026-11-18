@@ -97,7 +97,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 
 /* ---- Glas-Stil (Einstellung „Stil der Karten“): durchsichtige, getönte Kacheln, die das Bild dahinter verschwimmen lassen.
    --glas = Tönung, --glas-a = Stärke in Prozent, --glas-blur = Unschärfe. Werte kommen aus dem Admin (Seite „Design und Hintergrund“). */
-#kulisse { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+#kulisse, #jahreszeit { position: absolute; inset: 0; width: 1920px; height: 1080px; }
 #bg { position: absolute; inset: 0; width: 1920px; height: 1080px; background-size: cover; background-position: center; }
 body.glas { --text: #fff; --leise: rgba(255, 255, 255, .74); --rand: rgba(255, 255, 255, .42); --fokus: rgba(255, 255, 255, .95); --pause: #ffd9a0; --bereit: rgba(255, 255, 255, .5); }
 body.glas .card, body.glas .ereignis, body.glas .modul {
@@ -135,6 +135,7 @@ body.glas #musik .eq i, body.glas #musik .eq i:nth-child(n) { background: rgba(2
   <div id="kamera" hidden>Kamera</div>
   <div id="bg" hidden></div>
   <canvas id="kulisse" width="1920" height="1080" hidden></canvas>
+  <canvas id="jahreszeit" width="1920" height="1080" hidden></canvas>
   <canvas id="szene" hidden></canvas>
   <div id="namen"></div>
   <div id="module"></div>
@@ -168,6 +169,7 @@ body.glas #musik .eq i, body.glas #musik .eq i:nth-child(n) { background: rgba(2
 <script type="module">
 import { Szene, seatPos, moduleLayout } from './js/szene.mjs';
 import { Kulisse } from './js/kulisse.mjs';
+import { Landschaft } from './js/jahreszeiten.mjs';
 import { nowPlaying } from './js/jetztlaeuft.mjs';
 
 const q = new URLSearchParams(location.search);
@@ -408,7 +410,7 @@ function renderMusik() {
 }
 
 // Stil (Papier oder Glas) und Hintergrund (Landschaft oder eigenes Bild)
-let bildModus = false, kulisseModus = false, kulisse = null;
+let bildModus = false, kulisseModus = false, kulisse = null, jzModus = false, landschaft = null;
 function applyDesign() {
   const v = view;
   document.body.classList.toggle('glas', v.stil === 'glas');
@@ -418,12 +420,15 @@ function applyDesign() {
   document.body.style.setProperty('--glas-blur', `${g.unschaerfe ?? 22}px`);
   const mode = v.hintergrund?.mode;
   kulisseModus = mode === 'kulisse';
-  bildModus = mode === 'bild' || kulisseModus; // beides ersetzt die gemalte Landschaft samt Pavillon und Modulen
+  jzModus = mode === 'jahreszeit';
+  bildModus = mode === 'bild' || kulisseModus || jzModus; // alle drei ersetzen die gemalte Landschaft samt Pavillon und Modulen
   const bg = $('bg');
   bg.hidden = !(mode === 'bild' && teile.has('szene'));
   if (mode === 'bild') { const url = `url("${v.hintergrund.url}")`; if (bg.style.backgroundImage !== url) bg.style.backgroundImage = url; }
   $('kulisse').hidden = !(kulisseModus && teile.has('szene'));
   if (kulisseModus) { kulisse ??= new Kulisse($('kulisse')); kulisse.set(v.hintergrund.kulisse); }
+  $('jahreszeit').hidden = !(jzModus && teile.has('szene'));
+  if (jzModus) { landschaft ??= new Landschaft($('jahreszeit')); landschaft.set(v.hintergrund.jz); }
   $('szene').hidden = !teile.has('szene') || bildModus;
 }
 
@@ -481,10 +486,11 @@ if (q.has('vorschau')) {
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  if (t - last < (kulisseModus ? 33 : 70)) return; // Pixel-Optik: ca. 14 Bilder pro Sekunde, die Szenen mit Wetter laufen mit ca. 30
+  if (t - last < (kulisseModus || jzModus ? 33 : 70)) return; // Pixel-Optik: ca. 14 Bilder pro Sekunde, die Szenen mit Wetter laufen mit ca. 30
   last = t;
   if (szene && view && !bildModus) szene.draw(t);
   if (kulisseModus && teile.has('szene')) kulisse?.draw(t);
+  if (jzModus && teile.has('szene')) landschaft?.draw(t);
   if (shownWords !== targetWords) { shownWords += (targetWords - shownWords) * 0.12; if (Math.abs(targetWords - shownWords) < 1) shownWords = targetWords; }
   if (zielNumerisch) $('zahl').textContent = fmt.format(Math.round(shownWords));
   stepConfetti();

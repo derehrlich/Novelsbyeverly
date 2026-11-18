@@ -8,5 +8,6 @@ export async function preview({ route, method, body }) {
   if (route[0] !== 'preview' || method !== 'POST') return;
   const { settings, error } = normalize(body.draft ?? {}, await getSettings());
   if (error) return json({ error }, 400);
-  return json(await buildView(settings, null, Date.now(), { preview: true }));
+  const progress = typeof body.progress === 'number' && body.progress >= 0 && body.progress <= 1 ? body.progress : null; // Fortschritt zum Ausprobieren
+  return json(await buildView(settings, null, Date.now(), { preview: true, progress }));
 }

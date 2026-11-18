@@ -121,8 +121,9 @@ for (const [id, delta] of [['pomoMinus', -1], ['pomoPlus', 1]]) $(id).onclick = 
 const AUSWAHL = {
   jahreszeiten: ['jahreszeit', [['auto', 'Auto'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']]],
   tageszeiten: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']]],
-  dSzene: ['hintergrund', [['landschaft', 'Landschaft mit Pavillon'], ['bild', 'Eigenes Bild'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']]],
+  dSzene: ['hintergrund', [['landschaft', 'Landschaft mit Pavillon'], ['jahreszeiten', 'Jahreszeiten-Landschaft'], ['bild', 'Eigenes Bild'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']]],
   dTageszeit: ['tageszeit', [['auto', 'Auto'], ['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']]],
+  dJahreszeit: ['jahreszeit', [['auto', 'Auto'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']]],
   dWetter: ['wetter', [['klar', 'Klar'], ['wolkig', 'Wolkig'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['schnee', 'Schnee'], ['nebel', 'Nebel']]],
   quellen: ['wachstumQuelle', [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter'], ['pomodoro', 'Pomodoros'], ['kombi', 'Zeit + Ziel']]],
   zielArten: ['zielArt', [['woerter', 'Wörter schreiben'], ['seiten', 'Seiten lesen'], ['zeit', 'Streamzeit'], ['pomodoros', 'Pomodoros']]],
@@ -195,7 +196,7 @@ const OPT = {
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
   kartenStil: [['papier', 'Papier (warme Karten, wie bisher)'], ['glas', 'Glas (durchsichtig und getönt)']],
-  hintergrund: [['landschaft', 'Gemalte Landschaft mit Pavillon'], ['bild', 'Eigenes Bild (Upload unten)'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']],
+  hintergrund: [['landschaft', 'Gemalte Landschaft mit Pavillon'], ['jahreszeiten', 'Jahreszeiten-Landschaft (Bilder von dir)'], ['bild', 'Eigenes Bild (Upload unten)'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
 };
 const SCHEMA = [
@@ -261,6 +262,16 @@ const SCHEMA = [
     ['wind', 'Wind (0 bis 100)', 'range', 'Wie stark sich Bäume und Wasser bewegen und wie schräg der Regen fällt.'],
     ['kulisseTempo', 'Tempo des Zuges (0 bis 100)', 'range', 'Wie schnell die Landschaft am Zugfenster vorbeizieht.'],
   ]],
+  ['Jahreszeiten-Landschaft', [
+    ['jzWieseVon', 'Wiese: oberer Rand (% von oben)', 'range', 'Ab hier wachsen Blumen und landen Blätter.'],
+    ['jzWieseBis', 'Wiese: unterer Rand (% von oben)', 'range'],
+    ['jzBaumX', 'Baum: Mitte (% von links)', 'range', 'Von hier aus fallen Blätter und Blüten.'],
+    ['jzStammBreite', 'Stammbereich ohne Blumen (% der Breite)', 'range'],
+    ['jzKroneBreite', 'Krone: Breite (% der Bildbreite)', 'range'],
+    ['jzKroneVon', 'Krone: Oberkante (% von oben)', 'range'],
+    ['jzDichte', 'Wie viele Blumen wachsen (0 bis 100)', 'range'],
+    ['jzFall', 'Wie viele Blätter und Blüten fallen (0 bis 100)', 'range'],
+  ]],
   ['Hintergrund', [
     ['hintergrund', 'Was liegt hinter den Karten?', 'select', 'Mit einer Szene oder einem eigenen Bild ersetzt sie die gemalte Landschaft samt Pavillon und Modulen. Die Raumbilder der Szenen lädst du unten hoch.'],
   ]],
@@ -280,7 +291,7 @@ const TOGGLE_GROUPS = new Set(['Check-in und Streak', 'Punkte und Rangliste', 'S
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
 const SYNC_KEYS = ['checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
-const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100] };
+const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 
 function fieldHtml([key, label, type, hint], settings) {
   const v = settings[key];
@@ -465,8 +476,8 @@ $('restoreDatei').onchange = run(async (e) => {
 // ---- Live-Vorschau: das echte Overlay, mit den noch nicht gespeicherten Einstellungen
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
-let previewTimer = 0, previewBusy = false, previewAgain = false;
-const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+let previewTimer = 0, previewBusy = false, previewAgain = false, previewProgress = null; // Fortschritt nur zum Ausprobieren in der Vorschau
+const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {
@@ -494,7 +505,7 @@ async function refreshPreview() {
   if (previewBusy) { previewAgain = true; return; }
   previewBusy = true;
   try {
-    const view = await api('POST', 'preview', { draft: collectDraft() });
+    const view = await api('POST', 'preview', { draft: collectDraft(), progress: previewProgress });
     frame.contentWindow.postMessage({ type: 'view', view }, location.origin);
   } catch { /* ungültige Eingabe (z. B. halb getippte Zahl): die Vorschau bleibt, wie sie war */ }
   previewBusy = false;
@@ -614,13 +625,31 @@ async function loadVideos() {
   for (const b of $('videos').querySelectorAll('[data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
+// ---- Jahreszeiten-Landschaft: acht Landschaftsbilder und drei Blätter mit Kleinteilen hochladen
+const JZ_SLOTS = [['fruehlingA', 'Frühling · Anfang'], ['fruehlingB', 'Frühling · Ende'], ['sommerA', 'Sommer · Anfang'], ['sommerB', 'Sommer · Ende'], ['herbstA', 'Herbst · Anfang'], ['herbstB', 'Herbst · Ende'], ['winterA', 'Winter · Anfang'], ['winterB', 'Winter · Ende'], ['blumen', 'Blumen (Blatt)'], ['blaetter', 'Herbstblätter (Blatt)'], ['bluete', 'Blüten (Blatt)']];
+async function loadJz() {
+  const { slots } = await api('GET', 'hintergrund/jz');
+  $('jzSlots').innerHTML = JZ_SLOTS.map(([k, label]) => `<div class="raum"><b>${label}</b><div class="bg-vorschau jz-vorschau">${slots[k] ? `<img src="/api/overlay-bg?jz=${k}&v=${slots[k]}" alt="${label}">` : '<span class="leise">fehlt noch</span>'}</div><div class="reihe"><label class="knopf hell klein" for="jz-${k}">${slots[k] ? 'Ersetzen' : 'Bild wählen'}</label><input type="file" id="jz-${k}" data-jz="${k}" accept="image/jpeg,image/png,image/webp" hidden>${slots[k] ? `<button class="hell klein" data-jzweg="${k}">Entfernen</button>` : ''}</div></div>`).join('');
+  for (const inp of $('jzSlots').querySelectorAll('[data-jz]')) inp.onchange = run(async (e) => {
+    const file = e.target.files[0]; const k = inp.dataset.jz; e.target.value = '';
+    if (!file) return;
+    await api('POST', `hintergrund/jz/${k}`, { data: await shrinkImage(file, 0.92) });
+    const r = await api('PUT', 'settings', { hintergrund: 'jahreszeiten' });
+    current = r.settings; renderScenes(r.settings); renderFolds(r.settings);
+    await loadJz(); schedulePreview(0); meldung('Bild hochgeladen, die Jahreszeiten-Landschaft ist ausgewählt');
+  });
+  for (const b of $('jzSlots').querySelectorAll('[data-jzweg]')) b.onclick = run(async () => { await api('DELETE', `hintergrund/jz/${b.dataset.jzweg}`); await loadJz(); schedulePreview(0); meldung('Bild entfernt'); });
+}
+$('jzFortschritt').oninput = () => { previewProgress = Number($('jzFortschritt').value) / 100; $('jzFortschrittWert').textContent = `${$('jzFortschritt').value} %`; schedulePreview(150); };
+$('jzFortschrittAus').onclick = () => { previewProgress = null; $('jzFortschritt').value = 0; $('jzFortschrittWert').textContent = 'echter Stand'; schedulePreview(0); };
+
 let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

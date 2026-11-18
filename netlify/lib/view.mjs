@@ -23,8 +23,15 @@ export async function streamerId() {
 export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
 const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
 // Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
-export async function hintergrundOf(settings, zeit, saison) {
+const JZ_KEY = { fruehling: 'Fruehling', sommer: 'Sommer', herbst: 'Herbst', winter: 'Winter' };
+export async function hintergrundOf(settings, zeit, saison, progress = 0) {
   const h = settings.hintergrund;
+  if (h === 'jahreszeiten') {
+    const k = JZ_KEY[saison]; const a = settings[`jz${k}A`], b = settings[`jz${k}B`];
+    if (!a && !b) return { mode: 'landschaft' }; // für diese Jahreszeit gibt es noch keine Bilder: bis dahin die gemalte Landschaft
+    const u = (slot, v) => (v ? `/api/overlay-bg?jz=${slot}&v=${v}` : null);
+    return { mode: 'jahreszeit', jz: { saison, fortschritt: progress, zeit, wetter: settings.wetter, wind: settings.wind, a: u(`${saison}A`, a), b: u(`${saison}B`, b), sprites: { blumen: u('blumen', settings.jzBlumen), blaetter: u('blaetter', settings.jzBlaetter), bluete: u('bluete', settings.jzBluete) }, zone: { wieseVon: settings.jzWieseVon, wieseBis: settings.jzWieseBis, baumX: settings.jzBaumX, stamm: settings.jzStammBreite, kroneBreite: settings.jzKroneBreite, kroneVon: settings.jzKroneVon }, dichte: settings.jzDichte, fall: settings.jzFall } };
+  }
   if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
   if (SZENEN_KULISSE.includes(h)) {
     const v = settings[RAUM_KEY[h]];
@@ -56,7 +63,7 @@ export async function buildZiel(settings, { words, done, now }) {
 }
 
 // preview: Vorschau im Admin mit noch nicht gespeicherten Einstellungen. Dann wird der Timer nur gelesen, nie weitergeschaltet.
-export async function buildView(settings, since, now = Date.now(), { preview = false } = {}) {
+export async function buildView(settings, since, now = Date.now(), { preview = false, progress: progressOverride = null } = {}) {
   const timer = preview ? await getTimer() : await tick(settings, now);
   const seats = resolveSlots(await activeSeats(settings, now), capacity(settings));
   const keys = await db.list('event/');
@@ -74,11 +81,12 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
   const done = await sprintsToday(settings, now);
   const { ziel, zeit } = await buildZiel(settings, { words, done, now });
   const q = settings.wachstumQuelle;
-  const progress = q === 'zeit' ? zeit.fraction
+  let progress = q === 'zeit' ? zeit.fraction
     : q === 'woerter' ? words.today / (settings.wordGoal || 1000)
       : q === 'pomodoro' ? done / (settings.pomodoroGoal || 6)
         : q === 'kombi' ? (zeit.fraction + ziel.fraction) / 2
           : ziel.fraction;
+  if (progressOverride !== null) progress = progressOverride; // Vorschau im Admin: Fortschritt zum Ausprobieren
   const taetigkeit = settings.stefanieTaetigkeit === 'auto' ? (timer.phase === 'break' ? 'buch' : 'laptop') : settings.stefanieTaetigkeit;
   const musik = settings.musikQuelle === 'aus' ? null : settings.musikQuelle === 'lokal'
     ? { mode: 'lokal', url: settings.musikUrl }
@@ -97,7 +105,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     layout: settings.layout,
     stil: settings.kartenStil,
     glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
-    hintergrund: await hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now))),
+    hintergrund: await hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now)), Math.min(1, Math.max(0, progress))),
     musik,
     scene: settings.scene,
     deco: !settings.moduleDeko ? [] : settings.unlocksEnabled ? unlockedDeko(community) : unlockedDeko(Infinity),

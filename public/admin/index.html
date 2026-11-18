@@ -171,6 +171,16 @@
       </section>
       <div class="folds" data-schema="Kartenstil|Szenen (Ausblick und Wetter)|Hintergrund"></div>
       <section class="karte">
+        <h2>Jahreszeiten-Landschaft</h2>
+        <p class="leise">Eine große Landschaft mit Baum, die mit den Jahreszeiten und dem Fortschritt wächst. Je Jahreszeit ein <b>Anfangs- und ein Endbild</b> (Himmel als flache Magenta-Fläche): Mit dem Fortschritt blendet der Bot vom ersten zum zweiten über. Dazu <b>drei Blätter mit Kleinteilen</b> auf Magenta: Der Bot pflanzt die Blumen, lässt im Herbst Blätter und im Frühling Blüten fallen. Himmel, Tageszeit und Wetter kommen vom Bot. Fertige Anfragen für Gemini: <code>docs/jahreszeiten-landschaft.md</code>.</p>
+        <h3>Jahreszeit</h3>
+        <div class="szenen" id="dJahreszeit"></div>
+        <h3>Fortschritt zum Ausprobieren (nur Vorschau)</h3>
+        <div class="reihe"><input type="range" id="jzFortschritt" min="0" max="100" value="0" style="flex:1; min-width:180px"><b id="jzFortschrittWert">echter Stand</b><button class="hell klein" id="jzFortschrittAus" type="button">Zurück zum echten Stand</button></div>
+        <div class="raeume" id="jzSlots"></div>
+      </section>
+      <div class="folds" data-schema="Jahreszeiten-Landschaft"></div>
+      <section class="karte">
         <h2>Raumbilder für die Szenen</h2>
         <p class="leise">Jede Szene ist ein Raumbild mit einem Fenster. Lade hier dein eigenes Bild hoch (zum Beispiel aus Gemini, 16:9, <b>Fensterglas als flache Fläche in Magenta #FF00FF</b>). Die Fensterfläche erkennt der Bot selbst und setzt dort den bewegten Ausblick ein. Ohne eigenes Bild siehst du einen einfachen Platzhalter-Raum. Fertige Anfragen für Gemini stehen in <code>docs/szenen-bilder.md</code>.</p>
         <div class="raeume" id="raeume"></div>

@@ -130,3 +130,5 @@ input[type=color] { width: 64px; height: 38px; padding: 2px; cursor: pointer; }
 
 .tabelle { overflow-x: auto; } .tabelle td { vertical-align: top; min-width: 130px; } .video-da { color: var(--gruen); font-weight: 600; font-size: 14px; }
 .knopf.klein, button.klein { padding: 4px 10px; font-size: 14px; margin: 2px 4px 2px 0; }
+
+.jz-vorschau { background: repeating-conic-gradient(#d9c9b0 0 25%, #efe3cf 0 50%) 0 0 / 16px 16px; }
