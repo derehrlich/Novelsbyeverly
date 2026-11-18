@@ -9,11 +9,12 @@ import { backup } from '../lib/admin/backup.mjs';
 import { update } from '../lib/admin/update.mjs';
 import { preview } from '../lib/admin/preview.mjs';
 import { hintergrund } from '../lib/admin/hintergrund.mjs';
+import { video } from '../lib/admin/video.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund };
+const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund, video };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);
@@ -35,7 +36,8 @@ export default async (req) => {
 
   if (!hasSession(req)) return json({ error: 'Nicht angemeldet', adminEnabled: adminEnabled() }, 401);
   // Schreibende Aufrufe nur als JSON, das schützt zusätzlich vor Formular-Angriffen von fremden Seiten
-  if (writes && !isJson) return json({ error: 'Content-Type muss application/json sein' }, 415);
+  // Ausnahme: der Video-Upload schickt die Datei roh und schützt sich selbst (eigener Header)
+  if (writes && !isJson && route[0] !== 'video') return json({ error: 'Content-Type muss application/json sein' }, 415);
 
   try {
     const handler = ROUTES[route[0]];

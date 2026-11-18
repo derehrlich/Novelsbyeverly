@@ -510,7 +510,7 @@ function fitVorschau() {
   if (w) { $('vorschauRahmen').style.height = `${(w * 9) / 16}px`; $('vorschauFrame').style.transform = `scale(${w / 1920})`; }
 }
 new ResizeObserver(fitVorschau).observe($('vorschauRahmen'));
-try { if (localStorage.getItem('vorschauZu') === '1') $('vorschauBox').classList.add('zu'); } catch { /* ohne Speicher */ }
+try { const z = localStorage.getItem('vorschauZu'); if (z === '1' || (z === null && innerWidth <= 820)) { $('vorschauBox').classList.add('zu'); $('vorschauZu').textContent = '+'; } } catch { /* ohne Speicher */ } // am Handy zuerst eingeklappt, damit sie nichts verdeckt
 $('vorschauZu').onclick = () => {
   const zu = $('vorschauBox').classList.toggle('zu');
   try { localStorage.setItem('vorschauZu', zu ? '1' : '0'); } catch { /* ohne Speicher */ }
@@ -591,9 +591,9 @@ async function loadRaeume() {
 const VIDEO_ZEITEN = [['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']];
 const mb = (b) => `${(b / 1048576).toFixed(1).replace('.', ',')} MB`;
 async function loadVideos() {
-  const res = await fetch('/api/admin-video', { cache: 'no-store' });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) { $('videos').innerHTML = `<span class="leise">${esc(data.error ?? 'Videos sind hier nicht verfügbar')}</span>`; return; }
+  let res, data;
+  try { res = await fetch('/api/admin/video', { cache: 'no-store' }); data = await res.json(); } catch { data = null; }
+  if (!res?.ok || !data?.videos) { $('videos').innerHTML = `<span class="leise">${esc(data?.error ?? 'Die Videos konnten nicht geladen werden. Bitte die Seite neu laden und, falls es bleibt, neu anmelden.')}</span>`; return; }
   $('videos').innerHTML = `<table><thead><tr><th>Szene</th>${VIDEO_ZEITEN.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>${RAUM_SZENEN.map(([k, label]) => `<tr><td><b>${label}</b></td>${VIDEO_ZEITEN.map(([z]) => {
     const v = data.videos[k]?.[z];
     return `<td>${v ? `<span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;
@@ -602,15 +602,16 @@ async function loadVideos() {
     const file = e.target.files[0]; const s = inp.dataset.s, z = inp.dataset.z; e.target.value = '';
     if (!file) return;
     $('videoStatus').textContent = `Lädt hoch: ${file.name} (${mb(file.size)}) …`;
-    const r = await fetch(`/api/admin-video?s=${s}&z=${z}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file });
-    const d = await r.json().catch(() => ({}));
+    let r, d = {};
+    try { r = await fetch(`/api/admin/video?s=${s}&z=${z}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file }); d = await r.json().catch(() => ({})); } catch { r = null; }
     $('videoStatus').textContent = '';
-    if (!r.ok) throw new Error(d.error ?? `Fehler ${r.status}`);
+    if (!r) throw new Error('Das Hochladen ist abgebrochen. Ist das Video größer als 100 MB, oder war die Verbindung weg?');
+    if (!r.ok) throw new Error(d.error ?? `Fehler ${r.status} beim Hochladen`);
     const st = await api('PUT', 'settings', { hintergrund: s, tageszeit: z });
     current = st.settings; renderScenes(st.settings); renderFolds(st.settings);
     await loadVideos(); schedulePreview(0); meldung('Video hochgeladen, Szene und Tageszeit sind ausgewählt');
   });
-  for (const b of $('videos').querySelectorAll('[data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin-video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
+  for (const b of $('videos').querySelectorAll('[data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
 let navReady = false;
