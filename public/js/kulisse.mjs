@@ -240,7 +240,7 @@ function cutWindow(img, mode = 'fenster') {
   // 1) Magenta-artige Pixel: Rot und Blau hoch, Grün deutlich niedriger
   for (let p = 0; p < N; p += 1) {
     const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2], m = Math.min(r, b) - g;
-    if (mode === 'streng') { if (m > 100 && r > 190 && b > 190 && Math.abs(r - b) < 50) d[i + 3] = Math.round(clamp(1 - (m - 105) / 55, 0, 1) * 255); } // nur echtes Magenta, rosa Blüten bleiben stehen
+    if (mode === 'streng') { if (m > 38 && r > 150 && b > 150 && Math.abs(r - b) < 50) { const k = clamp((m - 38) / 22, 0, 1); d[i + 3] = Math.round((1 - k) * 255); d[i] -= (r - Math.min(r, g + 6)) * k; d[i + 2] -= (b - Math.min(b, g + 6)) * k; } } // Magenta samt blassem Schleier (Gemini malt ihn teils in die Krone), rosa Blüten (m unter 40) bleiben stehen
     else if (m > 20 && r > 170 && b > 170 && Math.abs(r - b) < 70) d[i + 3] = Math.round(clamp(1 - (m - 24) / 28, 0, 1) * 255);
   }
   const fenster = mode === 'fenster';
