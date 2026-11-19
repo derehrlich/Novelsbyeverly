@@ -70,11 +70,11 @@ const ok = (name) => { n++; console.log('  ok', name); };
 
 // ---- OBS-Docks: drei kleine Seiten, dieselbe Anmeldung wie der Admin
 {
-  for (const d of ['pomodoro', 'aufgaben', 'design']) {
+  for (const d of ['pomodoro', 'aufgaben', 'design', 'alles']) {
     const r = await get(`/admin/dock-${d}.html`);
     assert.equal(r.status, 200, d);
     const html = await r.text();
-    assert.match(html, /dock\.js/);
+    assert.match(html, d === 'alles' ? /dock-pomodoro/ : /dock\.js/);
     assert.equal((await get('/admin/dock.js')).status, 200);
   }
   assert.equal((await get('/api/admin/tasks')).status, 401, 'Docks brauchen die Anmeldung');

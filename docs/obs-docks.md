@@ -5,6 +5,7 @@ Docks sind kleine Fenster **innerhalb von OBS**, die du neben der Vorschau anord
 ## Einrichten (einmalig pro Dock)
 1. In OBS: **Docks → Benutzerdefinierte Browser-Docks …**
 2. Einen Namen eintragen (z. B. „Pomodoro“) und die Adresse einfügen. Die Adressen stehen im Admin unter **Übersicht → OBS-Adressen und Test**:
+   - `…/admin/dock-alles.html` – **alles in einem Dock** mit Reitern oben (Pomodoro, Aufgaben, Design); wer nur ein Dock will, nimmt eines der drei darunter
    - `…/admin/dock-pomodoro.html` – Timer starten und stoppen, Pomodoros und Wörter zählen
    - `…/admin/dock-aufgaben.html` – Aufgaben anlegen, abhaken, löschen
    - `…/admin/dock-design.html` – Hintergrund, Wetter, Tageszeit, Jahreszeit, Kartenstil, Kamera-Rahmen
