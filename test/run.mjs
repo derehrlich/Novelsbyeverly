@@ -992,7 +992,7 @@ await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar,
   assert.equal(list.videos.alert.buch.name, 'Buch');
   const v = (await viewNow()).alertVideo;
   assert.match(v.url, /^\/api\/overlay-video\?s=alert&z=buch&v=\d+$/);
-  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis, ende: v.ende, links: v.links }, { key: true, b: 90, von: 28, bis: 63, ende: 78, links: true });
+  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis, ende: v.ende, links: v.links, tb: v.tb, schrift: v.schrift }, { key: true, b: 90, von: 28, bis: 63, ende: 78, links: true, tb: 19, schrift: 80 });
   assert.equal((await ((await mod('functions/overlay-video.mjs')).default)(new Request(`https://x${v.url}`, { headers: { range: 'bytes=0-3' } }))).status, 206); // ausliefern, auch ohne Anmeldung
   await saveSettings({ alertVideoAn: false });
   assert.equal((await viewNow()).alertVideo, null);
@@ -1000,6 +1000,19 @@ await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar,
   assert.equal(normalize({ alertVideoB: 5 }).settings.alertVideoB, 20); // Grenzen
   assert.equal((await admin(new Request('https://x/api/admin/video?s=alert&z=buch', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }))).status, 200);
   assert.equal((await viewNow()).alertVideo, null);
+});
+await test('Alert-Video: alte, nie geänderte Standardwerte werden auf die neuen umgestellt', async () => {
+  const keep = await db.get('config/settings');
+  const alt = { alertVideoB: 62, alertVideoY: 40, alertVideoTX: 54, alertVideoTY: 26, alertVideoTB: 36, alertVideoTH: 48, alertVideoVon: 40, alertVideoBis: 72, alertVideoSchrift: 100 };
+  await db.set('config/settings', { ...keep, ...alt, wetter: 'regen' });
+  let st = await getSettings();
+  assert.deepEqual({ b: st.alertVideoB, tx: st.alertVideoTX, tb: st.alertVideoTB, von: st.alertVideoVon, bis: st.alertVideoBis, wetter: st.wetter }, { b: 90, tx: 53, tb: 19, von: 28, bis: 63, wetter: 'regen' }); // andere Einstellungen bleiben
+  await db.set('config/settings', { ...keep, ...alt, alertVideoB: 70 }); // bewusst geändert: bleibt
+  st = await getSettings(); assert.deepEqual({ b: st.alertVideoB, tx: st.alertVideoTX }, { b: 70, tx: 54 });
+  const zweite = { alertVideoB: 90, alertVideoY: 46, alertVideoTX: 53, alertVideoTY: 26, alertVideoTB: 18, alertVideoTH: 46, alertVideoVon: 28, alertVideoBis: 63, alertVideoSchrift: 100 };
+  await db.set('config/settings', { ...keep, ...zweite }); // auch die zweite Fassung (zu große Schrift) wird auf die aktuellen Werte gesetzt
+  st = await getSettings(); assert.deepEqual({ tb: st.alertVideoTB, schrift: st.alertVideoSchrift }, { tb: 19, schrift: 80 });
+  await db.set('config/settings', keep);
 });
 await test('Alerts: Anmeldung bei Twitch für Follows, Abos, Bits und Raids, Berechtigungen werden geprüft', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
