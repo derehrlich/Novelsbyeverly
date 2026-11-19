@@ -680,17 +680,55 @@ async function loadVideos() {
 
 // ---- Stream-Pause: von Hand starten und beenden
 let pauseData = null;
-function renderPause() {
+function renderPause(liste = true) {
   const s = pauseData.state;
   $('pauseUrl').textContent = `${location.origin}/pause`;
   $('pauseText').placeholder = pauseData.defaultText;
   $('pauseInfo').innerHTML = s.active ? `<b>Pause läuft:</b> „${esc(s.text)}“ seit ${new Date(s.startedAt).toLocaleTimeString('de-DE', { timeStyle: 'short' })} Uhr.` : 'Gerade läuft keine Pause.';
   $('pauseStart').textContent = s.active ? 'Text ändern' : 'Pause starten';
   $('pauseStop').disabled = !s.active;
+  if (liste) renderPauseListe();
 }
 async function loadPause() { pauseData = await api('GET', 'pause'); renderPause(); }
-$('pauseStart').onclick = run(async () => { pauseData = await api('POST', 'pause/start', { text: $('pauseText').value, minutes: $('pauseMin').value }); renderPause(); meldung('Pause läuft ✓'); });
-$('pauseStop').onclick = run(async () => { pauseData = await api('POST', 'pause/stop', {}); renderPause(); meldung('Pause beendet ✓'); });
+$('pauseStart').onclick = run(async () => { pauseData = await api('POST', 'pause/start', { text: $('pauseText').value, minutes: $('pauseMin').value }); renderPause(false); meldung('Pause läuft ✓'); });
+$('pauseStop').onclick = run(async () => { pauseData = await api('POST', 'pause/stop', {}); renderPause(false); meldung('Pause beendet ✓'); });
+// Eigene Pausen: Zeilen mit Befehl, Text, Minuten, Emoji und Bild
+const pauseRows = () => [...$('pauseListe').querySelectorAll('.pausezeile')].map((r) => ({ id: r.dataset.id || '', word: r.querySelector('[data-f=word]').value, text: r.querySelector('[data-f=text]').value, minutes: r.querySelector('[data-f=minutes]').value, emoji: r.querySelector('[data-f=emoji]').value }));
+function pauseRowHtml(p, i) {
+  const vorschau = p.icon ? `<img src="/api/pause-icon?id=${esc(p.id)}&v=${p.icon}" alt="" style="width:44px;height:44px;object-fit:contain">` : p.emoji ? `<span style="font-size:34px;line-height:44px">${esc(p.emoji)}</span>` : '<span style="font-size:30px;line-height:44px">☕</span>';
+  return `<div class="pausezeile reihe" data-id="${esc(p.id ?? '')}" data-i="${i}" style="align-items:center;border-bottom:1px solid var(--rand,#bba98a);padding:8px 0">
+    <div style="width:48px;text-align:center">${vorschau}</div>
+    <span class="leise">${esc(pauseData.prefix)}</span><input data-f="word" type="text" maxlength="20" placeholder="kaffee" value="${esc(p.word ?? '')}" style="width:120px">
+    <input data-f="text" type="text" maxlength="80" placeholder="Kaffeepause" value="${esc(p.text ?? '')}" style="flex:1;min-width:150px">
+    <input data-f="minutes" type="number" min="0" max="240" placeholder="Min." value="${esc(p.minutes ?? 0)}" style="width:80px" title="Minuten (0 = bis zum Beenden)">
+    <input data-f="emoji" type="text" maxlength="4" placeholder="Emoji" value="${esc(p.emoji ?? '')}" style="width:80px" title="Emoji als Icon (wenn kein Bild hochgeladen ist)">
+    <label class="knopf hell klein" for="pauseBild${i}">Bild</label><input type="file" id="pauseBild${i}" data-bild="${i}" accept="image/png,image/jpeg,image/webp" hidden>${p.icon ? `<button class="hell klein" data-bildweg="${i}" type="button">Bild weg</button>` : ''}
+    <button class="hell klein" data-start="${i}" type="button">Starten</button><button class="hell klein" data-weg="${i}" type="button">Entfernen</button></div>`;
+}
+function renderPauseListe(rows = pauseData.presets) {
+  $('pauseListe').innerHTML = rows.length ? rows.map(pauseRowHtml).join('') : '<p class="leise">Noch keine eigenen Pausen.</p>';
+  $('pauseNeu').disabled = rows.length >= pauseData.max;
+}
+async function speicherePausen() { pauseData = await api('PUT', 'pause/presets', { presets: pauseRows() }); renderPause(); }
+$('pauseNeu').onclick = () => { const rows = [...pauseRows(), { id: '', word: '', text: '', minutes: 0, emoji: '' }]; renderPauseListe(rows.map((r, i) => ({ ...(pauseData.presets.find((p) => p.id === r.id) ?? {}), ...r }))); };
+$('pauseSpeichern').onclick = run(async () => { await speicherePausen(); meldung('Pausen gespeichert ✓'); });
+$('pauseListe').onclick = run(async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.weg !== undefined) { const rows = pauseRows(); rows.splice(Number(b.dataset.weg), 1); renderPauseListe(rows.map((r) => ({ ...(pauseData.presets.find((p) => p.id === r.id) ?? {}), ...r }))); return; }
+  if (b.dataset.start !== undefined) { await speicherePausen(); const p = pauseData.presets[Number(b.dataset.start)]; pauseData = await api('POST', 'pause/start', { preset: p.id }); renderPause(); meldung(`Pause „${p.text}“ läuft ✓`); return; }
+  if (b.dataset.bildweg !== undefined) { await speicherePausen(); pauseData = await api('DELETE', `pause/icon/${pauseData.presets[Number(b.dataset.bildweg)].id}`); renderPause(); meldung('Bild entfernt'); }
+});
+$('pauseListe').onchange = run(async (e) => {
+  const inp = e.target.closest('[data-bild]'); if (!inp) return;
+  const file = inp.files[0]; inp.value = ''; if (!file) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Bitte ein Bild als PNG, JPG oder WebP wählen');
+  const i = Number(inp.dataset.bild);
+  const bmp = await createImageBitmap(file), f = Math.min(1, 256 / bmp.width, 256 / bmp.height); // klein halten, durchsichtige Ränder bleiben (PNG)
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * f)); c.height = Math.max(1, Math.round(bmp.height * f));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  await speicherePausen(); // erst speichern: das Bild gehört zu einer gespeicherten Pause
+  pauseData = await api('POST', `pause/icon/${pauseData.presets[i].id}`, { data: c.toDataURL('image/png') }); renderPause(); meldung('Bild hochgeladen ✓');
+});
 $('pauseCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/pause`).then(() => meldung('Kopiert'));
 
 // ---- Alert-Video (Buch, das aufklappt): ein Video, auf dessen Seite der Bot den Text einblendet

@@ -261,6 +261,12 @@
         <p class="leise">Im Chat (nur Moderation und Streamerin): <code>!auszeit 5 Trinkpause</code> startet, <code>!zurueck</code> beendet. Die Pomodoro-Pause bleibt <code>!pause</code>.</p>
         <p class="leise">OBS-Browserquelle: <code id="pauseUrl"></code> <button class="hell klein" id="pauseCopy" type="button">Kopieren</button><br>Platz und Größe: <code>?pos=top</code> (oder bottom, top-left, top-right, bottom-left, bottom-right), <code>?size=0.8</code>, zum Ansehen <code>?demo</code>.</p>
       </section>
+      <section class="karte">
+        <h2>Eigene Pausen mit eigenem Befehl und Icon</h2>
+        <p class="leise">Zum Beispiel „Kaffee“ mit <code>!kaffee</code> und einem Kaffee-Icon, oder „Essen“ mit <code>!essen</code> und 20 Minuten. Jede Pause hat ihren Text, optional Minuten (0 = bis <code>!zurueck</code>) und ein Icon: ein Emoji oder ein eigenes kleines Bild (am besten PNG mit durchsichtigem Hintergrund, quadratisch). Ohne Icon zeigt die Tafel die Tasse. Im Chat darfst du die Minuten überschreiben: <code>!kaffee 10</code>. Nur Moderation und Streamerin.</p>
+        <div id="pauseListe"></div>
+        <div class="reihe"><button class="hell" id="pauseNeu" type="button">+ Pause hinzufügen</button><button id="pauseSpeichern" type="button">Pausen speichern</button></div>
+      </section>
       <div class="folds" data-schema="Stream-Pause"></div>
     </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>

@@ -1073,6 +1073,61 @@ await test('Stream-Pause: im Admin von Hand starten und beenden', async () => {
   await saveSettings({ pauseEnabled: false });
 });
 
+await test('Eigene Pausen: Befehlswort, Text, Minuten, Emoji und Bild je Pause', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const modB = { badges: [{ set_id: 'moderator' }] };
+  await saveSettings({ chatEnabled: true, chatCommands: true, pauseEnabled: true });
+  // Prüfung der Liste
+  const bad = (presets) => adminCall('PUT', 'pause/presets', { presets }, cookie);
+  assert.equal((await bad([{ word: 'sprint', text: 'x' }])).status, 400); // schon ein Befehl des Bots
+  assert.equal((await bad([{ word: 'auszeit', text: 'x' }])).status, 400);
+  assert.equal((await bad([{ word: 'a', text: 'x' }])).status, 400); // zu kurz
+  assert.equal((await bad([{ word: 'kaffee', text: '' }])).status, 400); // ohne Text
+  assert.equal((await bad([{ word: 'kaffee', text: 'A' }, { word: '!Kaffee', text: 'B' }])).status, 400); // doppelt
+  assert.equal((await bad(Array.from({ length: 9 }, (_, i) => ({ word: `pause${i}`, text: 'x' })))).status, 400); // höchstens 8
+  // Speichern
+  const saved = await bad([{ word: '!Kaffee', text: 'Kaffeepause', minutes: 5, emoji: '☕🍰' }, { word: 'essen', text: 'Essen holen', minutes: 0, emoji: '🍝' }]);
+  assert.equal(saved.status, 200); assert.equal(saved.body.presets.length, 2);
+  const [kaffee, essen] = saved.body.presets;
+  assert.deepEqual({ word: kaffee.word, minutes: kaffee.minutes, emoji: kaffee.emoji }, { word: 'kaffee', minutes: 5, emoji: '☕🍰' });
+  assert.match(kaffee.id, /^[a-z0-9]{4,12}$/);
+  // Chat: Moderation, mit Icon und Minuten; Zuschauer nicht
+  await say('72', 'Zuschauer', '!kaffee');
+  assert.equal((await pauseNow()).show, false);
+  assert.match((await say('70', 'Mod', '!kaffee', modB)).message, /Kaffeepause – gleich geht es weiter/);
+  let v = await pauseNow();
+  assert.deepEqual({ text: v.text, min: Math.round((v.until - v.startedAt) / 60_000), emoji: v.icon.emoji, url: v.icon.url }, { text: 'Kaffeepause', min: 5, emoji: '☕🍰', url: '' });
+  await say('70', 'Mod', '!kaffee 12', modB); // Minuten überschreiben
+  v = await pauseNow(); assert.equal(Math.round((v.until - v.startedAt) / 60_000), 12);
+  await say('70', 'Mod', '!essen', modB);
+  v = await pauseNow(); assert.deepEqual({ text: v.text, until: v.until, emoji: v.icon.emoji }, { text: 'Essen holen', until: null, emoji: '🍝' });
+  await say('70', 'Mod', '!zurueck', modB);
+  // Bild als Icon
+  assert.equal((await adminCall('POST', `pause/icon/${essen.id}`, { data: 'quatsch' }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'pause/icon/unbekannt1', { data: PNG1 }, cookie)).status, 404);
+  const up = await adminCall('POST', `pause/icon/${essen.id}`, { data: PNG1 }, cookie);
+  assert.equal(up.status, 200); assert.ok(up.body.presets.find((p) => p.id === essen.id).icon > 0);
+  const iconFn = (await mod('functions/pause-icon.mjs')).default;
+  const img = await iconFn(new Request(`https://x/api/pause-icon?id=${essen.id}&v=1`));
+  assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png');
+  assert.equal((await iconFn(new Request('https://x/api/pause-icon?id=../../config'))).status, 404);
+  await say('70', 'Mod', '!essen', modB);
+  assert.match((await pauseNow()).icon.url, new RegExp(`^/api/pause-icon\\?id=${essen.id}&v=\\d+$`));
+  await say('70', 'Mod', '!zurueck', modB);
+  // Von Hand im Admin starten, Backup, Aufräumen
+  const start = await adminCall('POST', 'pause/start', { preset: kaffee.id }, cookie);
+  assert.equal(start.body.state.text, 'Kaffeepause'); await adminCall('POST', 'pause/stop', {}, cookie);
+  assert.equal((await adminCall('POST', 'pause/start', { preset: 'gibtesnicht' }, cookie)).status, 404);
+  const b = await backupLib.buildBackup(); assert.ok(b.entries['pausecfg/presets']); assert.ok(b.entries[`pausecfg/icon/${essen.id}`]);
+  await bad([{ word: 'kaffee', text: 'Kaffeepause', minutes: 5, emoji: '☕' }]); // „Essen“ entfernt
+  assert.equal(await db.get(`pausecfg/icon/${essen.id}`), null); // sein Bild ist mit weg
+  await say('70', 'Mod', '!essen', modB); assert.equal((await pauseNow()).show, false);
+  await saveSettings({ pauseEnabled: false });
+  await say('70', 'Mod', '!kaffee', modB); assert.equal((await pauseNow()).show, false); // ausgeschaltet
+  await bad([]);
+});
+
 console.log('Videos als Ausblick');
 const videoUp = admin; // der Upload ist eine Admin-Route: /api/admin/video
 const videoGet = (await mod('functions/overlay-video.mjs')).default;
