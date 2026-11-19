@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Dock · Aufgaben</title><link rel="stylesheet" href="dock.css"></head>
+<body>
+<section id="login" hidden><h1>Everly-Bot</h1><p class="leise">Bitte einmal anmelden.</p><div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div></section>
+<div id="app">
+  <h1>📝 Aufgaben</h1>
+  <div class="reihe"><input id="neu" maxlength="120" placeholder="Neue Aufgabe …" style="flex:1"><button class="gruen" id="add">+</button></div>
+  <div id="liste"></div>
+  <div class="reihe"><button class="hell" id="alle">Alle löschen</button><span class="leise" id="info"></span></div>
+</div>
+<script type="module">
+import { $, api, esc, run, meldung, start } from './dock.js';
+async function laden() {
+  const { items } = await api('GET', 'tasks');
+  const offen = items.filter((i) => !i.done).length;
+  $('info').textContent = items.length ? `${offen} offen` : 'Noch nichts auf der Liste.';
+  $('liste').innerHTML = items.map((i) => `<div class="aufgabe">${i.done ? '<span>✅</span>' : `<button class="hell" data-fertig="${esc(i.id)}" title="Erledigt">✓</button>`}<span style="${i.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(i.text)}</span><button class="hell" data-weg="${esc(i.id)}" title="Löschen">✕</button></div>`).join('');
+}
+$('liste').onclick = run(async (e) => {
+  const f = e.target.closest('[data-fertig]'), w = e.target.closest('[data-weg]');
+  if (f) await api('POST', 'tasks/done', { id: f.dataset.fertig });
+  else if (w) await api('DELETE', `tasks/${encodeURIComponent(w.dataset.weg)}`);
+  else return;
+  await laden();
+});
+const hinzu = run(async () => { const text = $('neu').value.trim(); if (!text) return; await api('POST', 'tasks', { text }); $('neu').value = ''; await laden(); });
+$('add').onclick = hinzu;
+$('neu').onkeydown = (e) => { if (e.key === 'Enter') hinzu(); };
+$('alle').onclick = run(async () => { if (!confirm('Alle Aufgaben löschen?')) return; await api('DELETE', 'tasks/all'); await laden(); });
+setInterval(() => { if (document.activeElement !== $('neu')) laden().catch(() => {}); }, 8000);
+start(laden);
+</script>
+</body></html>

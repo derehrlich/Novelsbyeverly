@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Dock · Design</title><link rel="stylesheet" href="dock.css"></head>
+<body>
+<section id="login" hidden><h1>Everly-Bot</h1><p class="leise">Bitte einmal anmelden.</p><div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div></section>
+<div id="app">
+  <h1>🎨 Design und Hintergrund</h1>
+  <div id="felder"></div>
+  <div class="leise">Wirkt sofort im Overlay.</div>
+</div>
+<script type="module">
+import { $, api, esc, run, meldung, start } from './dock.js';
+const VIDEO = [['zeit', 'Nach Tageszeit'], ['b1', 'Bibliothek 1'], ['b2', 'Bibliothek 2'], ['b3', 'Bibliothek 3'], ['aus', 'Aus (gemalt)']];
+const FELDER = [
+  ['hintergrund', 'Hintergrund', [['landschaft', 'Landschaft'], ['jahreszeiten', 'Jahreszeiten'], ['bild', 'Eigenes Bild'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke'], ['stadt', 'Stadt'], ['see', 'See']]],
+  ['wetter', 'Wetter', [['klar', 'Klar'], ['wolkig', 'Wolkig'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['schnee', 'Schnee'], ['nebel', 'Nebel']]],
+  ['tageszeit', 'Tageszeit', [['auto', 'Automatisch'], ['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']]],
+  ['jahreszeit', 'Jahreszeit', [['auto', 'Automatisch'], ['fruehling', 'Frühling'], ['sommer', 'Sommer'], ['herbst', 'Herbst'], ['winter', 'Winter']], ['landschaft', 'jahreszeiten']],
+  ['videoZug', 'Video Zug', VIDEO, ['zug']], ['videoSitzecke', 'Video Sitzecke', VIDEO, ['sitzecke']],
+  ['videoStadt', 'Video Stadt', VIDEO, ['stadt']], ['videoSee', 'Video See', VIDEO, ['see']],
+  ['kartenStil', 'Karten', [['papier', 'Papier'], ['glas', 'Glas']]],
+  ['kameraRahmen', 'Kamera-Rahmen', [['holz', 'Holz'], ['papier', 'Papier'], ['glas', 'Glas'], ['keiner', 'Keiner']], ['zug', 'sitzecke', 'stadt', 'see', 'jahreszeiten', 'bild']],
+];
+let s = {};
+function zeichne() {
+  $('felder').innerHTML = FELDER.filter(([, , , nur]) => !nur || nur.includes(s.hintergrund)).map(([k, name, opts]) =>
+    `<div class="feld"><label for="f_${k}">${name}</label><select id="f_${k}" data-k="${k}">${opts.map(([v, t]) => `<option value="${v}"${s[k] === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`).join('');
+}
+async function laden() { s = (await api('GET', 'settings')).settings; zeichne(); }
+$('felder').onchange = run(async (e) => {
+  const k = e.target.dataset.k; if (!k) return;
+  s = (await api('PUT', 'settings', { [k]: e.target.value })).settings;
+  zeichne(); meldung('Gespeichert ✓');
+});
+start(laden);
+</script>
+</body></html>

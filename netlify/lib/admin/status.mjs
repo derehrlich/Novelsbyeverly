@@ -41,7 +41,7 @@ export async function status({ req, route, method }) {
     rewardId: state.rewardId ?? null,
     revoked: state.revoked ?? null,
     subscription, subscriptionError,
-    urls: { site: siteUrl(req), rangliste: `${siteUrl(req)}/rangliste`, redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, words: `${siteUrl(req)}/api/words` },
+    urls: { site: siteUrl(req), rangliste: `${siteUrl(req)}/rangliste`, redirect: `${siteUrl(req)}/api/auth/callback`, webhook: webhookUrl, overlay: `${siteUrl(req)}/overlay`, words: `${siteUrl(req)}/api/words`, dockPomodoro: `${siteUrl(req)}/admin/dock-pomodoro.html`, dockAufgaben: `${siteUrl(req)}/admin/dock-aufgaben.html`, dockDesign: `${siteUrl(req)}/admin/dock-design.html`, dockAlles: `${siteUrl(req)}/admin/dock-alles.html` },
     timer: await getTimer(),
     pomodoro: { done: await sprintsToday(settings), goal: settings.pomodoroGoal },
     modus: settings.szeneModus,

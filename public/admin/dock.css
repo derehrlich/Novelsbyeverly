@@ -1,0 +1,23 @@
+@font-face { font-family: Fredoka; font-weight: 400; src: url(../fonts/fredoka-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: Fredoka; font-weight: 600; src: url(../fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
+:root { --bg: #f6ecda; --karte: #fffaf0; --rand: #8b5e3c; --text: #4a3320; --leise: #8c7358; --gruen: #4f9a5b; --orange: #d98b2b; --rot: #c0453a; --akzent: #c0704a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #2a2018; --karte: #382b20; --rand: #c49a70; --text: #f1e4d0; --leise: #bda583; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 8px; background: var(--bg); color: var(--text); font: 15px/1.35 Fredoka, system-ui, sans-serif; }
+h1 { font-size: 15px; margin: 0 0 6px; color: var(--leise); font-weight: 600; }
+.leise { color: var(--leise); font-size: 13px; }
+button { font: inherit; font-weight: 600; background: var(--akzent); color: #fff; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button.hell { background: transparent; color: var(--text); border: 2px solid var(--rand); padding: 4px 10px; }
+button.gruen { background: var(--gruen); } button.orange { background: var(--orange); } button.rot { background: var(--rot); }
+button:disabled { opacity: .5; }
+input, select { font: inherit; color: var(--text); background: var(--karte); border: 2px solid var(--rand); border-radius: 8px; padding: 5px 8px; min-width: 0; }
+input[type=number] { width: 64px; }
+.reihe { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.gross { font-size: 40px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.feld { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+.feld label { font-weight: 600; } .feld select { flex: 0 1 62%; }
+.aufgabe { display: flex; gap: 6px; align-items: center; margin: 4px 0; } .aufgabe span { flex: 1; word-break: break-word; }
+.aufgabe button { padding: 2px 8px; }
+.meldung { position: fixed; left: 8px; right: 8px; bottom: 8px; background: var(--text); color: var(--bg); padding: 6px 10px; border-radius: 8px; text-align: center; }
+.meldung.fehler { background: var(--rot); color: #fff; }
+[hidden] { display: none !important; }

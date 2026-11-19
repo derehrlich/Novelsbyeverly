@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Dock · Alles</title>
+<link rel="stylesheet" href="dock.css">
+<style>
+  body { padding: 0; height: 100vh; display: flex; flex-direction: column; }
+  nav { display: flex; gap: 4px; padding: 6px 6px 0; background: var(--bg); }
+  nav button { flex: 1; background: transparent; color: var(--text); border: 2px solid var(--rand); border-bottom: 0; border-radius: 8px 8px 0 0; padding: 6px 4px; }
+  nav button.aktiv { background: var(--karte); color: var(--akzent); }
+  .rahmen { flex: 1; min-height: 0; border-top: 2px solid var(--rand); position: relative; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+</style></head>
+<body>
+<nav id="reiter"><button data-s="pomodoro">✍️ Pomodoro</button><button data-s="aufgaben">📝 Aufgaben</button><button data-s="design">🎨 Design</button></nav>
+<div class="rahmen" id="rahmen"></div>
+<script>
+// Alle drei Docks in einem: oben die Reiter, darunter die jeweilige Dock-Seite (wird erst beim ersten Anklicken geladen).
+const rahmen = document.getElementById('rahmen'), knoepfe = [...document.querySelectorAll('#reiter button')];
+function zeige(name) {
+  for (const b of knoepfe) b.classList.toggle('aktiv', b.dataset.s === name);
+  let f = rahmen.querySelector(`iframe[data-s="${name}"]`);
+  if (!f) { f = document.createElement('iframe'); f.dataset.s = name; f.src = `dock-${name}.html`; rahmen.append(f); }
+  for (const x of rahmen.querySelectorAll('iframe')) x.hidden = x !== f;
+  try { localStorage.setItem('dockReiter', name); } catch {}
+}
+for (const b of knoepfe) b.onclick = () => zeige(b.dataset.s);
+let start = 'pomodoro'; try { start = localStorage.getItem('dockReiter') || start; } catch {}
+zeige(['pomodoro', 'aufgaben', 'design'].includes(start) ? start : 'pomodoro');
+</script>
+</body></html>
