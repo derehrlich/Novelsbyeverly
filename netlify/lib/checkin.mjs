@@ -9,7 +9,7 @@ import { getOrCreateUser, saveUser, sit } from './people.mjs';
 import { say } from './timer.mjs';
 import { setRedemptionStatus } from './twitch.mjs';
 import { fill, pushEvent, streamDay } from './util.mjs';
-import { parseLevels, streakFor } from './streak.mjs';
+import { findRescue, getStreamDays, parseLevels, streakFor } from './streak.mjs';
 
 /** Trägt den Besuch ein. Pro Stream-Tag zählt nur einer; die Sperre ist atomar. */
 export async function recordCheckIn(userId, userName, settings) {
@@ -44,6 +44,35 @@ async function visit(redemption, settings) {
   }
   await setRedemptionStatus(id, reward.id, 'FULFILLED');
   return { ok: true, status: 'checkedin', count: result.count, streak: streak.current };
+}
+
+// Banner im Overlay (das aufklappende Buch) für eine gerettete Streak; auch für den Testknopf im Admin
+export const rescueCard = (settings, user, streak, days) => ({ type: 'alert', kind: 'rescue', user, streak, days, title: fill(settings.rescueTitle, { user, streak, days }), message: fill(settings.rescueMessage, { user, streak, days }), ms: settings.alertSeconds * 1000 });
+
+/** Streak-Retter: schließt die jüngste Lücke aus verpassten Streams. Nicht nötig oder zu lang: Hinweis und Punkte zurück. */
+export async function handleRescue(redemption, settings, now = new Date()) {
+  const { id, user_id, user_name, reward } = redemption;
+  const user = await db.get(`user/${user_id}`);
+  const today = streamDay(settings, now);
+  const streamDays = await getStreamDays();
+  const refuse = async (template) => {
+    await say(settings, fill(template, { user: user_name, streak: '', days: '' }));
+    await setRedemptionStatus(id, reward.id, 'CANCELED'); // Punkte zurück
+    return { ok: false };
+  };
+  const rescue = user ? findRescue(user, streamDays, today, settings.streakGrace, settings.rescueMaxDays) : { status: 'none' };
+  if (rescue.status === 'none') return refuse(settings.rescueNotNeededTemplate);
+  if (rescue.status === 'toolong') return refuse(settings.rescueTooLongTemplate);
+  // Atomare Sperre: dieselbe Lücke nur einmal retten, auch bei gleichzeitigen Einlösungen
+  if (!(await db.setIfNew(`rescue/${user_id}/${rescue.days.at(-1)}`, 1))) return refuse(settings.rescueNotNeededTemplate);
+  user.name = user_name;
+  user.saved = [...new Set([...(user.saved ?? []), ...rescue.days])].sort();
+  await db.set(`user/${user_id}`, user);
+  const { current } = await streakFor(user_id, today, settings);
+  await pushEvent(rescueCard(settings, user_name, current, rescue.days.length));
+  await say(settings, fill(settings.rescueTemplate, { user: user_name, streak: current, days: rescue.days.length }));
+  await setRedemptionStatus(id, reward.id, 'FULFILLED');
+  return { ok: true, saved: rescue.days.length, streak: current };
 }
 
 export async function handleRedemption(redemption, settings) {
