@@ -226,6 +226,29 @@ const SCHEMA = [
     ['sprintStartTemplate', 'Pomodoro-Start', 'area', '{minutes}'], ['breakTemplate', 'Kurze Pause', 'area', '{minutes}'], ['longBreakTemplate', 'Lange Pause', 'area', '{minutes} {n}'],
     ['sprintEndTemplate', 'Pomodoro geschafft', 'area', '{n} {ziel} {streamer}'], ['goalTemplate', 'Tagesziel erreicht', 'area', '{words}'],
   ]],
+  ['Alerts', [
+    ['alertsEnabled', 'Alerts aktivieren (Follow, Abo, Geschenk, Bits)', 'bool', 'Im Overlay klappt ein Buch auf und zeigt das Ereignis. Nach dem Einschalten wird automatisch bei Twitch angemeldet. Beim ersten Mal einmal unter „Einrichtung“ den Kanal neu verbinden, damit Twitch die neuen Berechtigungen erteilt.'],
+    ['alertFollow', 'Neue Follower zeigen', 'bool'], ['alertSub', 'Abos und Abo-Jubiläen zeigen', 'bool'], ['alertGift', 'Verschenkte Abos zeigen', 'bool'], ['alertCheer', 'Bits zeigen', 'bool'],
+    ['alertCheerMin', 'Bits erst ab dieser Menge zeigen', 'number'], ['alertSeconds', 'So lange bleibt das Buch offen (Sekunden)', 'number'],
+    ['alertChat', 'Danke im Chat schreiben (auch bei Raids)', 'bool', 'Der Bot antwortet im Chat. Braucht, dass der Chat-Bot verbunden ist.'],
+  ]],
+  ['Raids', [
+    ['raidEnabled', 'Raids aktivieren', 'bool', 'Wenn jemand mit seiner Community zu dir raidet, klappt das Buch auf: mit Namen, Anzahl, zuletzt gespieltem Spiel und Profilbild.'],
+    ['raidMinViewers', 'Raids erst ab dieser Zuschauerzahl zeigen', 'number'], ['raidSeconds', 'So lange bleibt das Buch bei einem Raid offen (Sekunden)', 'number'],
+  ]],
+  ['Alert-Texte (im Buch)', [
+    ['followTitle', 'Follow: Überschrift', 'text', '{user}'], ['followMessage', 'Follow: Text', 'text', '{user}'],
+    ['subTitle', 'Abo: Überschrift', 'text', '{user} {tier}'], ['subMessage', 'Abo: Text', 'text', '{user} {tier}'],
+    ['resubTitle', 'Abo-Jubiläum: Überschrift', 'text', '{user} {tier} {months}'], ['resubMessage', 'Abo-Jubiläum: Text', 'text', '{user} {tier} {months}'],
+    ['giftTitle', 'Geschenk: Überschrift', 'text', '{user} {tier} {total}'], ['giftMessage', 'Geschenk: Text', 'text', '{user} {tier} {total}'],
+    ['cheerTitle', 'Bits: Überschrift', 'text', '{user} {bits}'], ['cheerMessage', 'Bits: Text', 'text', '{user} {bits}'],
+    ['raidTitle', 'Raid: Überschrift', 'text', '{raider} {viewers} {raids} {visit} {game}'], ['raidMessage', 'Raid: Text', 'text', '{raider} {viewers} {raids} {visit} {game}'],
+  ]],
+  ['Alert-Chattexte', [
+    ['followTemplate', 'Danke für den Follow', 'area', '{user}'], ['subTemplate', 'Danke für das Abo', 'area', '{user} {tier} {months}'],
+    ['giftTemplate', 'Danke für verschenkte Abos', 'area', '{user} {tier} {total}'], ['cheerTemplate', 'Danke für Bits', 'area', '{user} {bits}'],
+    ['raidTemplate', 'Willkommen, Raid', 'area', '{raider} {viewers} {raids} {visit} {game} {url}'],
+  ]],
   ['Check-in und Streak', [
     ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
     ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis (Kanalpunkte)', 'number'],
@@ -287,9 +310,9 @@ const SCHEMA = [
 ];
 let current = null;
 // Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
-const TOGGLE_GROUPS = new Set(['Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
+const TOGGLE_GROUPS = new Set(['Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
-const SYNC_KEYS = ['checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
+const SYNC_KEYS = ['alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
 const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 

@@ -7,7 +7,7 @@ import { json } from '../http.mjs';
 import { backupStatus, runBackupNow } from '../system/autobackup.mjs';
 
 const FORMAT = 'everly-backup';
-export const DATA_PREFIXES = ['user/', 'task/', 'checked/', 'streamday/', 'cmonth/', 'state/', 'stats/', 'bg/'];
+export const DATA_PREFIXES = ['user/', 'task/', 'checked/', 'streamday/', 'cmonth/', 'state/', 'stats/', 'bg/', 'raid/'];
 export const DATA_KEYS = ['config/settings', 'config/state'];
 const inScope = (key) => DATA_KEYS.includes(key) || DATA_PREFIXES.some((p) => key.startsWith(p));
 

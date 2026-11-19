@@ -89,6 +89,28 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .ereignis .titel { font-size: 32px; font-weight: 700; }
 .ereignis .sub { font-size: 23px; color: var(--leise); font-weight: 500; }
 .ereignis.gold { background: #f8efd2; border-color: #c9a45f; }
+/* Alerts als Buch: fährt zugeklappt herein, klappt auf, die Seite zeigt das Ereignis, dann klappt es wieder zu */
+#buch { position: absolute; left: 960px; top: 170px; width: 0; height: 0; perspective: 2200px; pointer-events: none; }
+.buch { position: absolute; left: -200px; top: 0; width: 400px; height: 480px; transform: translateY(-700px) rotate(-3deg); opacity: 0; transition: transform .9s cubic-bezier(.2, 1.15, .3, 1), opacity .5s; }
+.buch.da { transform: none; opacity: 1; }
+.buch .innen { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(.45, .05, .25, 1); }
+.buch.offen .innen { transform: translateX(200px); }
+.buch .seite, .buch .vorn, .buch .hinten { position: absolute; inset: 0; border-radius: 8px 18px 18px 8px; backface-visibility: hidden; }
+.buch .seite { background: #fbf6eb repeating-linear-gradient(0deg, transparent 0 35px, rgba(187, 169, 138, .22) 35px 36px); border: 3px solid var(--rand); box-shadow: 0 16px 36px rgba(50, 40, 28, .34), 5px 0 0 -1px #efe6d2, 8px 0 0 -2px #e3d8c0; padding: 56px 40px 40px 52px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.buch .deckel { position: absolute; inset: 0; transform-origin: left center; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(.45, .05, .25, 1); }
+.buch.offen .deckel { transform: rotateY(-180deg); }
+.buch .vorn { background: linear-gradient(135deg, #8a5a3c, #6b4128 70%); border: 3px solid #4a2c19; box-shadow: inset 0 0 0 10px #7a4d32, inset 0 0 0 12px #c9a45f, 0 16px 36px rgba(50, 40, 28, .34); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #f0d99a; }
+.buch .vorn .zeichen { font-size: 120px; line-height: 1; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .35)); }
+.buch .vorn .name { position: static; width: auto; margin: 0; transform: none; font-size: 26px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; opacity: .85; }
+.buch .hinten { transform: rotateY(180deg); background: #f6efdd repeating-linear-gradient(0deg, transparent 0 35px, rgba(187, 169, 138, .22) 35px 36px); border: 3px solid var(--rand); border-radius: 18px 8px 8px 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 30px 40px 30px 30px; text-align: center; }
+.buch .hinten .gross { font-size: 110px; line-height: 1; }
+.buch .hinten .avatar { width: 150px; height: 150px; border-radius: 50%; border: 4px solid #c9a45f; object-fit: cover; box-shadow: 0 6px 14px rgba(50, 40, 28, .3); }
+.buch .hinten .art { font-size: 22px; letter-spacing: .1em; text-transform: uppercase; color: var(--leise); font-weight: 600; }
+.buch .hinten .zahl { font-size: 54px; font-weight: 700; color: var(--text); line-height: 1; }
+.buch .seite .t { font-size: 38px; font-weight: 700; color: var(--text); line-height: 1.15; overflow-wrap: anywhere; }
+.buch .seite .m { font-size: 25px; font-weight: 500; color: var(--text); }
+.buch .seite .e { font-size: 21px; font-style: italic; color: var(--leise); }
+.buch .seite .zierde { align-self: flex-start; width: 90px; height: 4px; border-radius: 2px; background: #c9a45f; }
 .modul { position: absolute; transform: translateX(-50%); background: var(--papier); border: 2px solid var(--rand); border-radius: 12px; padding: 0 11px; font-size: 16px; line-height: 20px; font-weight: 600; color: var(--text); white-space: nowrap; box-shadow: 0 3px 8px rgba(50, 40, 28, .2); }
 .modul small { color: var(--leise); font-weight: 500; font-size: 14px; margin-right: 6px; }
 @keyframes rein { from { transform: translateY(-140px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -163,6 +185,7 @@ body.glas #musik .eq i, body.glas #musik .eq i:nth-child(n) { background: rgba(2
     <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   </section>
   <div id="banner"></div>
+  <div id="buch"></div>
   <canvas id="konfetti" width="1920" height="1080"></canvas>
 </div>
 
@@ -247,6 +270,38 @@ function nextBanner() {
   setTimeout(() => { el.remove(); nextBanner(); }, 5700);
 }
 
+// ---- Alerts (Follow, Sub, Gift, Bits, Raid) als Buch, eins nach dem anderen
+const BUCH_ZEICHEN = { follow: '🌱', sub: '💛', resub: '💛', gift: '🎁', cheer: '✨', raid: '🌟' };
+const BUCH_ART = { follow: 'Neu im Zimmer', sub: 'Neues Abo', resub: 'Abo-Jubiläum', gift: 'Sub-Geschenk', cheer: 'Bits', raid: 'Raid' };
+const buchSchlange = []; let buchLaeuft = false;
+function buch(ev) { buchSchlange.push(ev); if (!buchLaeuft) naechstesBuch(); }
+function naechstesBuch() {
+  const ev = buchSchlange.shift();
+  if (!ev) { buchLaeuft = false; return; }
+  buchLaeuft = true;
+  const kind = ev.type === 'raid' ? 'raid' : ev.kind;
+  const el = document.createElement('div'); el.className = 'buch';
+  el.innerHTML = '<div class="innen"><div class="seite"><div class="zierde"></div><div class="t"></div><div class="m"></div><div class="e"></div></div><div class="deckel"><div class="vorn"><div class="zeichen"></div><div class="name">Schreibzimmer</div></div><div class="hinten"></div></div></div>';
+  const q = (s) => el.querySelector(s);
+  q('.zeichen').textContent = BUCH_ZEICHEN[kind] ?? '📖';
+  q('.t').textContent = ev.title || ''; q('.m').textContent = ev.message || '';
+  const extra = ev.type === 'raid' ? [ev.game && `zuletzt: ${ev.game}`, ev.raids > 1 && `${ev.raids}. Mal bei uns`].filter(Boolean).join(' · ') : ev.extra;
+  q('.e').textContent = extra || ''; q('.e').hidden = !extra;
+  const links = q('.hinten');
+  if (ev.type === 'raid' && ev.avatar) { const im = document.createElement('img'); im.className = 'avatar'; im.src = ev.avatar; im.alt = ''; links.append(im); }
+  else { const g = document.createElement('div'); g.className = 'gross'; g.textContent = BUCH_ZEICHEN[kind] ?? '📖'; links.append(g); }
+  const art = document.createElement('div'); art.className = 'art'; art.textContent = BUCH_ART[kind] ?? ''; links.append(art);
+  const zahl = ev.type === 'raid' ? `${ev.viewers}` : kind === 'cheer' ? `${fmt.format(ev.bits ?? 0)}` : kind === 'gift' ? `${ev.total ?? 1}×` : kind === 'resub' ? `${ev.months} Mon.` : '';
+  if (zahl) { const z = document.createElement('div'); z.className = 'zahl'; z.textContent = zahl; links.append(z); }
+  $('buch').append(el);
+  const hold = Math.max(3000, ev.ms || 7000), RAUS = 900, AUF = 1200;
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('da')));
+  setTimeout(() => { el.classList.add('offen'); chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }, RAUS);
+  setTimeout(() => el.classList.remove('offen'), RAUS + AUF + hold);
+  setTimeout(() => el.classList.remove('da'), RAUS + AUF * 2 + hold);
+  setTimeout(() => { el.remove(); naechstesBuch(); }, RAUS + AUF * 2 + hold + 800);
+}
+
 function handleEvent(ev) {
   szene?.event(ev);
   switch (ev.type) {
@@ -257,6 +312,7 @@ function handleEvent(ev) {
     case 'unlock': banner('🎁', `${ev.name}: ${ev.item}`, 'freigeschaltet', { confetti: 60 }); break;
     case 'deko': banner('🌿', `${ev.item} im Zimmer`, 'Das Zimmer wächst durch eure gemeinsame Arbeitszeit', { gold: true, confetti: 100 }); break;
     case 'checkin': banner(ev.milestone ? '🏆' : '✅', `${ev.name} ist eingecheckt`, [`Besuch ${ev.count}`, ev.streak > 1 ? `🔥 ${ev.streak} Streams in Folge` : ''].filter(Boolean).join(' · '), { gold: ev.milestone, confetti: ev.milestone ? 180 : 0 }); break;
+    case 'alert': case 'raid': buch(ev); break;
     case 'taskdone': burst(200, 380, 40, .7); break;
     case 'sit': if (teile.has('szene')) chime([880], 0); break;
     default: break;
@@ -476,7 +532,9 @@ if (q.has('vorschau')) {
     seats: [], events: [], cursor: 'x',
   });
   apply(mk());
-  if (q.get('ereignis')) setTimeout(() => handleEvent({ type: q.get('ereignis'), writers: 6, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' }), 300);
+  const BUCH_DEMO = { follow: { type: 'alert', kind: 'follow', user: 'Lena', title: 'Willkommen, Lena!', message: 'folgt jetzt dem Schreibzimmer 🌱' }, sub: { type: 'alert', kind: 'sub', user: 'Lena', title: 'Lena ist dabei!', message: 'Neues Abo (Stufe 1)' }, resub: { type: 'alert', kind: 'resub', user: 'Lena', months: 6, title: 'Lena ist 6 Monate dabei!', message: 'Stufe 1', extra: 'Immer wieder gerne!' }, gift: { type: 'alert', kind: 'gift', user: 'Lena', total: 5, title: 'Lena verschenkt Abos!', message: '5 Sub(s) für die Community' }, cheer: { type: 'alert', kind: 'cheer', user: 'Lena', bits: 500, title: 'Lena schickt Bits!', message: '500 Bits', extra: 'Cheer500 für dich!' }, raid: { type: 'raid', raider: 'Lena', viewers: 24, game: 'Just Chatting', raids: 3, title: 'Raid von Lena!', message: '24 Schreibfreunde kommen vorbei' } };
+  if (BUCH_DEMO[q.get('ereignis')]) setTimeout(() => handleEvent({ ...BUCH_DEMO[q.get('ereignis')], ms: 6000 }), 300);
+  else if (q.get('ereignis')) setTimeout(() => handleEvent({ type: q.get('ereignis'), writers: 6, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' }), 300);
 } else {
   await poll();
   setInterval(poll, 3000);
