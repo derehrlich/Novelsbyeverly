@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Dock · Pomodoro</title><link rel="stylesheet" href="dock.css"></head>
+<body>
+<section id="login" hidden><h1>Everly-Bot</h1><p class="leise">Bitte einmal anmelden.</p><div class="reihe"><input type="password" id="passwort" placeholder="Passwort" autocomplete="current-password"><button id="anmelden">Anmelden</button></div></section>
+<div id="app">
+  <h1>✍️ Pomodoro</h1>
+  <div class="gross" id="zeit">bereit</div>
+  <div class="leise" id="info">Kein Timer läuft</div>
+  <div class="reihe"><input type="number" id="min" min="1" max="180" placeholder="Min."><span class="leise">Minuten (leer = Standard)</span></div>
+  <div class="reihe"><button class="gruen" id="fokus">▶ Fokus</button><button class="orange" id="pause">☕ Pause</button><button class="rot" id="stopp">■ Stopp</button></div>
+  <h1 style="margin-top:12px">Geschafft heute</h1>
+  <div class="reihe"><button class="hell" id="minus">−</button><b id="zahl" style="min-width:60px;text-align:center">0</b><button class="hell" id="plus">+</button><span class="leise" id="ziel"></span></div>
+  <h1 style="margin-top:12px">Wörter heute</h1>
+  <div class="reihe"><b id="woerter">0</b><input type="number" id="wplus" min="0" placeholder="+" style="width:80px"><button class="hell" id="wadd">dazu</button><button class="hell" id="wset">setzen</button></div>
+</div>
+<script type="module">
+import { $, api, run, meldung, start } from './dock.js';
+let st = null;
+const pad = (n) => String(n).padStart(2, '0');
+const mins = () => { const v = Number($('min').value); return v > 0 ? v : undefined; };
+function zeichneTimer() {
+  const t = st?.timer;
+  if (!t || t.phase === 'idle') { $('zeit').textContent = 'bereit'; $('info').textContent = 'Kein Timer läuft'; return; }
+  const s = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
+  $('zeit').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  $('info').textContent = t.phase === 'focus' ? 'Pomodoro läuft' : 'Pause';
+}
+async function laden() {
+  st = await api('GET', 'state');
+  $('zahl').textContent = st.pomodoro.done; $('ziel').textContent = st.pomodoro.goal ? `Ziel: ${st.pomodoro.goal}` : '';
+  $('woerter').textContent = st.words?.today ?? st.words?.count ?? 0;
+  zeichneTimer();
+}
+const tu = (pfad, body) => run(async () => { await api('POST', pfad, body ? body() : {}); await laden(); });
+$('fokus').onclick = tu('timer/focus', () => ({ minutes: mins() }));
+$('pause').onclick = tu('timer/break', () => ({ minutes: mins() }));
+$('stopp').onclick = tu('timer/stop');
+$('minus').onclick = tu('timer/count', () => ({ delta: -1 }));
+$('plus').onclick = tu('timer/count', () => ({ delta: 1 }));
+$('wadd').onclick = run(async () => { await api('POST', 'words', { mode: 'delta', value: $('wplus').value }); $('wplus').value = ''; await laden(); });
+$('wset').onclick = run(async () => { await api('POST', 'words', { mode: 'today', value: $('wplus').value }); $('wplus').value = ''; await laden(); });
+setInterval(zeichneTimer, 500);
+setInterval(() => laden().catch(() => {}), 5000);
+start(laden);
+</script>
+</body></html>

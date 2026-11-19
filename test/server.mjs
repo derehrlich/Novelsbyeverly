@@ -68,6 +68,19 @@ const ok = (name) => { n++; console.log('  ok', name); };
   ok('statische Dateien, Ordner-Weiterleitung, ETag, 404/405');
 }
 
+// ---- OBS-Docks: drei kleine Seiten, dieselbe Anmeldung wie der Admin
+{
+  for (const d of ['pomodoro', 'aufgaben', 'design']) {
+    const r = await get(`/admin/dock-${d}.html`);
+    assert.equal(r.status, 200, d);
+    const html = await r.text();
+    assert.match(html, /dock\.js/);
+    assert.equal((await get('/admin/dock.js')).status, 200);
+  }
+  assert.equal((await get('/api/admin/tasks')).status, 401, 'Docks brauchen die Anmeldung');
+  ok('OBS-Docks (Seiten erreichbar, Daten nur mit Anmeldung)');
+}
+
 // ---- Pfade außerhalb von public/ bleiben tabu
 {
   for (const p of ['/..%2f..%2fpackage.json', '/%2e%2e/package.json', '/..%2fserver.mjs', '/%00', '/%zz']) {
