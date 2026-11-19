@@ -202,7 +202,7 @@ const OPT = {
 const SCHEMA = [
   ['Darstellung', [
     ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
-    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
+    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['pavillonZeigen', 'Pavillon mit Stefanie zeigen', 'bool', 'Aus: die gemalte Landschaft hat keinen Pavillon und keine sitzende Stefanie. Der Pavillon ist nur ausgeblendet, nicht gelöscht.'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
   ]],
   ['Pomodoro', [
     ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
@@ -477,7 +477,7 @@ $('restoreDatei').onchange = run(async (e) => {
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
 let previewTimer = 0, previewBusy = false, previewAgain = false, previewProgress = null; // Fortschritt nur zum Ausprobieren in der Vorschau
-const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+const PREVIEW_KEYS = ['videoZug', 'videoSitzecke', 'videoStadt', 'videoSee', 'pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {
@@ -609,26 +609,43 @@ async function loadVideos() {
     const v = data.videos[k]?.[z];
     return `<td>${v ? `<span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table>`;
-  for (const inp of $('videos').querySelectorAll('input[type=file]')) inp.onchange = run(async (e) => {
+  const WAHL_KEY = { zug: 'videoZug', sitzecke: 'videoSitzecke', stadt: 'videoStadt', see: 'videoSee' };
+  const BIB = ['b1', 'b2', 'b3'];
+  $('videoBib').innerHTML = `<table><thead><tr><th>Szene</th><th>Läuft gerade</th>${BIB.map((_, i) => `<th>Platz ${i + 1}</th>`).join('')}</tr></thead><tbody>${RAUM_SZENEN.map(([k, label]) => {
+    const wahl = current?.[WAHL_KEY[k]] ?? 'zeit';
+    const opts = [['zeit', 'Nach Tageszeit'], ...BIB.map((z, i) => [z, `Platz ${i + 1}${data.videos[k]?.[z] ? `: ${data.videos[k][z].name || 'ohne Namen'}` : ' (leer)'}`]), ['aus', 'Kein Video (gezeichnete Landschaft)']];
+    return `<tr><td><b>${label}</b></td><td><select data-wahl="${k}">${opts.map(([v, l]) => `<option value="${v}"${v === wahl ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></td>${BIB.map((z) => {
+      const v = data.videos[k]?.[z];
+      return `<td>${v ? `<b>${esc(v.name || 'ohne Namen')}</b> <span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;
+    }).join('')}</tr>`;
+  }).join('')}</tbody></table>`;
+  for (const sel of $('videoBib').querySelectorAll('select[data-wahl]')) sel.onchange = run(async () => {
+    const st = await api('PUT', 'settings', { [WAHL_KEY[sel.dataset.wahl]]: sel.value, hintergrund: sel.dataset.wahl });
+    current = st.settings; renderScenes(st.settings); renderFolds(st.settings); schedulePreview(0); meldung('Gespeichert');
+  });
+  for (const inp of document.querySelectorAll('#videos input[type=file], #videoBib input[type=file]')) inp.onchange = run(async (e) => {
     const file = e.target.files[0]; const s = inp.dataset.s, z = inp.dataset.z; e.target.value = '';
     if (!file) return;
     $('videoStatus').textContent = `Lädt hoch: ${file.name} (${mb(file.size)}) …`;
     let r, d = {};
-    try { r = await fetch(`/api/admin/video?s=${s}&z=${z}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file }); d = await r.json().catch(() => ({})); } catch { r = null; }
+    try { r = await fetch(`/api/admin/video?s=${s}&z=${z}&n=${encodeURIComponent(file.name)}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file }); d = await r.json().catch(() => ({})); } catch { r = null; }
     $('videoStatus').textContent = '';
     if (!r) throw new Error('Das Hochladen ist abgebrochen. Ist das Video größer als 100 MB, oder war die Verbindung weg?');
     if (!r.ok) throw new Error(d.error ?? `Fehler ${r.status} beim Hochladen`);
-    const st = await api('PUT', 'settings', { hintergrund: s, tageszeit: z });
+    const bib = BIB.includes(z);
+    const st = await api('PUT', 'settings', bib ? { hintergrund: s, [WAHL_KEY[s]]: z } : { hintergrund: s, tageszeit: z });
     current = st.settings; renderScenes(st.settings); renderFolds(st.settings);
-    await loadVideos(); schedulePreview(0); meldung('Video hochgeladen, Szene und Tageszeit sind ausgewählt');
+    await loadVideos(); schedulePreview(0); meldung(bib ? 'Video in der Bibliothek abgelegt und ausgewählt' : 'Video hochgeladen, Szene und Tageszeit sind ausgewählt');
   });
-  for (const b of $('videos').querySelectorAll('[data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
+  for (const b of document.querySelectorAll('#videos [data-weg-s], #videoBib [data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
 // ---- Jahreszeiten-Landschaft: acht Landschaftsbilder und drei Blätter mit Kleinteilen hochladen
 const JZ_SLOTS = [['fruehlingA', 'Frühling · Anfang'], ['fruehlingB', 'Frühling · Ende'], ['sommerA', 'Sommer · Anfang'], ['sommerB', 'Sommer · Ende'], ['herbstA', 'Herbst · Anfang'], ['herbstB', 'Herbst · Ende'], ['winterA', 'Winter · Anfang'], ['winterB', 'Winter · Ende'], ['blumen', 'Blumen (Blatt)'], ['blaetter', 'Herbstblätter (Blatt)'], ['bluete', 'Blüten (Blatt)']];
 async function loadJz() {
   const { slots } = await api('GET', 'hintergrund/jz');
+  const da = JZ_SLOTS.filter(([k]) => slots[k]).length, bilder = JZ_SLOTS.filter(([k]) => k.endsWith('A') || k.endsWith('B')), fehlt = bilder.filter(([k]) => !slots[k]).map(([, l]) => l);
+  $('jzStatus').textContent = da === 0 ? 'Noch keine Bilder hochgeladen: solange sieht man die alte Landschaft mit Pavillon. Lade die Bilder unten hoch (jedes Bild in seinen Platz).' : fehlt.length ? `${da} von ${JZ_SLOTS.length} Bildern da. Für Jahreszeiten ohne Bilder zeigt der Bot die alte Landschaft. Es fehlen: ${fehlt.join(', ')}.` : `Alle ${JZ_SLOTS.length} Bilder sind da.`;
   $('jzSlots').innerHTML = JZ_SLOTS.map(([k, label]) => `<div class="raum"><b>${label}</b><div class="bg-vorschau jz-vorschau">${slots[k] ? `<img src="/api/overlay-bg?jz=${k}&v=${slots[k]}" alt="${label}">` : '<span class="leise">fehlt noch</span>'}</div><div class="reihe"><label class="knopf hell klein" for="jz-${k}">${slots[k] ? 'Ersetzen' : 'Bild wählen'}</label><input type="file" id="jz-${k}" data-jz="${k}" accept="image/jpeg,image/png,image/webp" hidden>${slots[k] ? `<button class="hell klein" data-jzweg="${k}">Entfernen</button>` : ''}</div></div>`).join('');
   for (const inp of $('jzSlots').querySelectorAll('[data-jz]')) inp.onchange = run(async (e) => {
     const file = e.target.files[0]; const k = inp.dataset.jz; e.target.value = '';

@@ -7,11 +7,16 @@ import { db } from './store.mjs';
 
 export const VIDEO_SZENEN = ['zug', 'sitzecke', 'stadt', 'see'];
 export const VIDEO_ZEITEN = ['morgen', 'mittag', 'abend', 'nacht'];
+// Bibliothek: je Szene bis zu drei eigene Videos (Plätze b1 b2 b3), unabhängig von der Tageszeit. Welches läuft, steht je Szene in der Einstellung video<Szene>: zeit | b1 | b2 | b3 | aus
+export const VIDEO_BIB = ['b1', 'b2', 'b3'];
+export const VIDEO_WAHL = ['zeit', ...VIDEO_BIB, 'aus'];
+export const WAHL_KEY = { zug: 'videoZug', sitzecke: 'videoSitzecke', stadt: 'videoStadt', see: 'videoSee' };
 export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 export const videosAvailable = () => Boolean(process.env.LOCAL_STORE_DIR);
 export const videoDir = () => path.join(process.env.LOCAL_STORE_DIR ?? '.', 'video');
 export const videoKey = (szene, zeit) => `bg/video/${szene}/${zeit}`;
-export const validSlot = (szene, zeit) => VIDEO_SZENEN.includes(szene) && VIDEO_ZEITEN.includes(zeit);
+export const validSlot = (szene, zeit) => VIDEO_SZENEN.includes(szene) && (VIDEO_ZEITEN.includes(zeit) || VIDEO_BIB.includes(zeit));
+export const cleanName = (n) => String(n ?? '').replace(/\.(mp4|webm|mov)$/i, '').replace(/[<>"'`\u0000-\u001f]/g, '').trim().slice(0, 40);
 
 // Dateityp an den ersten Bytes erkennen (MP4/MOV: „ftyp“, WebM: EBML-Kennung), nicht dem Namen oder dem Header glauben
 export function sniffVideo(buf) {
@@ -23,10 +28,10 @@ export function sniffVideo(buf) {
 export const getVideoMeta = (szene, zeit) => db.get(videoKey(szene, zeit));
 export const videoFile = (meta, szene, zeit) => path.join(videoDir(), `${szene}-${zeit}.${meta.ext}`);
 
-export async function saveVideo(szene, zeit, buf, kind) {
+export async function saveVideo(szene, zeit, buf, kind, name = '') {
   fs.mkdirSync(videoDir(), { recursive: true, mode: 0o700 });
   const old = await getVideoMeta(szene, zeit);
-  const meta = { type: kind.type, ext: kind.ext, size: buf.length, version: Date.now() };
+  const meta = { type: kind.type, ext: kind.ext, size: buf.length, version: Date.now(), name: cleanName(name) };
   const file = videoFile(meta, szene, zeit); const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, buf, { mode: 0o600 }); fs.renameSync(tmp, file);
   if (old && old.ext !== meta.ext) fs.rmSync(videoFile(old, szene, zeit), { force: true });
@@ -43,13 +48,15 @@ export async function deleteVideo(szene, zeit) {
 /** Übersicht: { zug: { morgen: { size, version }, … }, … } */
 export async function listVideos() {
   const out = {};
-  for (const s of VIDEO_SZENEN) { out[s] = {}; for (const z of VIDEO_ZEITEN) { const m = await getVideoMeta(s, z); if (m && fs.existsSync(videoFile(m, s, z))) out[s][z] = { size: m.size, version: m.version }; } }
+  for (const s of VIDEO_SZENEN) { out[s] = {}; for (const z of [...VIDEO_ZEITEN, ...VIDEO_BIB]) { const m = await getVideoMeta(s, z); if (m && fs.existsSync(videoFile(m, s, z))) out[s][z] = { size: m.size, version: m.version, name: m.name ?? '' }; } }
   return out;
 }
 
 /** Adresse des Videos für Szene und Zeit, oder null (kein Video oder Datei fehlt) */
-export async function videoUrl(szene, zeit) {
-  if (!videosAvailable() || !validSlot(szene, zeit)) return null;
-  const m = await getVideoMeta(szene, zeit);
-  return m && fs.existsSync(videoFile(m, szene, zeit)) ? `/api/overlay-video?s=${szene}&z=${zeit}&v=${m.version}` : null;
+export async function videoUrl(szene, zeit, wahl = 'zeit') {
+  if (!videosAvailable() || wahl === 'aus') return null;
+  const slot = VIDEO_BIB.includes(wahl) ? wahl : zeit; // Bibliothek: dieses Video läuft zu jeder Tageszeit
+  if (!validSlot(szene, slot)) return null;
+  const m = await getVideoMeta(szene, slot);
+  return m && fs.existsSync(videoFile(m, szene, slot)) ? `/api/overlay-video?s=${szene}&z=${slot}&v=${m.version}` : null;
 }

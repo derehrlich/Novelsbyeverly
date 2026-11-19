@@ -895,6 +895,12 @@ await test('Jahreszeiten-Landschaft: Bilder hochladen, ausliefern, Rückfall auf
   assert.equal((await adminCall('DELETE', 'hintergrund/jz/winterB', null, cookie)).status, 200);
   await saveSettings({ hintergrund: 'landschaft' });
 });
+await test('Pavillon ist standardmäßig ausgeblendet und lässt sich wieder einschalten', async () => {
+  assert.equal((await viewNow()).pavillon, false);
+  await saveSettings({ pavillonZeigen: true });
+  assert.equal((await viewNow()).pavillon, true);
+  await saveSettings({ pavillonZeigen: false });
+});
 await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', async () => {
   const mod = { badges: [{ set_id: 'moderator' }] };
   const before = chatSent().length;
@@ -948,6 +954,30 @@ await test('Videos: Ausliefern mit Range, Adresse im Overlay-Stand nur bei passe
   await saveSettings({ tageszeit: 'mittag' });
   assert.equal((await viewNow()).hintergrund.kulisse.video, null); // für diese Tageszeit gibt es keins: der Bot nimmt die gezeichnete Landschaft
   await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto' });
+});
+await test('Video-Bibliothek: drei Plätze je Szene mit Namen, Auswahl bestimmt, was läuft', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const put = (q, body) => videoUp(new Request(`https://x/api/admin/video?${q}`, { method: 'PUT', headers: { 'x-upload': '1', cookie }, body }));
+  assert.equal((await put('s=see&z=b4', fakeMp4)).status, 400); // nur drei Plätze
+  const up = await put(`s=see&z=b2&n=${encodeURIComponent('Sommersee.mp4')}`, fakeMp4);
+  assert.equal(up.status, 200); assert.equal((await up.json()).name, 'Sommersee');
+  const list = await (await videoUp(new Request('https://x/api/admin/video', { headers: { cookie } }))).json();
+  assert.equal(list.videos.see.b2.name, 'Sommersee');
+  assert.equal((await videoGet(new Request('https://x/api/overlay-video?s=see&z=b2'))).status, 200);
+  await saveSettings({ hintergrund: 'see', tageszeit: 'mittag' });
+  assert.equal((await viewNow()).hintergrund.kulisse.video, null); // Standard „nach Tageszeit“: für Mittag gibt es keins
+  await saveSettings({ videoSee: 'b2' });
+  assert.match((await viewNow()).hintergrund.kulisse.video, /^\/api\/overlay-video\?s=see&z=b2&v=\d+$/); // läuft zu jeder Tageszeit
+  await saveSettings({ tageszeit: 'nacht' });
+  assert.match((await viewNow()).hintergrund.kulisse.video, /z=b2/);
+  await saveSettings({ videoSee: 'aus' });
+  assert.equal((await viewNow()).hintergrund.kulisse.video, null);
+  assert.equal(normalize({ videoSee: 'b9' }).error, 'videoSee: unbekannter Wert');
+  await saveSettings({ videoSee: 'b3' });
+  assert.equal((await viewNow()).hintergrund.kulisse.video, null); // leerer Platz: gezeichnete Landschaft
+  await videoUp(new Request('https://x/api/admin/video?s=see&z=b2', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
+  await saveSettings({ videoSee: 'zeit', hintergrund: 'landschaft', tageszeit: 'auto' });
 });
 await test('Videos: entfernen löscht Datei und Eintrag', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });

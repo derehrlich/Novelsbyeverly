@@ -12,7 +12,7 @@ import { resolveSeason, resolveTime } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
 import { cleanFigur } from '../../public/js/katalog.mjs';
-import { videoUrl } from './videos.mjs';
+import { WAHL_KEY, videoUrl } from './videos.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -35,7 +35,7 @@ export async function hintergrundOf(settings, zeit, saison, progress = 0) {
   if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
   if (SZENEN_KULISSE.includes(h)) {
     const v = settings[RAUM_KEY[h]];
-    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null, video: await videoUrl(h, zeit) } };
+    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null, video: await videoUrl(h, zeit, settings[WAHL_KEY[h]]) } };
   }
   return { mode: 'landschaft' };
 }
@@ -101,6 +101,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
     ziel,
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
+    pavillon: !!settings.pavillonZeigen,
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,
