@@ -262,6 +262,8 @@ const SCHEMA = [
     ['alertVideoTX', 'Textfeld: von links (% des Videos)', 'number'], ['alertVideoTY', 'Textfeld: von oben (% des Videos)', 'number'],
     ['alertVideoTB', 'Textfeld: Breite (% des Videos)', 'number'], ['alertVideoTH', 'Textfeld: Höhe (% des Videos)', 'number'],
     ['alertVideoVon', 'Text erscheint ab (% der Videolänge)', 'number'], ['alertVideoBis', 'Text verschwindet bei (% der Videolänge)', 'number'],
+    ['alertVideoLinks', 'Auch die linke Seite beschriften (Symbol, Art, Zahl)', 'bool', 'Links erscheinen zum Beispiel das Symbol und die Zahl (Bits, Monate, Zuschauer bei Raids), rechts der Text. Bei Raids steht links das Profilbild.'],
+    ['alertVideoEnde', 'Alert endet bei (% der Videolänge)', 'number', 'Hat das Video am Ende noch eine ruhige Strecke mit geschlossenem Buch, endet der Alert hier früher. 100 = ganzes Video.'],
     ['alertVideoSchrift', 'Schriftgröße (%)', 'number'],
   ]],
   ['Streak-Retter', [

@@ -992,7 +992,7 @@ await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar,
   assert.equal(list.videos.alert.buch.name, 'Buch');
   const v = (await viewNow()).alertVideo;
   assert.match(v.url, /^\/api\/overlay-video\?s=alert&z=buch&v=\d+$/);
-  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis }, { key: true, b: 62, von: 40, bis: 72 });
+  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis, ende: v.ende, links: v.links }, { key: true, b: 90, von: 28, bis: 63, ende: 78, links: true });
   assert.equal((await ((await mod('functions/overlay-video.mjs')).default)(new Request(`https://x${v.url}`, { headers: { range: 'bytes=0-3' } }))).status, 206); // ausliefern, auch ohne Anmeldung
   await saveSettings({ alertVideoAn: false });
   assert.equal((await viewNow()).alertVideo, null);

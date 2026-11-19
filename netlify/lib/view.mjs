@@ -27,7 +27,7 @@ const JZ_KEY = { fruehling: 'Fruehling', sommer: 'Sommer', herbst: 'Herbst', win
 // Eigenes Alert-Video (Buch, das aufklappt), wenn eines hochgeladen und eingeschaltet ist
 async function alertVideoOf(s) {
   const url = s.alertVideoAn ? await videoUrl('alert', 'buch') : null;
-  return url ? { url, key: s.alertVideoKey, b: s.alertVideoB, y: s.alertVideoY, tx: s.alertVideoTX, ty: s.alertVideoTY, tb: s.alertVideoTB, th: s.alertVideoTH, von: s.alertVideoVon, bis: s.alertVideoBis, schrift: s.alertVideoSchrift } : null;
+  return url ? { url, key: s.alertVideoKey, b: s.alertVideoB, y: s.alertVideoY, tx: s.alertVideoTX, ty: s.alertVideoTY, tb: s.alertVideoTB, th: s.alertVideoTH, von: s.alertVideoVon, bis: s.alertVideoBis, ende: s.alertVideoEnde, links: s.alertVideoLinks, schrift: s.alertVideoSchrift } : null;
 }
 export async function hintergrundOf(settings, zeit, saison, progress = 0) {
   const h = settings.hintergrund;

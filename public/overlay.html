@@ -119,6 +119,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .vbuch .vtext .t { font-size: calc(var(--s, 1) * 3.4cqw); font-weight: 700; line-height: 1.12; overflow-wrap: anywhere; }
 .vbuch .vtext .m { font-size: calc(var(--s, 1) * 2.3cqw); font-weight: 500; }
 .vbuch .vtext .e { font-size: calc(var(--s, 1) * 1.8cqw); font-style: italic; color: #7a6b57; }
+.vbuch .vtext .g { font-size: calc(var(--s, 1) * 9cqw); line-height: 1; }
+.vbuch .vtext .k { font-size: calc(var(--s, 1) * 1.5cqw); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; color: #8a7b66; }
+.vbuch .vtext .z { font-size: calc(var(--s, 1) * 4.4cqw); font-weight: 700; line-height: 1; }
 .vbuch .vtext .a { width: calc(var(--s, 1) * 9cqw); height: calc(var(--s, 1) * 9cqw); border-radius: 50%; object-fit: cover; border: .4cqw solid #c9a45f; }
 .modul { position: absolute; transform: translateX(-50%); background: var(--papier); border: 2px solid var(--rand); border-radius: 12px; padding: 0 11px; font-size: 16px; line-height: 20px; font-weight: 600; color: var(--text); white-space: nowrap; box-shadow: 0 3px 8px rgba(50, 40, 28, .2); }
 .modul small { color: var(--leise); font-weight: 500; font-size: 14px; margin-right: 6px; }
@@ -292,12 +295,20 @@ function videoBuch(ev, kind, cfg) {
   const cv = document.createElement('canvas'); const cx = cv.getContext('2d', { willReadFrequently: true });
   const txt = document.createElement('div'); txt.className = 'vtext';
   txt.style.cssText = `left:${cfg.tx}%;top:${cfg.ty}%;width:${cfg.tb}%;height:${cfg.th}%;--s:${(cfg.schrift ?? 100) / 100}`;
-  if (ev.type === 'raid' && ev.avatar) { const im = document.createElement('img'); im.className = 'a'; im.src = ev.avatar; im.alt = ''; txt.append(im); }
-  const mk = (cls, text) => { if (!text) return; const d = document.createElement('div'); d.className = cls; d.textContent = text; txt.append(d); };
-  mk('t', `${BUCH_ZEICHEN[kind] ?? ''} ${ev.title || ''}`.trim()); mk('m', ev.message);
-  mk('e', ev.type === 'raid' ? [ev.game && `zuletzt: ${ev.game}`, ev.raids > 1 && `${ev.raids}. Mal bei uns`].filter(Boolean).join(' · ') : ev.extra);
-  box.append(cv, txt); $('buch').append(box);
+  const mk = (parent, cls, text) => { if (!text) return; const d = document.createElement('div'); d.className = cls; d.textContent = text; parent.append(d); };
+  const zahl = ev.type === 'raid' ? `${ev.viewers}` : kind === 'cheer' ? `${fmt.format(ev.bits ?? 0)}` : kind === 'gift' ? `${ev.total ?? 1}×` : kind === 'resub' ? `${ev.months} Mon.` : kind === 'rescue' ? `${ev.streak} 🔥` : '';
+  const avatar = ev.type === 'raid' && ev.avatar;
+  const bild = (parent) => { const im = document.createElement('img'); im.className = 'a'; im.src = ev.avatar; im.alt = ''; parent.append(im); };
+  const links = document.createElement('div'); links.className = 'vtext'; // linke Seite: Symbol (bei Raids das Profilbild), Art und Zahl
+  links.style.cssText = `left:${100 - cfg.tx - cfg.tb}%;top:${cfg.ty}%;width:${cfg.tb}%;height:${cfg.th}%;--s:${(cfg.schrift ?? 100) / 100}`;
+  if (cfg.links) { if (avatar) bild(links); else mk(links, 'g', BUCH_ZEICHEN[kind] ?? '📖'); mk(links, 'k', BUCH_ART[kind]); mk(links, 'z', zahl); }
+  else if (avatar) bild(txt);
+  mk(txt, 't', cfg.links ? (ev.title || '') : `${BUCH_ZEICHEN[kind] ?? ''} ${ev.title || ''}`.trim()); mk(txt, 'm', ev.message);
+  mk(txt, 'e', ev.type === 'raid' ? [ev.game && `zuletzt: ${ev.game}`, ev.raids > 1 && `${ev.raids}. Mal bei uns`].filter(Boolean).join(' · ') : ev.extra);
+  box.style.opacity = '0'; box.style.transition = 'opacity .45s'; // weich ein- und ausblenden
+  box.append(cv, txt, links); $('buch').append(box);
   let fertig = false, raf = 0, zeigt = false, gestartet = false;
+  let ausgeblendet = false;
   const ende = (ok) => {
     if (fertig) return; fertig = true; cancelAnimationFrame(raf); clearTimeout(wache);
     v.pause(); v.removeAttribute('src'); v.load(); box.remove();
@@ -308,25 +319,27 @@ function videoBuch(ev, kind, cfg) {
   v.onended = () => ende(true);
   v.onloadedmetadata = () => {
     const ratio = (v.videoWidth || 16) / (v.videoHeight || 9), w = 1920 * cfg.b / 100, h = w / ratio;
-    box.style.width = `${w}px`; box.style.left = `${-w / 2}px`; // #buch liegt schon in der Bildmitte box.style.top = `${1080 * cfg.y / 100 - h / 2 - 170}px`; // #buch liegt bei y = 170
+    box.style.width = `${w}px`; box.style.left = `${-w / 2}px`; // #buch liegt schon in der Bildmitte
+    box.style.top = `${1080 * cfg.y / 100 - h / 2 - 170}px`; // #buch liegt bei y = 170
     cv.width = 960; cv.height = Math.max(1, Math.round(960 / ratio));
   };
   const frame = () => {
     raf = requestAnimationFrame(frame);
     if (v.readyState < 2 || !cv.width) return;
-    if (!gestartet) { gestartet = true; box.style.visibility = ''; }
+    if (!gestartet) { gestartet = true; box.style.visibility = ''; requestAnimationFrame(() => { box.style.opacity = '1'; }); }
     cx.drawImage(v, 0, 0, cv.width, cv.height);
     if (cfg.key) { // Magenta wird durchsichtig (wie bei den Szenen-Bildern)
       const id = cx.getImageData(0, 0, cv.width, cv.height), d = id.data;
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i + 1], b = d[i + 2], m = Math.min(r, b) - g;
-        if (m > 38 && r > 150 && b > 150 && Math.abs(r - b) < 70) { const k = Math.min(1, Math.max(0, (m - 38) / 40)); d[i + 3] = Math.round((1 - k) * 255); d[i] -= (r - Math.min(r, g + 6)) * k; d[i + 2] -= (b - Math.min(b, g + 6)) * k; }
+        if (m > 22 && r > 90 && b > 70 && Math.abs(r - b) < 90) { const k = Math.min(1, (m - 22) / 40); d[i + 3] = Math.round((1 - k) * 255); d[i] -= (r - Math.min(r, g + 6)) * k; d[i + 2] -= (b - Math.min(b, g + 6)) * k; } // auch dunkle Rosa-Mischpixel am Rand (Buch gegen Hintergrund)
       }
       cx.putImageData(id, 0, 0);
     }
     const p = v.duration > 0 ? v.currentTime / v.duration * 100 : 0, an = p >= cfg.von && p < cfg.bis;
+    if (cfg.ende < 100 && p >= cfg.ende && !ausgeblendet) { ausgeblendet = true; box.style.opacity = '0'; setTimeout(() => ende(true), 480); } // das Buch ist zu: Rest des Videos nicht mehr zeigen
     if (an !== zeigt) {
-      zeigt = an; txt.classList.toggle('da', an);
+      zeigt = an; txt.classList.toggle('da', an); links.classList.toggle('da', an);
       if (an) { chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, rescue: 120, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }
     }
   };
