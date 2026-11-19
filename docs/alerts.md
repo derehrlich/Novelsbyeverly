@@ -30,3 +30,6 @@ Admin → Stream → **Alerts und Raids** → Karte **„Eigene Töne“**: Für
 1. In OBS die Browserquelle des Overlays aktualisieren (Rechtsklick auf die Quelle → Eigenschaften → „Cache der aktuellen Seite aktualisieren“). Nach einem Update lädt sich das Overlay jetzt zwar selbst neu, ein altes Overlay kennt aber die eigenen Töne nicht.
 2. Bei der Browserquelle „Audio über OBS steuern“ anhaken und im Audio-Mixer prüfen, dass die Quelle nicht stummgeschaltet ist.
 3. Wer den Ton in OBS mithören will: Erweiterte Audioeigenschaften → Audio-Monitoring für diese Quelle auf „Monitor und Ausgabe“.
+
+## Kein Ton im normalen Browser?
+Ein Browser (Chrome, Edge …) schaltet den Ton einer Seite erst frei, wenn du **einmal auf die Seite klickst**. Das gilt nur für den Test im Browser-Tab. In OBS ist das nicht nötig. Seit dem Update weckt das Overlay den Ton bei jedem Alert und beim ersten Klick von selbst auf.
