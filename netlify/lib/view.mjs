@@ -24,6 +24,11 @@ export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
 const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
 // Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
 const JZ_KEY = { fruehling: 'Fruehling', sommer: 'Sommer', herbst: 'Herbst', winter: 'Winter' };
+// Eigenes Alert-Video (Buch, das aufklappt), wenn eines hochgeladen und eingeschaltet ist
+async function alertVideoOf(s) {
+  const url = s.alertVideoAn ? await videoUrl('alert', 'buch') : null;
+  return url ? { url, key: s.alertVideoKey, b: s.alertVideoB, y: s.alertVideoY, tx: s.alertVideoTX, ty: s.alertVideoTY, tb: s.alertVideoTB, th: s.alertVideoTH, von: s.alertVideoVon, bis: s.alertVideoBis, schrift: s.alertVideoSchrift } : null;
+}
 export async function hintergrundOf(settings, zeit, saison, progress = 0) {
   const h = settings.hintergrund;
   if (h === 'jahreszeiten') {
@@ -102,6 +107,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     ziel,
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     pavillon: !!settings.pavillonZeigen,
+    alertVideo: await alertVideoOf(settings),
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,

@@ -981,6 +981,26 @@ await test('Alerts: Testknöpfe im Admin zeigen das Banner auch bei ausgeschalte
   assert.equal(chatSent().length, chat0); // Tests schreiben nichts in den Chat
   assert.equal(alertsLib.tierName('3000'), 'Stufe 3');
 });
+await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar, entfernen', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(2000, 7)]);
+  const put = () => admin(new Request('https://x/api/admin/video?s=alert&z=buch&n=Buch.mp4', { method: 'PUT', headers: { 'x-upload': '1', cookie }, body: mp4 }));
+  assert.equal((await viewNow()).alertVideo, null); // noch keins hochgeladen
+  assert.equal((await put()).status, 200);
+  const list = await (await admin(new Request('https://x/api/admin/video', { headers: { cookie } }))).json();
+  assert.equal(list.videos.alert.buch.name, 'Buch');
+  const v = (await viewNow()).alertVideo;
+  assert.match(v.url, /^\/api\/overlay-video\?s=alert&z=buch&v=\d+$/);
+  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis }, { key: true, b: 62, von: 40, bis: 72 });
+  assert.equal((await ((await mod('functions/overlay-video.mjs')).default)(new Request(`https://x${v.url}`, { headers: { range: 'bytes=0-3' } }))).status, 206); // ausliefern, auch ohne Anmeldung
+  await saveSettings({ alertVideoAn: false });
+  assert.equal((await viewNow()).alertVideo, null);
+  await saveSettings({ alertVideoAn: true });
+  assert.equal(normalize({ alertVideoB: 5 }).settings.alertVideoB, 20); // Grenzen
+  assert.equal((await admin(new Request('https://x/api/admin/video?s=alert&z=buch', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }))).status, 200);
+  assert.equal((await viewNow()).alertVideo, null);
+});
 await test('Alerts: Anmeldung bei Twitch für Follows, Abos, Bits und Raids, Berechtigungen werden geprüft', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];

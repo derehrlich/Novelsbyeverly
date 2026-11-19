@@ -249,6 +249,15 @@ const SCHEMA = [
     ['giftTemplate', 'Danke für verschenkte Abos', 'area', '{user} {tier} {total}'], ['cheerTemplate', 'Danke für Bits', 'area', '{user} {bits}'],
     ['raidTemplate', 'Willkommen, Raid', 'area', '{raider} {viewers} {raids} {visit} {game} {url}'],
   ]],
+  ['Alert-Video', [
+    ['alertVideoAn', 'Das hochgeladene Video statt des gezeichneten Buchs zeigen', 'bool', 'Gilt nur, wenn oben ein Video hochgeladen ist. Ohne Video oder bei einem Fehler kommt das gezeichnete Buch.'],
+    ['alertVideoKey', 'Magenta im Video durchsichtig machen', 'bool', 'Das Video hat einen einfarbig magentafarbenen Hintergrund (#FF00FF). Er wird ausgeschnitten, sodass nur das Buch zu sehen ist.'],
+    ['alertVideoB', 'Breite auf dem Bildschirm (%)', 'number'], ['alertVideoY', 'Höhe der Mitte auf dem Bildschirm (%)', 'number'],
+    ['alertVideoTX', 'Textfeld: von links (% des Videos)', 'number'], ['alertVideoTY', 'Textfeld: von oben (% des Videos)', 'number'],
+    ['alertVideoTB', 'Textfeld: Breite (% des Videos)', 'number'], ['alertVideoTH', 'Textfeld: Höhe (% des Videos)', 'number'],
+    ['alertVideoVon', 'Text erscheint ab (% der Videolänge)', 'number'], ['alertVideoBis', 'Text verschwindet bei (% der Videolänge)', 'number'],
+    ['alertVideoSchrift', 'Schriftgröße (%)', 'number'],
+  ]],
   ['Check-in und Streak', [
     ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
     ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis (Kanalpunkte)', 'number'],
@@ -663,6 +672,27 @@ async function loadVideos() {
   for (const b of document.querySelectorAll('#videos [data-weg-s], #videoBib [data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
+// ---- Alert-Video (Buch, das aufklappt): ein Video, auf dessen Seite der Bot den Text einblendet
+async function loadAlertVideo() {
+  const box = $('alertVideo'); if (!box) return;
+  let res, data;
+  try { res = await fetch('/api/admin/video', { cache: 'no-store' }); data = await res.json(); } catch { data = null; }
+  if (!res?.ok || !data?.videos) { box.innerHTML = `<span class="leise">${esc(data?.error ?? 'Das Video konnte nicht geladen werden.')}</span>`; return; }
+  const v = data.videos.alert?.buch;
+  box.innerHTML = `${v ? `<p><b>${esc(v.name || 'Video')}</b> <span class="video-da">✓ ${mb(v.size)}</span></p>` : '<p class="leise">Noch kein Video hochgeladen: das Overlay zeigt das gezeichnete Buch.</p>'}<div class="reihe"><label class="knopf hell" for="alertVid">${v ? 'Video ersetzen' : 'Video wählen'}</label><input type="file" id="alertVid" accept="video/mp4,video/webm" hidden>${v ? '<button class="hell" id="alertVidWeg" type="button">Entfernen</button>' : ''}</div>`;
+  $('alertVid').onchange = run(async (e) => {
+    const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    $('alertVidStatus').textContent = `Lädt hoch: ${file.name} (${mb(file.size)}) …`;
+    let r, d = {};
+    try { r = await fetch(`/api/admin/video?s=alert&z=buch&n=${encodeURIComponent(file.name)}`, { method: 'PUT', headers: { 'x-upload': '1', 'content-type': file.type || 'video/mp4' }, body: file }); d = await r.json().catch(() => ({})); } catch { r = null; }
+    $('alertVidStatus').textContent = '';
+    if (!r) throw new Error('Das Hochladen ist abgebrochen. Ist das Video größer als 100 MB, oder war die Verbindung weg?');
+    if (!r.ok) throw new Error(d.error ?? `Fehler ${r.status} beim Hochladen`);
+    await loadAlertVideo(); meldung('Video hochgeladen. Mit den Knöpfen oben ausprobieren.');
+  });
+  if (v) $('alertVidWeg').onclick = run(async () => { await fetch('/api/admin/video?s=alert&z=buch', { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadAlertVideo(); meldung('Video entfernt'); });
+}
+
 // ---- Jahreszeiten-Landschaft: acht Landschaftsbilder und drei Blätter mit Kleinteilen hochladen
 const JZ_SLOTS = [['fruehlingA', 'Frühling · Anfang'], ['fruehlingB', 'Frühling · Ende'], ['sommerA', 'Sommer · Anfang'], ['sommerB', 'Sommer · Ende'], ['herbstA', 'Herbst · Anfang'], ['herbstB', 'Herbst · Ende'], ['winterA', 'Winter · Anfang'], ['winterB', 'Winter · Ende'], ['blumen', 'Blumen (Blatt)'], ['blaetter', 'Herbstblätter (Blatt)'], ['bluete', 'Blüten (Blatt)']];
 async function loadJz() {
@@ -689,7 +719,7 @@ async function start() {
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

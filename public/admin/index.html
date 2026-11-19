@@ -242,7 +242,13 @@
           <button class="hell" data-event="gift">Geschenk-Abos</button><button class="hell" data-event="cheer">Bits</button><button class="hell" data-event="raid">Raid</button>
         </div>
       </section>
-      <div class="folds" data-schema="Alerts|Raids|Alert-Texte (im Buch)|Alert-Chattexte"></div>
+      <section class="karte">
+        <h2>Eigenes Video statt des gezeichneten Buchs</h2>
+        <p class="leise">Lade ein Video hoch, in dem ein Buch aufklappt, kurz offen bleibt und wieder zuklappt (MP4 oder WebM, höchstens 80 MB, Hintergrund einfarbig <b>Magenta #FF00FF</b>). Der Bot schreibt das Ereignis auf die aufgeklappte Seite. Die Länge des Videos bestimmt, wie lange der Alert dauert. Den Prompt für Gemini findest du in <code>docs/alert-video.md</code>. Nur auf dem Heimserver.</p>
+        <div id="alertVideo"><span class="leise">lädt …</span></div>
+        <p class="leise" id="alertVidStatus"></p>
+      </section>
+      <div class="folds" data-schema="Alerts|Raids|Alert-Texte (im Buch)|Alert-Chattexte|Alert-Video"></div>
     </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>
       <h1>Mitschreibende</h1>
