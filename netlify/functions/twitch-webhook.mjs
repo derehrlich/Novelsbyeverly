@@ -4,7 +4,8 @@ import { db } from '../lib/store.mjs';
 import { getSettings } from '../lib/settings.mjs';
 import { handleRedemption } from '../lib/checkin.mjs';
 import { handleChat } from '../lib/chat.mjs';
-import { CHAT_TYPE } from '../lib/twitch.mjs';
+import { handleAlert, handleRaid } from '../lib/alerts.mjs';
+import { ALERT_TYPES, CHAT_TYPE, RAID_TYPE } from '../lib/twitch.mjs';
 import { safeEqual, text } from '../lib/http.mjs';
 
 export const config = { path: '/api/twitch-webhook' };
@@ -39,6 +40,12 @@ export default async (req) => {
     const e = body.event;
     if (body.subscription?.type === CHAT_TYPE) { // viele Nachrichten: ein Fehler soll keine Wiederholung durch Twitch auslösen
       try { await handleChat(e, await getSettings()); } catch (err) { console.error('Chat fehlgeschlagen:', err); }
+      return new Response(null, { status: 204 });
+    }
+    const subType = body.subscription?.type;
+    if (subType === RAID_TYPE || ALERT_TYPES.includes(subType)) { // Alerts und Raids: Twitch wiederholt Zustellungen, jede Meldung nur einmal zeigen
+      if (!(await db.setIfNew(`seen/${msgId}`, Date.now()))) return new Response(null, { status: 204 });
+      try { const settings = await getSettings(); await (subType === RAID_TYPE ? handleRaid(e, settings) : handleAlert(subType, e, settings)); } catch (err) { console.error('Alert fehlgeschlagen:', err); }
       return new Response(null, { status: 204 });
     }
     const state = (await db.get('config/state')) ?? {};

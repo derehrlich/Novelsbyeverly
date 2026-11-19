@@ -15,7 +15,8 @@ export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 export const videosAvailable = () => Boolean(process.env.LOCAL_STORE_DIR);
 export const videoDir = () => path.join(process.env.LOCAL_STORE_DIR ?? '.', 'video');
 export const videoKey = (szene, zeit) => `bg/video/${szene}/${zeit}`;
-export const validSlot = (szene, zeit) => VIDEO_SZENEN.includes(szene) && (VIDEO_ZEITEN.includes(zeit) || VIDEO_BIB.includes(zeit));
+// Zusätzlich: das Alert-Video (ein Buch, das aufklappt), abgelegt wie ein Szenen-Video unter bg/video/alert/buch
+export const validSlot = (szene, zeit) => (szene === 'alert' && zeit === 'buch') || VIDEO_SZENEN.includes(szene) && (VIDEO_ZEITEN.includes(zeit) || VIDEO_BIB.includes(zeit));
 export const cleanName = (n) => String(n ?? '').replace(/\.(mp4|webm|mov)$/i, '').replace(/[<>"'`\u0000-\u001f]/g, '').trim().slice(0, 40);
 
 // Dateityp an den ersten Bytes erkennen (MP4/MOV: „ftyp“, WebM: EBML-Kennung), nicht dem Namen oder dem Header glauben
@@ -49,6 +50,8 @@ export async function deleteVideo(szene, zeit) {
 export async function listVideos() {
   const out = {};
   for (const s of VIDEO_SZENEN) { out[s] = {}; for (const z of [...VIDEO_ZEITEN, ...VIDEO_BIB]) { const m = await getVideoMeta(s, z); if (m && fs.existsSync(videoFile(m, s, z))) out[s][z] = { size: m.size, version: m.version, name: m.name ?? '' }; } }
+  const a = await getVideoMeta('alert', 'buch');
+  out.alert = a && fs.existsSync(videoFile(a, 'alert', 'buch')) ? { buch: { size: a.size, version: a.version, name: a.name ?? '' } } : {};
   return out;
 }
 

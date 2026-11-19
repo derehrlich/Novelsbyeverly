@@ -1,6 +1,7 @@
 // Steuerung aus dem Admin: Timer, Wörter, Aufgaben der Streamerin, Plätze und Tests.
 import { db } from '../store.mjs';
 import { getSettings, saveSettings } from '../settings.mjs';
+import { handleAlert, handleRaid } from '../alerts.mjs';
 import { activeSeats, newUser, saveUser, sit } from '../people.mjs';
 import { startBreak, startFocus, stopTimer, tick } from '../timer.mjs';
 import { addWords, getWords, resetDay, setAbsolute, setToday } from '../words.mjs';
@@ -107,6 +108,16 @@ export async function tests({ route, method, body }) {
       meilenstein: { type: 'checkin', name: 'Lena', count: 50, streak: 8, milestone: true },
       taskdone: { type: 'taskdone', name: 'Lena', text: 'Kapitel 3 überarbeiten' },
     };
+    const alertTests = { follow: ['channel.follow', { user_name: 'Lena' }], sub: ['channel.subscribe', { user_name: 'Lena', tier: '1000' }], resub: ['channel.subscription.message', { user_name: 'Lena', tier: '1000', cumulative_months: 6, message: { text: 'Immer wieder gerne!' } }], gift: ['channel.subscription.gift', { user_name: 'Lena', tier: '1000', total: 5 }], cheer: ['channel.cheer', { user_name: 'Lena', bits: 500, message: 'Cheer500 für dich!' }] };
+    if (alertTests[body.kind]) { // zeigt das Banner mit den echten Texten, auch bei ausgeschalteten Alerts, und schreibt nichts in den Chat
+      const [type, e] = alertTests[body.kind];
+      await handleAlert(type, e, { ...settings, alertsEnabled: true, alertFollow: true, alertSub: true, alertGift: true, alertCheer: true, alertCheerMin: 0 }, { chat: false });
+      return json({ ok: true });
+    }
+    if (body.kind === 'raid') {
+      await handleRaid({ from_broadcaster_user_id: '0', from_broadcaster_user_name: 'Lena', from_broadcaster_user_login: 'lena', viewers: 24 }, { ...settings, raidEnabled: true, raidMinViewers: 0 }, { chat: false, record: false });
+      return json({ ok: true });
+    }
     if (!kinds[body.kind]) return json({ error: 'Unbekannter Test' }, 400);
     await pushEvent(kinds[body.kind]);
     return json({ ok: true });

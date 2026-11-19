@@ -916,6 +916,113 @@ await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', asy
   await saveSettings({ wetter: 'klar', tageszeit: 'auto', hintergrund: 'landschaft' });
 });
 
+console.log('Alerts und Raids');
+const alertsLib = await mod('lib/alerts.mjs');
+const hook = (type, event) => webhook(sign({ subscription: { type }, event }));
+await test('Alerts: aus, solange sie nicht eingeschaltet sind; danach Banner im Overlay und Danke im Chat', async () => {
+  const before = (await events()).length, chat0 = chatSent().length;
+  assert.equal((await hook('channel.follow', { user_name: 'Lena' })).status, 204);
+  assert.equal((await events()).length, before); assert.equal(chatSent().length, chat0); // ausgeschaltet
+  await saveSettings({ alertsEnabled: true, chatEnabled: true });
+  await hook('channel.follow', { user_name: 'Lena' });
+  let ev = (await events()).at(-1);
+  assert.deepEqual({ type: ev.type, kind: ev.kind, user: ev.user, title: ev.title }, { type: 'alert', kind: 'follow', user: 'Lena', title: 'Willkommen, Lena!' });
+  assert.match(lastChat().message, /Willkommen im Schreibzimmer, Lena/);
+  await hook('channel.subscription.message', { user_name: 'Ben', tier: '2000', cumulative_months: 6, message: { text: 'Hallo!' } });
+  ev = (await events()).at(-1); assert.equal(ev.kind, 'resub'); assert.equal(ev.months, 6); assert.equal(ev.extra, 'Hallo!'); assert.match(ev.title, /Ben ist 6 Monate dabei/);
+  await hook('channel.subscribe', { user_name: 'Geschenkt', tier: '1000', is_gift: true });
+  assert.notEqual((await events()).at(-1).user, 'Geschenkt'); // geschenkte Abos zeigt nur der Gift-Alert
+  await hook('channel.subscription.gift', { user_name: 'Ben', tier: '1000', total: 5 });
+  assert.equal((await events()).at(-1).kind, 'gift'); assert.match(lastChat().message, /5 verschenkte Abos/);
+  await hook('channel.subscription.gift', { is_anonymous: true, tier: '1000', total: 1 });
+  assert.equal((await events()).at(-1).user, 'Anonym');
+  await saveSettings({ alertCheerMin: 100 });
+  const n = (await events()).length;
+  await hook('channel.cheer', { user_name: 'Kai', bits: 50 });
+  assert.equal((await events()).length, n); // unter der Mindestmenge
+  await hook('channel.cheer', { user_name: 'Kai', bits: 500, message: 'Cheer500' });
+  ev = (await events()).at(-1); assert.equal(ev.kind, 'cheer'); assert.equal(ev.bits, 500);
+  await saveSettings({ alertFollow: false, alertCheerMin: 1 });
+  const m = (await events()).length;
+  await hook('channel.follow', { user_name: 'Nina' });
+  assert.equal((await events()).length, m); // Follows abgeschaltet
+  await saveSettings({ alertFollow: true, alertChat: false });
+  const c1 = chatSent().length; await hook('channel.follow', { user_name: 'Ohne Chat' });
+  assert.equal(chatSent().length, c1); // Danke im Chat abgeschaltet
+  await saveSettings({ alertChat: true });
+});
+await test('Alerts: eine Twitch-Zustellung nur einmal, Raids zählen mit', async () => {
+  const req = sign({ subscription: { type: 'channel.follow' }, event: { user_name: 'Doppelt' } });
+  const n = (await events()).length;
+  await webhook(req.clone()); await webhook(req.clone());
+  assert.equal((await events()).length, n + 1);
+  const raid = { from_broadcaster_user_id: '777', from_broadcaster_user_name: 'Raidy', from_broadcaster_user_login: 'raidy', viewers: 24 };
+  await hook('channel.raid', raid); // Raids sind noch ausgeschaltet: gezählt wird trotzdem
+  assert.equal((await events()).length, n + 1);
+  assert.equal((await db.get('raid/777')).count, 1);
+  await saveSettings({ raidEnabled: true });
+  await hook('channel.raid', raid);
+  const ev = (await events()).at(-1);
+  assert.deepEqual({ type: ev.type, raider: ev.raider, viewers: ev.viewers, raids: ev.raids }, { type: 'raid', raider: 'Raidy', viewers: 24, raids: 2 });
+  assert.match(lastChat().message, /Willkommen Raidy und 24 Raider.*schon zum 2\. Mal bei uns.*twitch\.tv\/raidy/);
+  await saveSettings({ raidMinViewers: 50 });
+  const k = (await events()).length; await hook('channel.raid', { ...raid, viewers: 3 });
+  assert.equal((await events()).length, k); // zu klein
+  assert.ok((await backupLib.buildBackup()).entries['raid/777']);
+  await saveSettings({ raidMinViewers: 1, raidEnabled: false, alertsEnabled: false });
+});
+await test('Alerts: Testknöpfe im Admin zeigen das Banner auch bei ausgeschalteten Alerts', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const before = (await events()).length, chat0 = chatSent().length;
+  for (const kind of ['follow', 'sub', 'resub', 'gift', 'cheer', 'raid']) assert.equal((await adminCall('POST', 'test/event', { kind }, cookie)).status, 200);
+  const added = (await events()).slice(before);
+  assert.equal(added.length, 6); assert.deepEqual(added.map((e) => e.kind ?? e.type).sort(), ['cheer', 'follow', 'gift', 'raid', 'resub', 'sub']);
+  assert.equal(chatSent().length, chat0); // Tests schreiben nichts in den Chat
+  assert.equal(alertsLib.tierName('3000'), 'Stufe 3');
+});
+await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar, entfernen', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(2000, 7)]);
+  const put = () => admin(new Request('https://x/api/admin/video?s=alert&z=buch&n=Buch.mp4', { method: 'PUT', headers: { 'x-upload': '1', cookie }, body: mp4 }));
+  assert.equal((await viewNow()).alertVideo, null); // noch keins hochgeladen
+  assert.equal((await put()).status, 200);
+  const list = await (await admin(new Request('https://x/api/admin/video', { headers: { cookie } }))).json();
+  assert.equal(list.videos.alert.buch.name, 'Buch');
+  const v = (await viewNow()).alertVideo;
+  assert.match(v.url, /^\/api\/overlay-video\?s=alert&z=buch&v=\d+$/);
+  assert.deepEqual({ key: v.key, b: v.b, von: v.von, bis: v.bis }, { key: true, b: 62, von: 40, bis: 72 });
+  assert.equal((await ((await mod('functions/overlay-video.mjs')).default)(new Request(`https://x${v.url}`, { headers: { range: 'bytes=0-3' } }))).status, 206); // ausliefern, auch ohne Anmeldung
+  await saveSettings({ alertVideoAn: false });
+  assert.equal((await viewNow()).alertVideo, null);
+  await saveSettings({ alertVideoAn: true });
+  assert.equal(normalize({ alertVideoB: 5 }).settings.alertVideoB, 20); // Grenzen
+  assert.equal((await admin(new Request('https://x/api/admin/video?s=alert&z=buch', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }))).status, 200);
+  assert.equal((await viewNow()).alertVideo, null);
+});
+await test('Alerts: Anmeldung bei Twitch für Follows, Abos, Bits und Raids, Berechtigungen werden geprüft', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  await saveSettings({ alertsEnabled: true, raidEnabled: true });
+  let res = await adminCall('POST', 'setup', {}, cookie);
+  assert.ok(res.body.warnings?.some((w) => /Alerts: Berechtigung/.test(w))); // dem Kanal fehlen noch die neuen Berechtigungen
+  assert.ok(subs.some((s) => s.type === 'channel.raid' && s.condition.to_broadcaster_user_id === '999'));
+  const tok = await db.get('config/tokens');
+  await db.set('config/tokens', { ...tok, scopes: [...tok.scopes, 'moderator:read:followers', 'channel:read:subscriptions', 'bits:read'] });
+  res = await adminCall('POST', 'setup', {}, cookie);
+  assert.equal(res.body.warnings, undefined);
+  for (const t of ['channel.follow', 'channel.subscribe', 'channel.subscription.message', 'channel.subscription.gift', 'channel.cheer', 'channel.raid']) assert.ok(subs.some((s) => s.type === t), t);
+  assert.equal(subs.find((s) => s.type === 'channel.follow').condition.moderator_user_id, '999');
+  const st = await adminCall('GET', 'state', null, cookie);
+  assert.deepEqual(st.body.missingScopes, []);
+  await db.set('config/tokens', tok);
+  await saveSettings({ alertsEnabled: false, raidEnabled: false });
+  res = await adminCall('POST', 'setup', {}, cookie);
+  assert.equal(res.body.warnings, undefined); // ohne Alerts keine Warnung, auch wenn die Berechtigungen fehlen
+  assert.ok(!subs.some((s) => s.type === 'channel.raid'));
+});
+
 console.log('Videos als Ausblick');
 const videoUp = admin; // der Upload ist eine Admin-Route: /api/admin/video
 const videoGet = (await mod('functions/overlay-video.mjs')).default;

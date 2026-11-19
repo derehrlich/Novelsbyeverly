@@ -231,6 +231,25 @@
       <p class="leise lead">Besuche zählen, Streaks, Meilensteine, Punkte aus dem Chat und die öffentliche Rangliste.</p>
     <div class="folds" data-schema="Check-in und Streak|Punkte und Rangliste"></div>
     </div>
+    <div class="tab-panel" data-panel="alerts" hidden>
+      <h1>Alerts und Raids</h1>
+      <p class="leise lead">Wenn jemand folgt, ein Abo abschließt, Abos verschenkt, Bits schickt oder zu dir raidet, klappt im Overlay ein Buch auf und zeigt es an.</p>
+      <section class="karte">
+        <h2>Ausprobieren</h2>
+        <p class="leise">Zeigt das Buch mit deinen echten Texten im Overlay. Es wird nichts in den Chat geschrieben.</p>
+        <div class="reihe">
+          <button class="hell" data-event="follow">Follow</button><button class="hell" data-event="sub">Abo</button><button class="hell" data-event="resub">Abo-Jubiläum</button>
+          <button class="hell" data-event="gift">Geschenk-Abos</button><button class="hell" data-event="cheer">Bits</button><button class="hell" data-event="raid">Raid</button>
+        </div>
+      </section>
+      <section class="karte">
+        <h2>Eigenes Video statt des gezeichneten Buchs</h2>
+        <p class="leise">Lade ein Video hoch, in dem ein Buch aufklappt, kurz offen bleibt und wieder zuklappt (MP4 oder WebM, höchstens 80 MB, Hintergrund einfarbig <b>Magenta #FF00FF</b>). Der Bot schreibt das Ereignis auf die aufgeklappte Seite. Die Länge des Videos bestimmt, wie lange der Alert dauert. Den Prompt für Gemini findest du in <code>docs/alert-video.md</code>. Nur auf dem Heimserver.</p>
+        <div id="alertVideo"><span class="leise">lädt …</span></div>
+        <p class="leise" id="alertVidStatus"></p>
+      </section>
+      <div class="folds" data-schema="Alerts|Raids|Alert-Texte (im Buch)|Alert-Chattexte|Alert-Video"></div>
+    </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>
       <h1>Mitschreibende</h1>
       <p class="leise lead">Alle, die schon dabei waren, mit Arbeitszeit, Wörtern und Besuchen.</p>

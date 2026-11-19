@@ -5,6 +5,11 @@ export const ROLES = {
   broadcaster: { key: 'config/tokens', scopes: ['channel:read:redemptions', 'channel:manage:redemptions', 'user:write:chat', 'user:read:chat', 'user:bot', 'channel:bot'] },
   bot: { key: 'config/bot-tokens', scopes: ['user:write:chat', 'user:read:chat', 'user:bot'] },
 };
+// Zusätzliche Berechtigungen des Kanals für Alerts: neue Follower, Abos, Bits. Das Anmelden fragt sie immer mit ab (eine Neuverbindung genügt),
+// geprüft werden sie nur, wenn Alerts eingeschaltet sind. Raids brauchen keine.
+export const ALERT_SCOPES = ['moderator:read:followers', 'channel:read:subscriptions', 'bits:read'];
+export const ALERT_TYPES = ['channel.follow', 'channel.subscribe', 'channel.subscription.message', 'channel.subscription.gift', 'channel.cheer'];
+export const RAID_TYPE = 'channel.raid';
 export const EVENT_TYPE = 'channel.channel_points_custom_reward_redemption.add';
 export const CHAT_TYPE = 'channel.chat.message';
 
@@ -127,16 +132,16 @@ export async function listSubscriptions(webhookUrl) {
 // Alte Abos entfernen und neu anlegen: Reward-Einlösungen (falls nötig) und Chat.
 // Das Chat-Abo läuft über den Bot-Account, wenn einer verbunden ist (Twitch verlangt dann seine Berechtigungen und
 // channel:bot vom Kanal), sonst über den Kanal selbst. Fehlt etwas, kommt eine Meldung statt eines Abbruchs.
-export async function subscribe(webhookUrl, { rewardId = null, chat = true } = {}) {
+export async function subscribe(webhookUrl, { rewardId = null, chat = true, alerts = false, raids = false } = {}) {
   const channel = await storedTokens('broadcaster');
   if (!channel) throw new Error('Twitch ist noch nicht verbunden');
   const bot = await storedTokens('bot');
   for (const sub of await listSubscriptions(webhookUrl)) {
     await helix('DELETE', 'eventsub/subscriptions', { as: 'app', query: { id: sub.id } });
   }
-  const create = (type, condition) => helix('POST', 'eventsub/subscriptions', {
+  const create = (type, condition, version = '1') => helix('POST', 'eventsub/subscriptions', {
     as: 'app',
-    body: { type, version: '1', condition, transport: { method: 'webhook', callback: webhookUrl, secret: process.env.EVENTSUB_SECRET } },
+    body: { type, version, condition, transport: { method: 'webhook', callback: webhookUrl, secret: process.env.EVENTSUB_SECRET } },
   });
   const warnings = [];
   if (rewardId) await create(EVENT_TYPE, { broadcaster_user_id: channel.user_id, reward_id: rewardId });
@@ -154,5 +159,19 @@ export async function subscribe(webhookUrl, { rewardId = null, chat = true } = {
       }
     }
   }
+  // Alerts und Raids: jedes Abo einzeln, damit ein fehlendes nicht die anderen verhindert
+  const optional = async (type, condition, label, version = '1') => {
+    try { await create(type, condition, version); } catch (e) {
+      const status = /-> (\d{3})/.exec(e.message)?.[1];
+      warnings.push(`${label}: Twitch hat das Abo abgelehnt${status ? ` (${status})` : ''} – bitte den Kanal neu verbinden`);
+      console.warn(`${type}-Abo fehlgeschlagen:`, e.message);
+    }
+  };
+  if (alerts) {
+    const lack = ALERT_SCOPES.filter((sc) => Array.isArray(channel.scopes) && !channel.scopes.includes(sc));
+    if (lack.length) warnings.push(`Alerts: Berechtigung ${lack.join(', ')} fehlt – bitte den Kanal neu verbinden und erneut abgleichen`);
+    else for (const type of ALERT_TYPES) await optional(type, type === 'channel.follow' ? { broadcaster_user_id: channel.user_id, moderator_user_id: channel.user_id } : { broadcaster_user_id: channel.user_id }, 'Alerts', type === 'channel.follow' ? '2' : '1');
+  }
+  if (raids) await optional(RAID_TYPE, { to_broadcaster_user_id: channel.user_id }, 'Raids');
   return { warnings };
 }

@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import { db } from '../lib/store.mjs';
 import { cookie, hasSession, parseCookies, safeEqual, text } from '../lib/http.mjs';
-import { ROLES, siteUrl, toStored, tokenRequest } from '../lib/twitch.mjs';
+import { ALERT_SCOPES, ROLES, siteUrl, toStored, tokenRequest } from '../lib/twitch.mjs';
 
 export const config = { path: ['/api/auth/login', '/api/auth/callback'] };
 
@@ -18,7 +18,7 @@ export default async (req) => {
     const auth = new URL('https://id.twitch.tv/oauth2/authorize');
     auth.search = new URLSearchParams({
       client_id: process.env.TWITCH_CLIENT_ID, redirect_uri: redirectUri, response_type: 'code',
-      scope: ROLES[role].scopes.join(' '), state: `${state}.${role}`, force_verify: 'true',
+      scope: [...ROLES[role].scopes, ...(role === 'broadcaster' ? ALERT_SCOPES : [])].join(' '), state: `${state}.${role}`, force_verify: 'true',
     });
     return new Response(null, { status: 302, headers: { Location: auth.toString(), 'Set-Cookie': cookie(req, 'oauth_state', `${state}.${role}`, 600) } });
   }
