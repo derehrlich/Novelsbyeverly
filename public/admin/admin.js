@@ -84,7 +84,7 @@ async function loadState() {
     + urlRow('Rangliste', u.rangliste, 'Öffentliche Seite, z. B. als Link im Panel. Als Overlay in OBS: <code>?overlay</code> anhängen (durchsichtig, ohne Kopf).')
     + urlRow('Twitch-Weiterleitung', u.redirect, 'Diese Adresse muss in der Twitch-Entwickler-App als „OAuth Redirect URL“ stehen.')
     + urlRow('OBS-Dock Alles in einem', u.dockAlles, 'Ein einziges Dock mit Reitern oben: Pomodoro, Aufgaben, Design.')
-    + urlRow('OBS-Dock Pomodoro', u.dockPomodoro, 'In OBS: Docks → Benutzerdefinierte Browser-Docks. Klein und schmal, mit Timer, Zähler und Wörtern. Anleitung: <code>docs/obs-docks.md</code>.')
+    + urlRow('OBS-Dock Pomodoro', u.dockPomodoro, 'In OBS: Docks → Benutzerdefinierte Browser-Docks. Klein und schmal, mit Timer, Zähler, Wörtern und den Pomodoro-Einstellungen. Anleitung: <code>docs/obs-docks.md</code>.')
     + urlRow('OBS-Dock Aufgaben', u.dockAufgaben)
     + urlRow('OBS-Dock Design', u.dockDesign, 'Hintergrund, Wetter, Tageszeit, Kartenstil und Kamera-Rahmen per Klick umstellen.')
     + urlRow('Wörter-Schnittstelle', u.words, `Für ein Hilfsprogramm (Papyrus): <code>POST</code> mit <code>Authorization: Bearer &lt;INGEST_TOKEN&gt;</code> und <code>{"absolute": 4231}</code>. ${e.INGEST_TOKEN ? 'INGEST_TOKEN ist gesetzt.' : 'INGEST_TOKEN ist noch nicht gesetzt.'}`);

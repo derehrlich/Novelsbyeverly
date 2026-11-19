@@ -12,6 +12,15 @@
   <div class="reihe"><button class="hell" id="minus">−</button><b id="zahl" style="min-width:60px;text-align:center">0</b><button class="hell" id="plus">+</button><span class="leise" id="ziel"></span></div>
   <h1 style="margin-top:12px">Wörter heute</h1>
   <div class="reihe"><b id="woerter">0</b><input type="number" id="wplus" min="0" placeholder="+" style="width:80px"><button class="hell" id="wadd">dazu</button><button class="hell" id="wset">setzen</button></div>
+  <details style="margin-top:12px" id="einst"><summary><b>⚙ Einstellungen</b></summary>
+    <div class="feld"><label for="e_focusMinutes">Fokus (Min.)</label><input type="number" id="e_focusMinutes" min="1" max="180"></div>
+    <div class="feld"><label for="e_breakMinutes">Pause (Min.)</label><input type="number" id="e_breakMinutes" min="1" max="60"></div>
+    <div class="feld"><label for="e_longBreakMinutes">Lange Pause (Min.)</label><input type="number" id="e_longBreakMinutes" min="1" max="120"></div>
+    <div class="feld"><label for="e_longBreakEvery">Lange Pause nach … Pomodoros</label><input type="number" id="e_longBreakEvery" min="0" max="20"></div>
+    <div class="feld"><label for="e_pomodoroGoal">Ziel heute (Pomodoros)</label><input type="number" id="e_pomodoroGoal" min="0" max="50"></div>
+    <div class="leise">0 bei „Lange Pause“ = nie, 0 beim Ziel = ohne Ziel.</div>
+    <div class="reihe"><button class="gruen" id="esave">Speichern</button></div>
+  </details>
 </div>
 <script type="module">
 import { $, api, run, meldung, start } from './dock.js';
@@ -31,6 +40,15 @@ async function laden() {
   $('woerter').textContent = st.words?.today ?? st.words?.count ?? 0;
   zeichneTimer();
 }
+const EK = ['focusMinutes', 'breakMinutes', 'longBreakMinutes', 'longBreakEvery', 'pomodoroGoal'];
+async function ladeEinst() { const { settings } = await api('GET', 'settings'); for (const k of EK) $('e_' + k).value = settings[k]; }
+$('einst').addEventListener('toggle', () => { if ($('einst').open) run(ladeEinst)(); });
+$('esave').onclick = run(async () => {
+  const body = {}; for (const k of EK) body[k] = Number($('e_' + k).value);
+  const { settings } = await api('PUT', 'settings', body);
+  for (const k of EK) $('e_' + k).value = settings[k];
+  meldung('Gespeichert ✓'); await laden();
+});
 const tu = (pfad, body) => run(async () => { await api('POST', pfad, body ? body() : {}); await laden(); });
 $('fokus').onclick = tu('timer/focus', () => ({ minutes: mins() }));
 $('pause').onclick = tu('timer/break', () => ({ minutes: mins() }));
