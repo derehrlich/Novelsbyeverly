@@ -239,11 +239,28 @@ function chime(notes = [660, 880, 1320], gap = 0.16) {
   } catch { /* ohne Ton weiter */ }
 }
 
-// Eigener Ton der Alert-Art (Admin → Alerts und Raids), sonst der Standard-Klang
-function alertSound(kind, notes) {
+// Eigener Ton der Alert-Art (Admin → Alerts und Raids), sonst der Standard-Klang.
+// Wird wie der Klang über WebAudio gespielt (das klappt in OBS zuverlässig) und vorab geladen, damit er ohne Verzögerung startet.
+const toene = new Map(); // Adresse -> Promise<AudioBuffer>
+function ladeTon(url) {
+  if (!toene.has(url)) {
+    audio ??= new AudioContext();
+    toene.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`Ton nicht ladbar (${r.status})`); return r.arrayBuffer(); }).then((b) => audio.decodeAudioData(b)).catch((e) => { toene.delete(url); throw e; }));
+  }
+  return toene.get(url);
+}
+function tonVorladen() { if (ton) for (const url of Object.values(view?.alertSounds ?? {})) { try { ladeTon(url).catch((e) => console.warn('[Overlay] Ton laden fehlgeschlagen:', e.message)); } catch { /* ohne Ton weiter */ } } }
+async function alertSound(kind, notes) {
   const url = ton && view?.alertSounds?.[kind];
   if (!url) { chime(notes); return; }
-  try { const a = new Audio(url); a.volume = Math.min(1, Math.max(0, (view.alertSoundVolume ?? 80) / 100)); a.play().catch(() => chime(notes)); } catch { chime(notes); }
+  try {
+    const buf = await ladeTon(url);
+    if (audio.state === 'suspended') await audio.resume();
+    const src = audio.createBufferSource(), g = audio.createGain();
+    g.gain.value = Math.min(1, Math.max(0, (view.alertSoundVolume ?? 80) / 100));
+    src.buffer = buf; src.connect(g).connect(audio.destination); src.start();
+    console.debug('[Overlay] eigener Ton gespielt:', kind);
+  } catch (e) { console.warn('[Overlay] eigener Ton fehlgeschlagen, es spielt der Klang:', e.message); chime(notes); }
 }
 
 // ---- Konfetti
@@ -566,10 +583,13 @@ function applyDesign() {
   $('szene').hidden = !teile.has('szene') || bildModus;
 }
 
+let build0 = null;
 function apply(data) {
+  if (data.build) { if (build0 === null) build0 = data.build; else if (data.build !== build0 && !q.has('demo') && !q.has('editor')) { location.reload(); return; } } // neuer Programmstand: Seite neu laden
   const first = view === null;
   offset = data.now - Date.now();
   view = data;
+  tonVorladen();
   for (const ev of data.events ?? []) handleEvent(ev);
   if (data.cursor) cursor = data.cursor;
   applyDesign();

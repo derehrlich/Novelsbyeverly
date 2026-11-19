@@ -8,6 +8,7 @@ import { addViewerWords, addWords, getWords, setAbsolute } from './words.mjs';
 import { announceCredit, getTimer, say, startBreak, startFocus, stopTimer, tick } from './timer.mjs';
 import { fill, fmtDuration, fmtNumber, pushEvent } from './util.mjs';
 import * as streamPause from './pause.mjs';
+import * as cmds from './befehle.mjs';
 import { storedTokens } from './twitch.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
 import { addPages, getPages, setPages } from './pages.mjs';
@@ -40,9 +41,10 @@ const COMMANDS = {
   streak: 'streak', besuche: 'streak',
   rangliste: 'ranking', top: 'ranking', punkte: 'points',
   hilfe: 'help', befehle: 'help', commands: 'help',
+  zitat: 'quote', quote: 'quote', addzitat: 'addquote', addquote: 'addquote', delzitat: 'delquote', delquote: 'delquote', so: 'shoutout', shoutout: 'shoutout',
 };
 export const COMMAND_WORDS = Object.keys(COMMANDS); // für die Prüfung eigener Pausen (kein doppeltes Befehlswort)
-const MOD_ONLY = new Set(['pausepreset', 'streampause', 'streamweiter', 'sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
+const MOD_ONLY = new Set(['addquote', 'delquote', 'shoutout', 'pausepreset', 'streampause', 'streamweiter', 'sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -73,14 +75,26 @@ export async function handleChat(e, settings = null) {
   await tick(settings);
 
   const text = String(e.message?.text ?? '').trim();
+  if (settings.customCommandsEnabled) { // eigene Befehle: Stichwörter gelten für jede Nachricht, Erinnerungen brauchen Betrieb im Chat
+    if (!isBroadcaster) await cmds.recordPulse().catch(() => {});
+    await cmds.tickTimersThrottled(settings).catch((err) => console.warn('Erinnerungen fehlgeschlagen:', err.message));
+    await cmds.handleKeywords(e, text, settings).catch((err) => console.warn('Stichwörter fehlgeschlagen:', err.message));
+  }
   if (!settings.chatCommands || !text.startsWith(settings.commandPrefix)) return { ok: true };
   const [word, ...args] = text.slice(settings.commandPrefix.length).split(/\s+/);
   let action = COMMANDS[norm(word)], preset = null;
   if (!action && settings.pauseEnabled && isMod) { preset = await streamPause.presetByWord(norm(word)); if (preset) action = 'pausepreset'; } // eigene Pause mit eigenem Befehlswort
+  if (!action && settings.customCommandsEnabled) { // eigener Befehl (!ant)
+    if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true };
+    const cmd = await cmds.handleWord(norm(word), args.join(' '), e, settings).catch((err) => { console.warn('Eigener Befehl fehlgeschlagen:', err.message); return null; });
+    return { ok: true, action: cmd ? 'custom' : undefined };
+  }
   if (!action) return { ok: true };
   if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true }; // doppelt zugestellt
   if (ZIMMER_ONLY.has(action) && settings.szeneModus !== 'zimmer') return { ok: true };
   if ((action === 'streampause' || action === 'streamweiter' || action === 'pausepreset') && !settings.pauseEnabled) return { ok: true };
+  if ((action === 'quote' || action === 'addquote' || action === 'delquote') && !settings.quoteEnabled) return { ok: true };
+  if (action === 'shoutout' && !settings.soEnabled) return { ok: true };
   if (action === 'streak' && !settings.checkinEnabled) return { ok: true };
   if ((action === 'ranking' || action === 'points') && !settings.pointsEnabled) return { ok: true };
   if (MOD_ONLY.has(action) && !isMod) return { ok: true };
@@ -104,6 +118,24 @@ async function run(action, ctx) {
       return settings.pauseChat ? streamPause.startReply(state, settings) : null;
     }
     case 'streamweiter': { const was = await streamPause.stop(); return was.active && settings.pauseChat ? streamPause.endReply(settings) : null; }
+    case 'quote': { const q = await cmds.pickQuote(args.join(' ')); return q ? cmds.quoteText(q, settings) : fill(settings.quoteNoneTemplate, { user: name }); }
+    case 'addquote': {
+      if (!args.length) return `${name}, schreib das Zitat hinter den Befehl: ${pre(settings)}addzitat Text`;
+      return fill(settings.quoteAddedTemplate, { n: await cmds.addQuote(args.join(' '), name), user: name });
+    }
+    case 'delquote': {
+      const num = /^#?(\d+)$/.exec(args.join(' ').trim())?.[1];
+      if (!num || !(await cmds.deleteQuote(num))) return `${name}, dieses Zitat gibt es nicht. Beispiel: ${pre(settings)}delzitat 3`;
+      return `🗑️ Zitat #${num} ist gelöscht.`;
+    }
+    case 'shoutout': { // als eigene Nachricht, nicht als Antwort auf den Befehl
+      const login = args[0]?.replace(/^@/, '').toLowerCase();
+      if (!login) return `${name}, wen soll ich shouten? Zum Beispiel ${pre(settings)}so name`;
+      const text = await cmds.shoutText(login, settings).catch(() => null);
+      if (!text) return `${name}, den Kanal „${login}“ gibt es nicht.`;
+      await say(settings, text);
+      return null;
+    }
     case 'sit': return doSit(ctx);
     case 'weather': case 'daytime': case 'backdrop': return setLook(action, args, settings);
     case 'streak': return (await cooling(`streak-${id}`, settings.commandCooldown)) ? null : streakReply(settings, id, name);
@@ -209,7 +241,8 @@ async function run(action, ctx) {
     }
     case 'help': {
       const p = pre(settings);
-      const extra = `${settings.checkinEnabled ? ` · ${p}streak` : ''}${settings.pointsEnabled ? ` · ${p}punkte · ${p}rangliste` : ''}`;
+      const own = settings.customCommandsEnabled ? (await cmds.getCommands()).filter((c) => c.enabled && c.type === 'command' && c.role === 'all').slice(0, 8).map((c) => ` · ${p}${c.word}`).join('') : '';
+      const extra = `${settings.checkinEnabled ? ` · ${p}streak` : ''}${settings.pointsEnabled ? ` · ${p}punkte · ${p}rangliste` : ''}${settings.quoteEnabled ? ` · ${p}zitat` : ''}${own}`;
       if (settings.szeneModus !== 'zimmer') return `📖 ${p}task Text · ${p}done · ${p}tasks · ${p}wörter 300${extra}`;
       const sit = allowsSit(settings) ? `${p}sitzen · ` : needsReward(settings) ? `Platz per Reward „${settings.checkinRewardTitle}“ · ` : '';
       return `📖 ${sit}${p}aufstehen · ${p}figur · ${p}task Text · ${p}done · ${p}wörter 300 · ${p}rang${extra}`;

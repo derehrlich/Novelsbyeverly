@@ -5,6 +5,7 @@ import { json } from '../http.mjs';
 import { getSettings } from '../settings.mjs';
 import * as pause from '../pause.mjs';
 import { COMMAND_WORDS } from '../chat.mjs';
+import { getCommands } from '../befehle.mjs';
 
 export async function pauseRoute({ route, method, body }) {
   if (route[0] !== 'pause') return;
@@ -23,7 +24,8 @@ export async function pauseRoute({ route, method, body }) {
   }
   if (route[1] === 'stop' && method === 'POST') { await pause.stop(); return view(); }
   if (route[1] === 'presets' && method === 'PUT') {
-    const r = await pause.savePresets(body?.presets, COMMAND_WORDS);
+    const own = (await getCommands()).filter((c) => c.type === 'command').map((c) => c.word);
+    const r = await pause.savePresets(body?.presets, [...COMMAND_WORDS, ...own]);
     return r.error ? json({ error: r.error }, 400) : view();
   }
   if (route[1] === 'icon' && route[2]) {

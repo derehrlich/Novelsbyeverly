@@ -25,3 +25,8 @@ Admin → Stream → **Alerts und Raids** → Karte **„Eigene Töne“**: Für
 - Die **Lautstärke** stellst du in der Karte „Alerts“ ein (0 bis 100, Standard 80).
 - In OBS muss bei der Browserquelle **„Audio über OBS steuern“** angehaltet sein, sonst hörst du im Stream nichts. Mit `?ton=aus` an der Adresse bleibt das Overlay stumm.
 - Die Töne sind in der Sicherung enthalten.
+
+**Wenn der Ton im Stream nicht zu hören ist:**
+1. In OBS die Browserquelle des Overlays aktualisieren (Rechtsklick auf die Quelle → Eigenschaften → „Cache der aktuellen Seite aktualisieren“). Nach einem Update lädt sich das Overlay jetzt zwar selbst neu, ein altes Overlay kennt aber die eigenen Töne nicht.
+2. Bei der Browserquelle „Audio über OBS steuern“ anhaken und im Audio-Mixer prüfen, dass die Quelle nicht stummgeschaltet ist.
+3. Wer den Ton in OBS mithören will: Erweiterte Audioeigenschaften → Audio-Monitoring für diese Quelle auf „Monitor und Ausgabe“.

@@ -5,7 +5,7 @@ export const NAV = [
   ['Stream', [['pomodoro', '🍅', 'Pomodoro'], ['ziel', '🎯', 'Ziel'], ['landschaft', '🌳', 'Landschaft und Stefanie'], ['todo', '📝', 'To-Do-Liste'], ['musik', '🎵', 'Musik'], ['alerts', '🔔', 'Alerts und Raids'], ['auszeit', '☕', 'Stream-Pause'], ['startscreen', '🚀', 'Startbildschirm']]],
   ['Overlay', [['anordnung', '🧩', 'Anordnung'], ['design', '🎨', 'Design und Hintergrund'], ['adressen', '🔗', 'OBS-Adressen und Test']]],
   ['Zuschauer', [['checkin', '✅', 'Check-in, Streak und Punkte'], ['mitschreibende', '👥', 'Mitschreibende']]],
-  ['Chat', [['chat', '💬', 'Chat und Befehle']]],
+  ['Chat', [['chat', '💬', 'Chat und Befehle'], ['befehle', '🗨️', 'Eigene Befehle und Zitate']]],
   ['Verwaltung', [['einrichtung', '🔌', 'Einrichtung'], ['system', '⚙️', 'System']]],
 ];
 // Seiten, auf denen rechts die Live-Vorschau des Overlays steht („Anordnung“ hat ihre eigene)

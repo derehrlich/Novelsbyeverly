@@ -267,6 +267,17 @@ const SCHEMA = [
     ['alertVideoEnde', 'Alert endet bei (% der Videolänge)', 'number', 'Hat das Video am Ende noch eine ruhige Strecke mit geschlossenem Buch, endet der Alert hier früher. 100 = ganzes Video.'],
     ['alertVideoSchrift', 'Schriftgröße (%)', 'number'],
   ]],
+  ['Eigene Befehle', [
+    ['customCommandsEnabled', 'Eigene Befehle, Stichwörter und Erinnerungen einschalten', 'bool', 'Der Bot muss im Chat schreiben dürfen (Chat und Befehle). Beim Speichern wird bei Twitch automatisch angemeldet.'],
+  ]],
+  ['Zitate', [
+    ['quoteEnabled', 'Zitate einschalten (!zitat, !addzitat, !delzitat)', 'bool', 'Hinzufügen und Löschen dürfen nur Moderation und Streamerin.'],
+    ['quoteTemplate', 'Zitat im Chat', 'area', '{n} {text} {by} {date}'], ['quoteNoneTemplate', 'Wenn es kein Zitat gibt', 'area', '{user}'], ['quoteAddedTemplate', 'Wenn ein Zitat gespeichert wurde', 'area', '{n} {user}'],
+  ]],
+  ['Shoutout', [
+    ['soEnabled', 'Shoutout einschalten (!so name)', 'bool', 'Nur Moderation und Streamerin. Der Bot schreibt eine Nachricht mit Link und zuletzt gespieltem Spiel (kein offizieller Twitch-Shoutout).'],
+    ['soTemplate', 'Shoutout im Chat', 'area', '{name} {game} {url}'],
+  ]],
   ['Streak-Retter', [
     ['streakRescueEnabled', 'Streak-Retter aktivieren (zweiter Kanalpunkte-Reward)', 'bool', 'Wer ein paar Streams verpasst hat, kann seine Besuchsserie mit Kanalpunkten retten. Braucht eingeschalteten Check-in. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
     ['streakRewardTitle', 'Reward-Name', 'text'], ['streakRewardCost', 'Preis (Kanalpunkte)', 'number'], ['rescueMaxDays', 'Rettet höchstens so viele verpasste Streams', 'number', 'Eine Lücke bis zur Schonfrist verzeiht der Bot ohnehin. Gerettet werden nur Lücken der letzten 7 Stream-Tage.'],
@@ -336,9 +347,9 @@ const SCHEMA = [
 ];
 let current = null;
 // Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
-const TOGGLE_GROUPS = new Set(['Streak-Retter', 'Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
+const TOGGLE_GROUPS = new Set(['Eigene Befehle', 'Zitate', 'Shoutout', 'Streak-Retter', 'Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
-const SYNC_KEYS = ['streakRescueEnabled', 'streakRewardTitle', 'streakRewardCost', 'alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
+const SYNC_KEYS = ['customCommandsEnabled', 'streakRescueEnabled', 'streakRewardTitle', 'streakRewardCost', 'alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
 const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 
@@ -778,6 +789,49 @@ $('pauseListe').onchange = run(async (e) => {
 });
 $('pauseCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/pause`).then(() => meldung('Kopiert'));
 
+// ---- Eigene Chat-Befehle und Zitate
+let cmdData = null;
+const ROLLEN = [['all', 'alle'], ['sub', 'Abos und mehr'], ['vip', 'VIPs und mehr'], ['mod', 'Moderation'], ['owner', 'nur Streamerin']];
+const ARTEN = [['command', 'Befehl'], ['keyword', 'Stichwort'], ['timer', 'Erinnerung']];
+const cmdRows = () => [...$('cmdListe').querySelectorAll('.cmdzeile')].map((r) => { const g = (f) => r.querySelector(`[data-f=${f}]`); return { id: r.dataset.id || '', enabled: g('enabled').checked, type: g('type').value, word: g('word').value, minutes: g('minutes').value, minMessages: g('minMessages').value, role: g('role').value, cooldown: g('cooldown').value, text: g('text').value, bookTitle: g('bookTitle').value, bookText: g('bookText').value, name: '' }; });
+function cmdRowHtml(c) {
+  const opt = (list, v) => list.map(([k, l]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  const timer = c.type === 'timer';
+  return `<div class="cmdzeile" data-id="${esc(c.id ?? '')}" style="border-bottom:1px solid var(--rand,#bba98a);padding:10px 0">
+    <div class="reihe" style="align-items:center"><label title="aktiv"><input data-f="enabled" type="checkbox"${c.enabled !== false ? ' checked' : ''}></label>
+      <select data-f="type">${opt(ARTEN, c.type ?? 'command')}</select>
+      <span class="cmdwort" ${timer ? 'hidden' : ''}><span class="leise">${c.type === 'keyword' ? '' : esc(cmdData.prefix)}</span><input data-f="word" type="text" maxlength="40" placeholder="${c.type === 'keyword' ? 'Stichwort' : 'ant'}" value="${esc(c.word ?? '')}" style="width:150px"></span>
+      <span class="cmdtimer" ${timer ? '' : 'hidden'}>alle <input data-f="minutes" type="number" min="5" max="720" value="${esc(c.minutes || 20)}" style="width:70px"> Min., wenn mind. <input data-f="minMessages" type="number" min="1" max="100" value="${esc(c.minMessages || 3)}" style="width:60px"> Nachrichten</span>
+      <label>darf <select data-f="role">${opt(ROLLEN, c.role ?? 'all')}</select></label>
+      <label>Wartezeit <input data-f="cooldown" type="number" min="0" max="86400" value="${esc(c.cooldown ?? 10)}" style="width:80px"> s</label></div>
+    <div class="reihe" style="align-items:center"><input data-f="text" type="text" maxlength="450" placeholder="Antwort im Chat" value="${esc(c.text ?? '')}" style="flex:2;min-width:240px">
+      <input data-f="bookTitle" type="text" maxlength="60" placeholder="Buch: Überschrift (optional)" value="${esc(c.bookTitle ?? '')}" style="flex:1;min-width:150px"><input data-f="bookText" type="text" maxlength="200" placeholder="Buch: Text (optional)" value="${esc(c.bookText ?? '')}" style="flex:1;min-width:150px">
+      <button class="hell klein" data-test="${esc(c.id ?? '')}" type="button">Ausprobieren</button><button class="hell klein" data-weg="1" type="button">Entfernen</button></div></div>`;
+}
+function renderCmds(list = cmdData.commands) {
+  $('cmdListe').innerHTML = list.length ? list.map(cmdRowHtml).join('') : '<p class="leise">Noch keine eigenen Befehle.</p>';
+  $('cmdNeu').disabled = list.length >= cmdData.max;
+  for (const r of $('cmdListe').querySelectorAll('.cmdzeile')) r.querySelector('[data-f=type]').onchange = (e) => { const t = e.target.value; r.querySelector('.cmdwort').hidden = t === 'timer'; r.querySelector('.cmdtimer').hidden = t !== 'timer'; };
+}
+async function loadCmds() { cmdData = await api('GET', 'commands'); renderCmds(); }
+$('cmdNeu').onclick = () => { renderCmds([...cmdRows().map((r) => ({ ...r })), { id: '', enabled: true, type: 'command', word: '', text: '', cooldown: 10, role: 'all' }]); };
+$('cmdSpeichern').onclick = run(async () => { cmdData = await api('PUT', 'commands', { commands: cmdRows() }); renderCmds(); meldung('Befehle gespeichert ✓'); });
+$('cmdListe').onclick = run(async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.weg) { b.closest('.cmdzeile').remove(); $('cmdNeu').disabled = false; return; }
+  if (b.dataset.test !== undefined) {
+    if (!b.dataset.test) throw new Error('Bitte erst „Befehle speichern“, dann kannst du ihn ausprobieren');
+    const r = await api('POST', `commands/test/${b.dataset.test}`, {});
+    $('cmdStatus').textContent = `So sähe die Antwort aus: ${r.text || '(keine Chat-Antwort)'}${r.bookTitle || r.bookText ? ` · Buch im Overlay: ${r.bookTitle} ${r.bookText}` : ''}`;
+  }
+});
+async function loadQuotes() {
+  const { quotes } = await api('GET', 'quotes');
+  $('zitatListe').innerHTML = quotes.length ? `<table><thead><tr><th>Nr.</th><th>Zitat</th><th>Von</th><th>Datum</th><th></th></tr></thead><tbody>${quotes.map((q) => `<tr><td>#${q.n}</td><td>${esc(q.text)}</td><td>${esc(q.by)}</td><td>${esc(q.date.split('-').reverse().join('.'))}</td><td><button class="hell klein" data-qweg="${q.n}" type="button">Löschen</button></td></tr>`).join('')}</tbody></table>` : '<p class="leise">Noch keine Zitate.</p>';
+  for (const b of $('zitatListe').querySelectorAll('[data-qweg]')) b.onclick = run(async () => { if (!confirm(`Zitat #${b.dataset.qweg} löschen?`)) return; await api('DELETE', `quotes/${b.dataset.qweg}`); await loadQuotes(); meldung('Zitat gelöscht'); });
+}
+$('zitatAdd').onclick = run(async () => { await api('POST', 'quotes', { text: $('zitatText').value, by: 'Admin' }); $('zitatText').value = ''; await loadQuotes(); meldung('Zitat gespeichert ✓'); });
+
 // ---- Eigene Töne für die Alerts
 let soundAudio = null;
 async function loadSounds() {
@@ -846,7 +900,7 @@ async function start() {
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {}); loadSounds().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {}); loadSounds().catch(() => {}); loadCmds().catch(() => {}); loadQuotes().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

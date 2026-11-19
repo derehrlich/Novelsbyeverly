@@ -13,11 +13,12 @@ import { video } from '../lib/admin/video.mjs';
 import { pauseRoute } from '../lib/admin/pause.mjs';
 import { startscreenRoute } from '../lib/admin/startscreen.mjs';
 import { soundsRoute } from '../lib/admin/sounds.mjs';
+import { befehleRoute } from '../lib/admin/befehle.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { sounds: soundsRoute, startscreen: startscreenRoute, pause: pauseRoute, state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund, video };
+const ROUTES = { commands: befehleRoute, quotes: befehleRoute, sounds: soundsRoute, startscreen: startscreenRoute, pause: pauseRoute, state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund, video };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);

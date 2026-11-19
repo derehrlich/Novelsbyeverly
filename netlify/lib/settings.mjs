@@ -61,6 +61,10 @@ export const DEFAULTS = {
   videoZug: 'zeit', videoSitzecke: 'zeit', videoStadt: 'zeit', videoSee: 'zeit', // welches Video je Szene läuft: zeit (nach Tageszeit) | b1 b2 b3 (Bibliothek) | aus
   // Alerts und Raids (aus, bis sie im Admin eingeschaltet werden). Platzhalter stehen in {geschweiften Klammern}
   alertsEnabled: false, raidEnabled: false,
+  // Eigene Befehle, Zitate und Shoutout (aus, bis eingeschaltet). Platzhalter stehen in {geschweiften Klammern}
+  customCommandsEnabled: false, quoteEnabled: false, soEnabled: false,
+  quoteTemplate: '📜 Zitat #{n}: „{text}“ – {by}, {date}', quoteNoneTemplate: '{user}, es gibt noch keine Zitate (oder diese Nummer gibt es nicht).', quoteAddedTemplate: '📜 Zitat #{n} ist gespeichert, danke {user}!',
+  soTemplate: '💛 Schaut bei {name} vorbei! Zuletzt gespielt: {game} → {url}',
   alertSoundVolume: 80, // Lautstärke der eigenen Alert-Töne (0 bis 100)
   alertFollow: true, alertSub: true, alertGift: true, alertCheer: true, alertCheerMin: 1, alertChat: true, alertSeconds: 7, raidSeconds: 10, raidMinViewers: 1,
   followTitle: 'Willkommen, {user}!', followMessage: 'folgt jetzt dem Schreibzimmer 🌱',
@@ -144,7 +148,7 @@ export const DEFAULTS = {
 };
 
 const INT = { alertSoundVolume: [0, 100], streakRewardCost: [1, 1000000], rescueMaxDays: [1, 14], alertVideoB: [20, 100], alertVideoY: [0, 100], alertVideoTX: [0, 95], alertVideoTY: [0, 95], alertVideoTB: [5, 100], alertVideoTH: [5, 100], alertVideoVon: [0, 95], alertVideoBis: [1, 100], alertVideoEnde: [10, 100], alertVideoSchrift: [40, 250], alertCheerMin: [1, 100000], alertSeconds: [3, 30], raidSeconds: [3, 40], raidMinViewers: [0, 10000], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10], streakGrace: [0, 5], pointsWeightMsg: [0, 1000], pointsWeightDay: [0, 1000], pointsWeightCheckin: [0, 1000], pointsMsgCap: [1, 500], pointsMsgGap: [0, 3600], pointsRankSize: [1, 10], backupHour: [0, 23], backupKeep: [1, 60], glasStaerke: [0, 90], glasUnschaerfe: [0, 60], hintergrundVersion: [0, 9_999_999_999_999], wind: [0, 100], kulisseTempo: [0, 100], raumZug: [0, 9_999_999_999_999], raumSitzecke: [0, 9_999_999_999_999], raumStadt: [0, 9_999_999_999_999], raumSee: [0, 9_999_999_999_999], jzFruehlingA: [0, 9_999_999_999_999], jzFruehlingB: [0, 9_999_999_999_999], jzSommerA: [0, 9_999_999_999_999], jzSommerB: [0, 9_999_999_999_999], jzHerbstA: [0, 9_999_999_999_999], jzHerbstB: [0, 9_999_999_999_999], jzWinterA: [0, 9_999_999_999_999], jzWinterB: [0, 9_999_999_999_999], jzBlumen: [0, 9_999_999_999_999], jzBlaetter: [0, 9_999_999_999_999], jzBluete: [0, 9_999_999_999_999], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
-const BOOL = ['alertVideoLinks', 'streakRescueEnabled', 'pauseEnabled', 'pauseChat', 'alertVideoAn', 'alertVideoKey', 'alertsEnabled', 'raidEnabled', 'alertFollow', 'alertSub', 'alertGift', 'alertCheer', 'alertChat', 'pavillonZeigen', 'autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint', 'checkinEnabled', 'milestoneEnabled', 'pointsEnabled', 'backupAutoEnabled'];
+const BOOL = ['customCommandsEnabled', 'quoteEnabled', 'soEnabled', 'alertVideoLinks', 'streakRescueEnabled', 'pauseEnabled', 'pauseChat', 'alertVideoAn', 'alertVideoKey', 'alertsEnabled', 'raidEnabled', 'alertFollow', 'alertSub', 'alertGift', 'alertCheer', 'alertChat', 'pavillonZeigen', 'autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint', 'checkinEnabled', 'milestoneEnabled', 'pointsEnabled', 'backupAutoEnabled'];
 const VIDEO_WAHL = ['zeit', 'b1', 'b2', 'b3', 'aus'];
 const ENUM = { videoZug: VIDEO_WAHL, videoSitzecke: VIDEO_WAHL, videoStadt: VIDEO_WAHL, videoSee: VIDEO_WAHL, appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend', 'nacht'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'], kartenStil: ['papier', 'glas'], hintergrund: ['landschaft', 'jahreszeiten', 'bild', 'zug', 'sitzecke', 'stadt', 'see'], wetter: ['klar', 'wolkig', 'regen', 'gewitter', 'schnee', 'nebel'] };
 
@@ -153,7 +157,7 @@ export const seatsOnReward = (s) => s.appearOn === 'checkin' || s.appearOn === '
 export const needsAlerts = (s) => s.alertsEnabled;
 export const needsRaids = (s) => s.raidEnabled;
 export const needsRescue = (s) => s.streakRescueEnabled && s.checkinEnabled;
-export const needsChat = (s) => s.chatCommands || s.pointsEnabled;
+export const needsChat = (s) => s.chatCommands || s.pointsEnabled || s.customCommandsEnabled;
 export const needsReward = (s) => s.checkinEnabled || seatsOnReward(s);
 export const allowsSit = (s) => s.appearOn === 'sit' || s.appearOn === 'both';
 
