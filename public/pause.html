@@ -18,6 +18,9 @@
   #box { position: fixed; box-sizing: border-box; display: flex; align-items: center; gap: 30px; padding: 26px 46px 26px 34px; min-width: 560px; max-width: 92vw; background: var(--papier); border: 4px solid var(--rand); border-radius: 36px; box-shadow: 0 16px 40px rgba(50, 40, 28, .32), inset 0 0 0 6px rgba(255, 255, 255, .5); opacity: 0; transition: transform .8s cubic-bezier(.2, 1.1, .3, 1), opacity .5s; --s: 1; transform: var(--out) scale(var(--s)); color: var(--text); }
   #box.on { opacity: 1; transform: var(--in) scale(var(--s)); }
   .tasse { flex: none; width: 150px; height: 150px; }
+  .tasse.bild { object-fit: contain; }
+  .tasse.emoji { display: flex; align-items: center; justify-content: center; font-size: 110px; line-height: 1; }
+  .tasse[hidden] { display: none; }
   .tasse .dampf path { fill: none; stroke: #d9cdb6; stroke-width: 5; stroke-linecap: round; opacity: 0; animation: dampf 3.2s ease-in-out infinite; }
   .tasse .dampf path:nth-child(2) { animation-delay: 1.05s; }
   .tasse .dampf path:nth-child(3) { animation-delay: 2.1s; }
@@ -33,7 +36,9 @@
 </head>
 <body>
 <div id="box" aria-live="off">
-  <svg class="tasse" viewBox="0 0 150 150" aria-hidden="true">
+  <img class="tasse bild" id="bild" alt="" hidden>
+  <div class="tasse emoji" id="emoji" hidden></div>
+  <svg class="tasse" id="tasse" viewBox="0 0 150 150" aria-hidden="true">
     <g class="dampf"><path d="M52 52 q-9 -12 0 -24 q9 -12 0 -24"/><path d="M75 52 q-9 -12 0 -24 q9 -12 0 -24"/><path d="M98 52 q-9 -12 0 -24 q9 -12 0 -24"/></g>
     <ellipse cx="75" cy="128" rx="58" ry="11" fill="#d8c8a6" stroke="#bba98a" stroke-width="3"/>
     <path d="M26 66 h98 v26 a49 40 0 0 1 -98 0 z" fill="#fffaf0" stroke="#bba98a" stroke-width="4"/>
@@ -69,7 +74,7 @@ const size = Number(params.get('size')); if (size >= 0.3 && size <= 3) box.style
 box.style.transformOrigin = { top: '50% 0', bottom: '50% 100%', center: '50% 50%', 'top-left': '0 0', 'top-right': '100% 0', 'bottom-left': '0 100%', 'bottom-right': '100% 100%' }[pos];
 
 let cfg = null, offset = 0;
-const DEMO = { show: true, text: 'Kurz Trinkpause', sub: 'Gleich geht es weiter!', startedAt: Date.now(), until: Date.now() + 5 * 60_000, now: Date.now() };
+const DEMO = { show: true, icon: { emoji: params.get('icon') ?? '', url: '' }, text: 'Kurz Trinkpause', sub: 'Gleich geht es weiter!', startedAt: Date.now(), until: Date.now() + 5 * 60_000, now: Date.now() };
 async function poll() {
   try {
     const v = params.has('demo') ? DEMO : await (await fetch('/api/pause', { cache: 'no-store' })).json();
@@ -82,6 +87,10 @@ function frame() {
   requestAnimationFrame(frame);
   if (!cfg || !cfg.show) { box.classList.remove('on'); return; }
   $('text').textContent = cfg.text; $('sub').textContent = cfg.sub;
+  const ic = cfg.icon ?? {}; // eigenes Icon der Pause: Bild, sonst Emoji, sonst die Tasse
+  $('bild').hidden = !ic.url; if (ic.url && $('bild').dataset.src !== ic.url) { $('bild').dataset.src = ic.url; $('bild').src = ic.url; }
+  $('emoji').hidden = Boolean(ic.url) || !ic.emoji; $('emoji').textContent = ic.emoji || '';
+  $('tasse').style.display = ic.url || ic.emoji ? 'none' : '';
   if (cfg.until) {
     const left = Math.max(0, cfg.until - (Date.now() + offset)), s = Math.ceil(left / 1000);
     $('zeit').textContent = left > 0 ? `Weiter in etwa ${Math.floor(s / 60)}:${two(s % 60)}` : 'Gleich geht es weiter';

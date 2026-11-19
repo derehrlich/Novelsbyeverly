@@ -41,7 +41,8 @@ const COMMANDS = {
   rangliste: 'ranking', top: 'ranking', punkte: 'points',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['streampause', 'streamweiter', 'sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
+export const COMMAND_WORDS = Object.keys(COMMANDS); // für die Prüfung eigener Pausen (kein doppeltes Befehlswort)
+const MOD_ONLY = new Set(['pausepreset', 'streampause', 'streamweiter', 'sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -74,17 +75,18 @@ export async function handleChat(e, settings = null) {
   const text = String(e.message?.text ?? '').trim();
   if (!settings.chatCommands || !text.startsWith(settings.commandPrefix)) return { ok: true };
   const [word, ...args] = text.slice(settings.commandPrefix.length).split(/\s+/);
-  const action = COMMANDS[norm(word)];
+  let action = COMMANDS[norm(word)], preset = null;
+  if (!action && settings.pauseEnabled && isMod) { preset = await streamPause.presetByWord(norm(word)); if (preset) action = 'pausepreset'; } // eigene Pause mit eigenem Befehlswort
   if (!action) return { ok: true };
   if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true }; // doppelt zugestellt
   if (ZIMMER_ONLY.has(action) && settings.szeneModus !== 'zimmer') return { ok: true };
-  if ((action === 'streampause' || action === 'streamweiter') && !settings.pauseEnabled) return { ok: true };
+  if ((action === 'streampause' || action === 'streamweiter' || action === 'pausepreset') && !settings.pauseEnabled) return { ok: true };
   if (action === 'streak' && !settings.checkinEnabled) return { ok: true };
   if ((action === 'ranking' || action === 'points') && !settings.pointsEnabled) return { ok: true };
   if (MOD_ONLY.has(action) && !isMod) return { ok: true };
   if (BROADCASTER_ONLY.has(action) && !isBroadcaster) return { ok: true };
 
-  const ctx = { id, name, args, settings, isBroadcaster, isMod, e };
+  const ctx = { id, name, args, settings, isBroadcaster, isMod, e, preset };
   const reply = await run(action, ctx);
   if (reply && settings.chatEnabled) await say(settings, reply, { replyTo: e.message_id });
   return { ok: true, action, reply };
@@ -96,6 +98,11 @@ async function run(action, ctx) {
   const { id, name, args, settings } = ctx;
   switch (action) {
     case 'streampause': { const state = await streamPause.start(streamPause.parseArgs(args), settings); return settings.pauseChat ? streamPause.startReply(state, settings) : null; }
+    case 'pausepreset': { // !kaffee oder !kaffee 10 (Minuten überschreiben)
+      const o = streamPause.parseArgs(args);
+      const state = await streamPause.start({ text: ctx.preset.text, minutes: o.minutes ?? ctx.preset.minutes, preset: ctx.preset }, settings);
+      return settings.pauseChat ? streamPause.startReply(state, settings) : null;
+    }
     case 'streamweiter': { const was = await streamPause.stop(); return was.active && settings.pauseChat ? streamPause.endReply(settings) : null; }
     case 'sit': return doSit(ctx);
     case 'weather': case 'daytime': case 'backdrop': return setLook(action, args, settings);
