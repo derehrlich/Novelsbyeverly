@@ -10,11 +10,12 @@ import { update } from '../lib/admin/update.mjs';
 import { preview } from '../lib/admin/preview.mjs';
 import { hintergrund } from '../lib/admin/hintergrund.mjs';
 import { video } from '../lib/admin/video.mjs';
+import { pauseRoute } from '../lib/admin/pause.mjs';
 
 export const config = { path: '/api/admin/*' };
 
 // Erstes Pfadstück -> Bereich. Ein Bereich gibt eine Response zurück oder nichts (dann: 404).
-const ROUTES = { state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund, video };
+const ROUTES = { pause: pauseRoute, state: status, settings: settingsRoute, setup, timer, words, tasks, seats, musik, pages, stream, test: tests, users, 'export.csv': exportCsv, backup, update, preview, hintergrund, video };
 
 export default async (req) => {
   const route = new URL(req.url).pathname.replace(/^\/api\/admin\/?/, '').split('/').filter(Boolean);

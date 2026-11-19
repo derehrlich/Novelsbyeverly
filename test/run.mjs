@@ -1023,6 +1023,56 @@ await test('Alerts: Anmeldung bei Twitch für Follows, Abos, Bits und Raids, Ber
   assert.ok(!subs.some((s) => s.type === 'channel.raid'));
 });
 
+console.log('Stream-Pause');
+const pauseFn = (await mod('functions/pause.mjs')).default;
+const pauseLib = await mod('lib/pause.mjs');
+const pauseNow = async () => (await pauseFn(new Request('https://x/api/pause'))).json();
+await test('Stream-Pause: Texte und Minuten aus dem Befehl lesen', async () => {
+  assert.deepEqual(pauseLib.parseArgs(['5', 'Trinkpause']), { minutes: 5, text: 'Trinkpause' });
+  assert.deepEqual(pauseLib.parseArgs('Trinkpause'), { minutes: null, text: 'Trinkpause' });
+  assert.deepEqual(pauseLib.parseArgs('10min Essen holen'), { minutes: 10, text: 'Essen holen' });
+  assert.deepEqual(pauseLib.parseArgs('999'), { minutes: 240, text: '' });
+  assert.deepEqual(pauseLib.parseArgs([]), { minutes: null, text: '' });
+});
+await test('Stream-Pause: nur Moderation, nur wenn eingeschaltet, Ansage im Chat, Overlay-Daten', async () => {
+  const mod = { badges: [{ set_id: 'moderator' }] };
+  assert.equal((await pauseNow()).show, false);
+  await saveSettings({ chatEnabled: true, chatCommands: true, pauseEnabled: false });
+  await say('70', 'Mod', '!auszeit 5 Trinkpause', mod);
+  assert.equal((await pauseNow()).show, false); // ausgeschaltet
+  await saveSettings({ pauseEnabled: true });
+  await say('71', 'Zuschauer', '!auszeit 5 Trinkpause');
+  assert.equal((await pauseNow()).show, false); // Zuschauer dürfen nicht
+  const reply = await say('70', 'Mod', '!auszeit 5 Trinkpause', mod);
+  assert.match(reply.message, /Trinkpause – gleich geht es weiter/);
+  const v = await pauseNow();
+  assert.deepEqual({ show: v.show, text: v.text, sub: v.sub, min: Math.round((v.until - v.startedAt) / 60_000) }, { show: true, text: 'Trinkpause', sub: 'Gleich geht es weiter!', min: 5 });
+  assert.ok(Math.abs(v.now - Date.now()) < 5000); // die Seite rechnet mit der Serverzeit
+  assert.match((await say('70', 'Mod', '!zurueck', mod)).message, /Weiter geht/);
+  assert.equal((await pauseNow()).show, false);
+  const n = chatSent().length; await say('70', 'Mod', '!weiter', mod);
+  assert.equal(chatSent().length, n); // keine Pause aktiv: keine Ansage
+  await say('70', 'Mod', '!auszeit', mod);
+  assert.deepEqual({ text: (await pauseNow()).text, until: (await pauseNow()).until }, { text: 'Kurze Pause', until: null }); // Standardtext, offen
+  await saveSettings({ pauseChat: false });
+  const m = chatSent().length; await say('70', 'Mod', '!zurueck', mod);
+  assert.equal(chatSent().length, m); assert.equal((await pauseNow()).show, false); // ohne Ansage im Chat
+  await saveSettings({ pauseChat: true });
+});
+await test('Stream-Pause: im Admin von Hand starten und beenden', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('GET', 'pause', null)).status, 401);
+  let r = await adminCall('POST', 'pause/start', { text: 'Essen holen', minutes: 3 }, cookie);
+  assert.equal(r.body.state.active, true); assert.equal(r.body.state.text, 'Essen holen');
+  assert.equal((await pauseNow()).text, 'Essen holen');
+  r = await adminCall('POST', 'pause/start', { text: '' }, cookie);
+  assert.equal(r.body.state.text, 'Kurze Pause'); assert.equal(r.body.state.until, null);
+  r = await adminCall('POST', 'pause/stop', {}, cookie);
+  assert.equal(r.body.state.active, false); assert.equal((await pauseNow()).show, false);
+  await saveSettings({ pauseEnabled: false });
+});
+
 console.log('Videos als Ausblick');
 const videoUp = admin; // der Upload ist eine Admin-Route: /api/admin/video
 const videoGet = (await mod('functions/overlay-video.mjs')).default;

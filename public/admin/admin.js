@@ -249,6 +249,12 @@ const SCHEMA = [
     ['giftTemplate', 'Danke für verschenkte Abos', 'area', '{user} {tier} {total}'], ['cheerTemplate', 'Danke für Bits', 'area', '{user} {bits}'],
     ['raidTemplate', 'Willkommen, Raid', 'area', '{raider} {viewers} {raids} {visit} {game} {url}'],
   ]],
+  ['Stream-Pause', [
+    ['pauseEnabled', 'Stream-Pause einschalten (Chat-Befehle !auszeit und !zurueck)', 'bool', 'Nur Moderation und Streamerin dürfen die Befehle benutzen. Der Bot muss Befehle verstehen (Chat und Befehle).'],
+    ['pauseDefaultText', 'Standardtext, wenn nach dem Befehl nichts steht', 'text'], ['pauseSubtitle', 'Zeile unter dem Pausentext', 'text'],
+    ['pauseChat', 'Im Chat ankündigen', 'bool'],
+    ['pauseStartTemplate', 'Chatnachricht beim Start', 'area', '{text} {minutes}'], ['pauseEndTemplate', 'Chatnachricht beim Ende', 'area'],
+  ]],
   ['Alert-Video', [
     ['alertVideoAn', 'Das hochgeladene Video statt des gezeichneten Buchs zeigen', 'bool', 'Gilt nur, wenn oben ein Video hochgeladen ist. Ohne Video oder bei einem Fehler kommt das gezeichnete Buch.'],
     ['alertVideoKey', 'Magenta im Video durchsichtig machen', 'bool', 'Das Video hat einen einfarbig magentafarbenen Hintergrund (#FF00FF). Er wird ausgeschnitten, sodass nur das Buch zu sehen ist.'],
@@ -319,7 +325,7 @@ const SCHEMA = [
 ];
 let current = null;
 // Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
-const TOGGLE_GROUPS = new Set(['Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
+const TOGGLE_GROUPS = new Set(['Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
 const SYNC_KEYS = ['alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
@@ -672,6 +678,21 @@ async function loadVideos() {
   for (const b of document.querySelectorAll('#videos [data-weg-s], #videoBib [data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
+// ---- Stream-Pause: von Hand starten und beenden
+let pauseData = null;
+function renderPause() {
+  const s = pauseData.state;
+  $('pauseUrl').textContent = `${location.origin}/pause`;
+  $('pauseText').placeholder = pauseData.defaultText;
+  $('pauseInfo').innerHTML = s.active ? `<b>Pause läuft:</b> „${esc(s.text)}“ seit ${new Date(s.startedAt).toLocaleTimeString('de-DE', { timeStyle: 'short' })} Uhr.` : 'Gerade läuft keine Pause.';
+  $('pauseStart').textContent = s.active ? 'Text ändern' : 'Pause starten';
+  $('pauseStop').disabled = !s.active;
+}
+async function loadPause() { pauseData = await api('GET', 'pause'); renderPause(); }
+$('pauseStart').onclick = run(async () => { pauseData = await api('POST', 'pause/start', { text: $('pauseText').value, minutes: $('pauseMin').value }); renderPause(); meldung('Pause läuft ✓'); });
+$('pauseStop').onclick = run(async () => { pauseData = await api('POST', 'pause/stop', {}); renderPause(); meldung('Pause beendet ✓'); });
+$('pauseCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/pause`).then(() => meldung('Kopiert'));
+
 // ---- Alert-Video (Buch, das aufklappt): ein Video, auf dessen Seite der Bot den Text einblendet
 async function loadAlertVideo() {
   const box = $('alertVideo'); if (!box) return;
@@ -719,7 +740,7 @@ async function start() {
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

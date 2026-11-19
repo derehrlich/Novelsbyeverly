@@ -250,6 +250,19 @@
       </section>
       <div class="folds" data-schema="Alerts|Raids|Alert-Texte (im Buch)|Alert-Chattexte|Alert-Video"></div>
     </div>
+    <div class="tab-panel" data-panel="auszeit" hidden>
+      <h1>Stream-Pause</h1>
+      <p class="leise lead">Eine kleine Tafel mit dampfender Tasse („Kurz Trinkpause“, „Weiter in etwa 4:32“) für Zuschauer, die gerade hereinschauen. Nicht zu verwechseln mit der Pomodoro-Pause.</p>
+      <section class="karte">
+        <h2>Pause starten und beenden</h2>
+        <div class="reihe"><input id="pauseText" type="text" maxlength="80" placeholder="Kurze Pause" style="flex:1; min-width:220px"><input id="pauseMin" type="number" min="1" max="240" placeholder="Minuten (leer = offen)" style="width:240px"></div>
+        <div class="reihe"><button id="pauseStart">Pause starten</button><button class="hell" id="pauseStop">Pause beenden</button></div>
+        <p class="leise" id="pauseInfo"></p>
+        <p class="leise">Im Chat (nur Moderation und Streamerin): <code>!auszeit 5 Trinkpause</code> startet, <code>!zurueck</code> beendet. Die Pomodoro-Pause bleibt <code>!pause</code>.</p>
+        <p class="leise">OBS-Browserquelle: <code id="pauseUrl"></code> <button class="hell klein" id="pauseCopy" type="button">Kopieren</button><br>Platz und Größe: <code>?pos=top</code> (oder bottom, top-left, top-right, bottom-left, bottom-right), <code>?size=0.8</code>, zum Ansehen <code>?demo</code>.</p>
+      </section>
+      <div class="folds" data-schema="Stream-Pause"></div>
+    </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>
       <h1>Mitschreibende</h1>
       <p class="leise lead">Alle, die schon dabei waren, mit Arbeitszeit, Wörtern und Besuchen.</p>
@@ -267,6 +280,7 @@
     <section class="karte">
       <h2>Chat-Befehle</h2>
       <table>
+        <tr><td><code>!auszeit [Min] Text</code> · <code>!zurueck</code></td><td>Stream-Pause mit Tafel im Overlay <code>/pause</code> (nur Moderation, wenn eingeschaltet)</td></tr>
         <tr><td><code>!pomodoro [Min]</code> · <code>!pause [Min]</code> · <code>!stop</code></td><td>Timer (nur Moderation und Streamerin)</td></tr>
         <tr><td><code>!pomodoros 6</code> · <code>!ziel 1500</code></td><td>Pomodoro-Ziel bzw. Wörterziel für heute (nur Streamerin)</td></tr>
         <tr><td><code>!task Text</code> · <code>!done [Nr]</code> · <code>!tasks</code></td><td>To-Do anlegen, abhaken, auflisten</td></tr>

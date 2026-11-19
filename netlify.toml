@@ -16,6 +16,11 @@
   status = 200
 
 [[redirects]]
+  from = "/pause"
+  to = "/pause.html"
+  status = 200
+
+[[redirects]]
   from = "/rangliste"
   to = "/rangliste.html"
   status = 200
