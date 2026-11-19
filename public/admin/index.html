@@ -269,6 +269,31 @@
       </section>
       <div class="folds" data-schema="Stream-Pause"></div>
     </div>
+    <div class="tab-panel" data-panel="startscreen" hidden>
+      <h1>Startbildschirm</h1>
+      <p class="leise lead">„Gleich geht’s los“ vor dem Stream: Countdown, ein Schreib-Fortschrittsbalken („Der Kaffee wird gekocht …“) und wechselnde Schreib-Sprüche. Die Seite bleibt in OBS unsichtbar, bis du sie hier startest.</p>
+      <section class="karte">
+        <h2>Starten, verlängern, beenden</h2>
+        <div class="reihe"><label>Vorlauf (Minuten) <input id="ssMin" type="number" min="1" max="240" style="width:90px"></label><label>Spruch wechselt alle (Sekunden) <input id="ssRot" type="number" min="4" max="60" style="width:90px"></label></div>
+        <div class="reihe"><button id="ssStart">Startbildschirm starten</button><button class="hell" id="ssPlus">+5 Minuten</button><button class="hell" id="ssStop">Beenden</button></div>
+        <p class="leise" id="ssInfo"></p>
+        <p class="leise">OBS-Browserquelle (1920×1080, füllt das ganze Bild): <code id="ssUrl"></code> <button class="hell klein" id="ssCopy" type="button">Kopieren</button><br>Mit durchsichtigem Hintergrund (deine Szene bleibt sichtbar): <code id="ssUrl2"></code><br>Zum Ansehen ohne Start: <a href="/startscreen?demo" target="_blank" rel="noopener">Vorschau (3 Minuten)</a></p>
+      </section>
+      <section class="karte">
+        <h2>Texte</h2>
+        <div class="reihe"><label style="flex:1;min-width:260px">Überschrift <input id="ssTitle" type="text" maxlength="60" style="width:100%"></label><label style="flex:1;min-width:260px">Zeile darunter <input id="ssSub" type="text" maxlength="80" style="width:100%"></label></div>
+        <label>Text, wenn die Zeit um ist <input id="ssEnd" type="text" maxlength="80" style="width:100%"></label>
+        <label class="reihe"><input id="ssProg" type="checkbox"> Schreib-Fortschrittsbalken zeigen (Kaffee, Stifte, Notizbuch …)</label>
+        <label>Schreib-Sprüche (einer pro Zeile, am schönsten als <code>Überschrift | Text</code>)<textarea id="ssFacts" rows="8" style="width:100%"></textarea></label>
+        <div class="reihe"><button id="ssSave">Texte speichern</button><button class="hell" id="ssDefault" type="button">Beispiel-Sprüche laden</button></div>
+      </section>
+      <section class="karte">
+        <h2>Hintergrund</h2>
+        <p class="leise">Ein Bild (PNG, JPG, GIF, WebP, am besten 1920×1080) oder eine <b>HTML-Datei mit Animation</b> (eine einzelne Datei, bis 8 MB; sie läuft abgeschottet und hat keinen Zugriff auf den Bot). Ohne eigenen Hintergrund gibt es einen warmen Abend mit schwebenden Lichtern.</p>
+        <div class="reihe"><label class="knopf hell" for="ssBg">Datei wählen</label><input type="file" id="ssBg" accept="image/png,image/jpeg,image/gif,image/webp,text/html,.html" hidden><button class="hell" id="ssBgReset" type="button">Eigenen Hintergrund entfernen</button></div>
+        <p class="leise" id="ssErr"></p>
+      </section>
+    </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>
       <h1>Mitschreibende</h1>
       <p class="leise lead">Alle, die schon dabei waren, mit Arbeitszeit, Wörtern und Besuchen.</p>
