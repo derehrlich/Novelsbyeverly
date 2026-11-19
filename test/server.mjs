@@ -74,7 +74,7 @@ const ok = (name) => { n++; console.log('  ok', name); };
     const r = await get(`/admin/dock-${d}.html`);
     assert.equal(r.status, 200, d);
     const html = await r.text();
-    assert.match(html, d === 'alles' ? /dock-pomodoro/ : /dock\.js/);
+    assert.match(html, d === 'alles' ? /data-s="design"/ : /dock\.js/);
     assert.equal((await get('/admin/dock.js')).status, 200);
   }
   assert.equal((await get('/api/admin/tasks')).status, 401, 'Docks brauchen die Anmeldung');
