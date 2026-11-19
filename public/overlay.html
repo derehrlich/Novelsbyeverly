@@ -229,10 +229,14 @@ let musikNow = null, musikBusy = false;
 
 // ---- Ton: kleines Glockenspiel mit WebAudio (OBS: "Audio über OBS steuern" aktivieren)
 let audio = null;
+// Browser starten den Ton erst nach einem Klick auf die Seite (in OBS nicht nötig). Darum jedes Mal aufwecken und beim ersten Klick/Tastendruck gleich mit.
+function wecke() { try { audio ??= new AudioContext(); if (audio.state === 'suspended') audio.resume().catch(() => {}); } catch { /* ohne Ton weiter */ } return audio; }
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, () => { if (ton) wecke(); }, { passive: true });
+if (ton) wecke();
 function chime(notes = [660, 880, 1320], gap = 0.16) {
   if (!ton) return;
   try {
-    audio ??= new AudioContext();
+    wecke();
     notes.forEach((f, i) => {
       const t = audio.currentTime + i * gap, o = audio.createOscillator(), g = audio.createGain();
       o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
@@ -246,7 +250,7 @@ function chime(notes = [660, 880, 1320], gap = 0.16) {
 const toene = new Map(); // Adresse -> Promise<AudioBuffer>
 function ladeTon(url) {
   if (!toene.has(url)) {
-    audio ??= new AudioContext();
+    wecke();
     toene.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`Ton nicht ladbar (${r.status})`); return r.arrayBuffer(); }).then((b) => audio.decodeAudioData(b)).catch((e) => { toene.delete(url); throw e; }));
   }
   return toene.get(url);
@@ -257,7 +261,7 @@ async function alertSound(kind, notes) {
   if (!url) { chime(notes); return; }
   try {
     const buf = await ladeTon(url);
-    if (audio.state === 'suspended') await audio.resume();
+    if (audio.state === 'suspended') await audio.resume().catch(() => {});
     const src = audio.createBufferSource(), g = audio.createGain();
     g.gain.value = Math.min(1, Math.max(0, (view.alertSoundVolume ?? 80) / 100));
     src.buffer = buf; src.connect(g).connect(audio.destination); src.start();
