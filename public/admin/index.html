@@ -243,6 +243,12 @@
         </div>
       </section>
       <section class="karte">
+        <h2>Eigene Töne</h2>
+        <p class="leise">Für jede Alert-Art kannst du einen eigenen Ton hochladen (MP3, WAV oder OGG, höchstens 1,5 MB, am besten 1 bis 5 Sekunden). Er spielt, wenn das Buch aufklappt, und ersetzt den Standard-Klang. Ohne eigenen Ton gibt es den kleinen Klang. Die Lautstärke stellst du unter „Alerts“ ein. In OBS muss bei der Browserquelle „Audio über OBS steuern“ an sein.</p>
+        <div class="tabelle" id="soundListe"><span class="leise">lädt …</span></div>
+        <p class="leise" id="soundStatus"></p>
+      </section>
+      <section class="karte">
         <h2>Eigenes Video statt des gezeichneten Buchs</h2>
         <p class="leise">Lade ein Video hoch, in dem ein Buch aufklappt, kurz offen bleibt und wieder zuklappt (MP4 oder WebM, höchstens 80 MB, Hintergrund einfarbig <b>Magenta #FF00FF</b>). Der Bot schreibt das Ereignis auf die aufgeklappte Seite. Die Länge des Videos bestimmt, wie lange der Alert dauert. Den Prompt für Gemini findest du in <code>docs/alert-video.md</code>. Nur auf dem Heimserver.</p>
         <div id="alertVideo"><span class="leise">lädt …</span></div>

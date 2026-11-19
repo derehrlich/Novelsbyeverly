@@ -16,3 +16,12 @@ zeigt das Ereignis und klappt wieder zu. Optional schreibt der Bot ein Danke in 
 
 ## Eigenes Video statt des gezeichneten Buchs
 Siehe `docs/alert-video.md`.
+
+## Eigene Töne für die Alerts
+Admin → Stream → **Alerts und Raids** → Karte **„Eigene Töne“**: Für jede Alert-Art (Follow, Abo, Abo-Jubiläum, Geschenk-Abos, Bits, Raid, Streak-Rettung) kannst du einen eigenen Ton hochladen.
+- Dateien: **MP3, WAV oder OGG**, höchstens 1,5 MB, am besten 1 bis 5 Sekunden.
+- Der Ton spielt, wenn das Buch aufklappt, und **ersetzt den Standard-Klang**. Ohne eigenen Ton gibt es den kleinen Klang wie bisher.
+- „▶ Anhören“ spielt ihn im Admin ab, „Alert ausprobieren“ zeigt den Alert im Overlay (und spielt dort den Ton).
+- Die **Lautstärke** stellst du in der Karte „Alerts“ ein (0 bis 100, Standard 80).
+- In OBS muss bei der Browserquelle **„Audio über OBS steuern“** angehaltet sein, sonst hörst du im Stream nichts. Mit `?ton=aus` an der Adresse bleibt das Overlay stumm.
+- Die Töne sind in der Sicherung enthalten.
