@@ -85,6 +85,17 @@ export async function sendChat(message, { replyTo } = {}) {
   });
 }
 
+// Öffentliche Kanalangaben (App-Token genügt): Konto zu einem Loginnamen, Spiel und Profilbild eines Kanals
+export async function userByLogin(login) {
+  const l = String(login ?? '').replace(/^@/, '').toLowerCase();
+  if (!/^[a-z0-9_]{2,25}$/.test(l)) return null;
+  return (await helix('GET', 'users', { as: 'app', query: { login: l } })).data?.[0] ?? null;
+}
+export async function channelInfo(id) {
+  const c = (await helix('GET', 'channels', { as: 'app', query: { broadcaster_id: id } })).data?.[0];
+  return c ? { game: c.game_name ?? '', title: c.title ?? '' } : null;
+}
+
 export async function setRedemptionStatus(redemptionId, rewardId, status) {
   const { user_id } = await userToken();
   try {

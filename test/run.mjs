@@ -40,7 +40,9 @@ globalThis.fetch = async (url, init = {}) => {
     subs.push(sub); return ok({ data: [sub] }, 202);
   }
   if (u.pathname.endsWith('/chat/messages')) return ok({ data: [{ is_sent: true }] });
-  if (u.pathname.endsWith('/helix/streams')) return ok({ data: liveStart ? [{ started_at: liveStart }] : [] });
+  if (u.pathname.endsWith('/helix/streams')) return ok({ data: liveStart ? [{ started_at: liveStart, game_name: 'Just Chatting', title: 'Schreibabend', viewer_count: 7 }] : [] });
+  if (u.pathname.endsWith('/helix/users') && entry.query.login === 'lena') return ok({ data: [{ id: '42', login: 'lena', display_name: 'Lena' }] });
+  if (u.pathname.endsWith('/helix/channels') && entry.query.broadcaster_id === '42') return ok({ data: [{ game_name: 'Writing', title: 'Kapitel' }] });
   return ok({ data: [] });
 };
 const chatSent = () => calls.filter((c) => c.path.endsWith('/chat/messages')).map((c) => c.body);
@@ -1066,6 +1068,113 @@ await test('Alerts: Anmeldung bei Twitch für Follows, Abos, Bits und Raids, Ber
   res = await adminCall('POST', 'setup', {}, cookie);
   assert.equal(res.body.warnings, undefined); // ohne Alerts keine Warnung, auch wenn die Berechtigungen fehlen
   assert.ok(!subs.some((s) => s.type === 'channel.raid'));
+});
+
+console.log('Eigene Befehle, Zitate, Shoutout');
+const cmdLib = await mod('lib/befehle.mjs');
+await test('Eigene Befehle: Liste prüfen (Wörter, Arten, Grenzen)', async () => {
+  const ok = cmdLib.cleanCommands([{ type: 'command', word: '!Ant', text: 'Hallo {user}' }, { type: 'keyword', word: 'Moin', text: 'Moin!' }, { type: 'timer', minutes: 1, minMessages: 999, text: 'Trink was' }, { type: 'command', word: 'buch', text: '', bookTitle: 'Neues Buch' }], ['sprint']);
+  assert.equal(ok.commands.length, 4); assert.deepEqual(ok.commands.map((c) => c.word), ['ant', 'moin', '', 'buch']);
+  assert.deepEqual({ min: ok.commands[2].minutes, msgs: ok.commands[2].minMessages }, { min: 5, msgs: 100 }); // Grenzen
+  assert.match(ok.commands[0].id, /^[a-f0-9]{8}$/);
+  for (const bad of [[{ word: 'sprint', text: 'x' }], [{ word: 'a', text: 'x' }], [{ word: 'ant', text: '' }], [{ word: 'ant', text: 'a' }, { word: '!ANT', text: 'b' }], [{ type: 'keyword', word: 'x', text: 'a' }]]) assert.ok(cmdLib.cleanCommands(bad, ['sprint']).error);
+  assert.ok(cmdLib.cleanCommands(Array.from({ length: 41 }, (_, i) => ({ word: `befehl${i}`, text: 'x' }))).error);
+  assert.ok(cmdLib.cleanCommands('kaputt').error);
+});
+await test('Eigene Befehle: Chat (Befehl, Rolle, Zähler, Stichwort, Buch, doppelte Zustellung)', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const modB = { badges: [{ set_id: 'moderator' }] };
+  await saveSettings({ chatEnabled: true, chatCommands: true, customCommandsEnabled: false });
+  assert.equal((await adminCall('GET', 'commands', null)).status, 401);
+  assert.equal((await adminCall('PUT', 'commands', { commands: [{ word: 'sprint', text: 'x' }] }, cookie)).status, 400); // schon ein Befehl des Bots
+  const put = await adminCall('PUT', 'commands', { commands: [
+    { type: 'command', word: 'ant', text: 'Hallo {user}, du fragst: {args}', cooldown: 0 },
+    { type: 'command', word: 'kaffee', text: 'Das {count}. Kaffee heute ☕', cooldown: 0, bookTitle: 'Kaffee Nr. {count}', bookText: 'für {user}' },
+    { type: 'command', word: 'geheim', text: 'nur Mods', role: 'mod', cooldown: 0 },
+    { type: 'command', word: 'langsam', text: 'langsam', cooldown: 60 },
+    { type: 'keyword', word: 'moin', text: 'Moin {user}!', cooldown: 0 },
+  ] }, cookie);
+  assert.equal(put.status, 200); assert.equal(put.body.commands.length, 5);
+  const n0 = chatSent().length;
+  await say('80', 'Anna', '!ant'); assert.equal(chatSent().length, n0); // noch ausgeschaltet
+  await saveSettings({ customCommandsEnabled: true });
+  assert.equal((await say('80', 'Anna', '!ant wie geht es?')).message, 'Hallo Anna, du fragst: wie geht es?');
+  const ev0 = (await events()).length;
+  assert.equal((await say('80', 'Anna', '!kaffee')).message, 'Das 1. Kaffee heute ☕');
+  assert.equal((await say('81', 'Ben', '!kaffee')).message, 'Das 2. Kaffee heute ☕');
+  const book = (await events()).slice(ev0).at(-1);
+  assert.deepEqual({ type: book.type, kind: book.kind, title: book.title, message: book.message }, { type: 'alert', kind: 'command', title: 'Kaffee Nr. 2', message: 'für Ben' });
+  const m = chatSent().length; await say('80', 'Anna', '!geheim'); assert.equal(chatSent().length, m); // nur Moderation
+  assert.equal((await say('90', 'Mod', '!geheim', modB)).message, 'nur Mods');
+  await say('80', 'Anna', '!langsam'); const k = chatSent().length; await say('80', 'Anna', '!langsam'); assert.equal(chatSent().length, k); // Wartezeit
+  assert.equal((await say('80', 'Anna', 'Na, moin zusammen')).message, 'Moin Anna!'); // Stichwort mitten im Satz
+  const j = chatSent().length; await say('80', 'Anna', 'Halloween ist schön'); await say('80', 'Anna', 'moinsen'); assert.equal(chatSent().length, j); // nur ganze Wörter
+  await say('999', 'Streamerin', 'moin', { chatter_user_id: '999' }); assert.equal(chatSent().length, j); // nie auf die Streamerin selbst (Endlosschleife)
+  const dup = chatEvent('82', 'Cleo', '!ant doppelt', { message_id: 'same-1' }); const c0 = chatSent().length;
+  await webhook(sign(dup)); await webhook(sign(dup)); assert.equal(chatSent().length, c0 + 1); // doppelt zugestellt: einmal
+  // Vorschau im Admin: kein Chat, Zähler läuft nicht weiter
+  const id = put.body.commands.find((c) => c.word === 'kaffee').id; const c1 = chatSent().length;
+  const t = await adminCall('POST', `commands/test/${id}`, {}, cookie); assert.equal(t.body.text, 'Das 3. Kaffee heute ☕'); assert.equal(chatSent().length, c1);
+  assert.equal((await say('80', 'Anna', '!kaffee')).message, 'Das 3. Kaffee heute ☕'); // der Test hat nicht mitgezählt
+  assert.equal((await adminCall('POST', 'commands/test/00000000', {}, cookie)).status, 404);
+  // Sicherung, Aufräumen, Wörter gegenseitig sperren
+  assert.ok((await backupLib.buildBackup()).entries['cmd/list']); assert.ok((await backupLib.buildBackup()).entries[`counter/${id}`]);
+  assert.equal((await adminCall('PUT', 'pause/presets', { presets: [{ word: 'ant', text: 'Pause' }] }, cookie)).status, 400); // Wort schon als eigener Befehl vergeben
+  assert.equal((await adminCall('PUT', 'commands', { commands: put.body.commands.filter((c) => c.word !== 'kaffee') }, cookie)).status, 200);
+  assert.equal(await db.get(`counter/${id}`), null);
+  const help0 = (await say('80', 'Anna', '!hilfe')).message;
+  await adminCall('PUT', 'commands', { commands: [{ type: 'command', word: 'ant', text: 'x' }, { type: 'command', word: 'geheim', text: 'y', role: 'mod' }] }, cookie);
+  const help1 = (await say('80', 'Anna', '!hilfe')).message; assert.ok(help1.endsWith(' · !ant')); assert.ok(!help1.includes('geheim')); assert.ok(help1.startsWith(help0.replace(/ · !ant.*$/, ''))); // eigene Befehle für alle stehen in der Hilfe, Mod-Befehle nicht
+  await adminCall('PUT', 'commands', { commands: [] }, cookie);
+  await saveSettings({ customCommandsEnabled: false });
+});
+await test('Eigene Befehle: Erinnerungen kommen nur, wenn im Chat etwas los ist', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  await saveSettings({ chatEnabled: true, customCommandsEnabled: true });
+  await db.delete('state/chatpulse');
+  await adminCall('PUT', 'commands', { commands: [{ type: 'timer', minutes: 10, minMessages: 3, text: 'Trink etwas! 💧' }] }, cookie);
+  const settings = await getSettings(); const t0 = Date.now(); const n0 = chatSent().length;
+  assert.equal(await cmdLib.tickTimers(settings, t0 + 11 * 60_000), 0); // niemand schreibt
+  for (let i = 0; i < 3; i += 1) await cmdLib.recordPulse(t0 + 12 * 60_000 + i);
+  assert.equal(await cmdLib.tickTimers(settings, t0 + 13 * 60_000), 1);
+  assert.equal(lastChat().message, 'Trink etwas! 💧'); assert.equal(chatSent().length, n0 + 1);
+  assert.equal(await cmdLib.tickTimers(settings, t0 + 14 * 60_000), 0); // Intervall noch nicht um
+  await adminCall('PUT', 'commands', { commands: [] }, cookie);
+  await saveSettings({ customCommandsEnabled: false });
+});
+await test('Zitate und Shoutout: Befehle im Chat, nur Moderation darf ändern, Verwaltung im Admin', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const modB = { badges: [{ set_id: 'moderator' }] };
+  await saveSettings({ chatEnabled: true, chatCommands: true, quoteEnabled: false, soEnabled: false });
+  const n0 = chatSent().length; await say('90', 'Mod', '!addzitat Test', modB); await say('90', 'Mod', '!so lena', modB); assert.equal(chatSent().length, n0); // ausgeschaltet
+  await saveSettings({ quoteEnabled: true, soEnabled: true });
+  assert.match((await say('80', 'Anna', '!zitat')).message, /keine Zitate/);
+  const m = chatSent().length; await say('80', 'Anna', '!addzitat Zuschauer darf nicht'); assert.equal(chatSent().length, m);
+  assert.match((await say('90', 'Mod', '!addzitat Ein Kapitel am Tag hält die Muse wach', modB)).message, /Zitat #1 ist gespeichert, danke Mod/);
+  await say('90', 'Mod', '!addzitat Zweites Zitat', modB);
+  assert.match((await say('80', 'Anna', '!zitat 1')).message, /Zitat #1: „Ein Kapitel am Tag hält die Muse wach“ – Mod, \d{2}\.\d{2}\.\d{4}/);
+  assert.match((await say('80', 'Anna', '!quote #2')).message, /Zweites Zitat/);
+  assert.match((await say('80', 'Anna', '!zitat 9')).message, /keine Zitate \(oder diese Nummer/);
+  assert.match((await say('90', 'Mod', '!addzitat', modB)).message, /schreib das Zitat hinter den Befehl/);
+  assert.match((await say('90', 'Mod', '!delzitat 9', modB)).message, /gibt es nicht/);
+  assert.match((await say('90', 'Mod', '!delzitat 2', modB)).message, /Zitat #2 ist gelöscht/);
+  assert.deepEqual((await adminCall('GET', 'quotes', null, cookie)).body.quotes.map((q) => q.n), [1]);
+  let r = await adminCall('POST', 'quotes', { text: 'Aus dem Admin' }, cookie); assert.deepEqual(r.body.quotes.map((q) => q.n), [1, 3]); // gelöschte Nummern werden nicht neu vergeben
+  assert.equal((await adminCall('POST', 'quotes', { text: '  ' }, cookie)).status, 400);
+  assert.equal((await adminCall('DELETE', 'quotes/99', null, cookie)).status, 404);
+  assert.ok((await backupLib.buildBackup()).entries['quote/1']); assert.ok((await backupLib.buildBackup()).entries['quotemeta/counter']);
+  for (const q of [1, 3]) await adminCall('DELETE', `quotes/${q}`, null, cookie);
+  // Shoutout
+  const s0 = chatSent().length; await say('80', 'Anna', '!so lena'); assert.equal(chatSent().length, s0); // nur Moderation
+  assert.equal((await say('90', 'Mod', '!so @Lena', modB)).message, '💛 Schaut bei Lena vorbei! Zuletzt gespielt: Writing → twitch.tv/lena');
+  assert.equal(chatSent().at(-1).reply_parent_message_id, undefined); // eigene Nachricht, keine Antwort
+  assert.match((await say('90', 'Mod', '!so niemandda', modB)).message, /gibt es nicht/);
+  assert.match((await say('90', 'Mod', '!so', modB)).message, /wen soll ich shouten/);
+  assert.match((await say('90', 'Mod', '!so ../../x', modB)).message, /gibt es nicht/);
+  await saveSettings({ quoteEnabled: false, soEnabled: false });
 });
 
 console.log('Stream-Pause');

@@ -203,5 +203,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { tick: timerTick } = await import('./netlify/lib/timer.mjs');
   const { getSettings } = await import('./netlify/lib/settings.mjs');
   setInterval(() => getSettings().then((st) => timerTick(st)).catch((e) => console.error('Timer:', e.message)), 5_000).unref();
+  // Erinnerungen (eigene Chat-Befehle vom Typ „Erinnerung“): alle 30 Sekunden prüfen, ob eine fällig ist
+  const { tickTimers } = await import('./netlify/lib/befehle.mjs');
+  setInterval(() => getSettings().then((st) => (st.customCommandsEnabled ? tickTimers(st) : 0)).catch((e) => console.error('Erinnerungen:', e.message)), 30_000).unref();
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => server.close(() => process.exit(0)));
 }

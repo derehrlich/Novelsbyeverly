@@ -21,6 +21,9 @@ export async function streamerId() {
   return (await storedTokens('broadcaster'))?.user_id ?? STREAMER_TASKS;
 }
 
+// Kennung dieses Programmstands: Das Overlay lädt sich nach einem Update selbst neu (sonst läuft in OBS der alte Programmcode weiter, bis man die Quelle von Hand aktualisiert).
+// Heimserver: Startzeit des Prozesses (ändert sich bei jedem Update/Neustart). Netlify: Commit der Veröffentlichung, falls bekannt.
+const BUILD = process.env.LOCAL_STORE_DIR ? String(Date.now()) : (process.env.COMMIT_REF ?? '');
 export const SZENEN_KULISSE = ['zug', 'sitzecke', 'stadt', 'see'];
 const RAUM_KEY = { zug: 'raumZug', sitzecke: 'raumSitzecke', stadt: 'raumStadt', see: 'raumSee' };
 // Was hinter den Karten liegt: Landschaft (gemalt), eigenes Bild oder eine der Szenen mit bewegtem Ausblick
@@ -109,7 +112,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     pavillon: !!settings.pavillonZeigen,
     alertVideo: await alertVideoOf(settings),
-    alertSounds: await soundUrls(), alertSoundVolume: settings.alertSoundVolume,
+    alertSounds: await soundUrls(), alertSoundVolume: settings.alertSoundVolume, build: BUILD,
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,

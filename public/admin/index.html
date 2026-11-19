@@ -300,6 +300,24 @@
         <p class="leise" id="ssErr"></p>
       </section>
     </div>
+    <div class="tab-panel" data-panel="befehle" hidden>
+      <h1>Eigene Befehle und Zitate</h1>
+      <p class="leise lead">Eigene Chat-Befehle (zum Beispiel <code>!buch</code> oder <code>!discord</code>), Stichwörter, Erinnerungen, ein Zitate-Buch und Shoutouts.</p>
+      <section class="karte">
+        <h2>Eigene Befehle</h2>
+        <p class="leise">Es gibt drei Arten: <b>Befehl</b> (<code>!ant</code> löst aus), <b>Stichwort</b> (löst aus, sobald das Wort irgendwo in einer Nachricht steht) und <b>Erinnerung</b> (kommt alle paar Minuten von selbst, aber nur, wenn im Chat etwas los ist). Du kannst im Chat antworten, optional das Buch im Overlay zeigen oder beides. Platzhalter: <code>{user}</code> (wer es ausgelöst hat), <code>{args}</code> (der Text nach dem Befehl), <code>{count}</code> (zählt bei jedem Mal hoch, zum Beispiel für <code>!kaffee</code>), <code>{random}</code> (Zahl 1 bis 100), <code>{game}</code> <code>{title}</code> <code>{uptime}</code> <code>{viewers}</code> (live von Twitch). Zuerst die Funktion unten einschalten.</p>
+        <div id="cmdListe"></div>
+        <div class="reihe"><button class="hell" id="cmdNeu" type="button">+ Befehl hinzufügen</button><button id="cmdSpeichern" type="button">Befehle speichern</button></div>
+        <p class="leise" id="cmdStatus"></p>
+      </section>
+      <section class="karte">
+        <h2>Zitate</h2>
+        <p class="leise">Im Chat: <code>!zitat</code> (zufällig), <code>!zitat 5</code>, <code>!addzitat Text</code> und <code>!delzitat 5</code> (die beiden nur für Moderation). Hier kannst du sie auch ansehen, ergänzen und löschen.</p>
+        <div id="zitatListe"></div>
+        <div class="reihe"><input id="zitatText" type="text" maxlength="300" placeholder="Neues Zitat" style="flex:1;min-width:260px"><button id="zitatAdd" type="button">Zitat speichern</button></div>
+      </section>
+      <div class="folds" data-schema="Eigene Befehle|Zitate|Shoutout"></div>
+    </div>
     <div class="tab-panel" data-panel="mitschreibende" hidden>
       <h1>Mitschreibende</h1>
       <p class="leise lead">Alle, die schon dabei waren, mit Arbeitszeit, Wörtern und Besuchen.</p>
