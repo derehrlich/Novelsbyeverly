@@ -32,3 +32,16 @@ Tipps:
    - **Text erscheint ab / verschwindet bei**: Zeitraum in Prozent der Videolänge. Beim 8-Sekunden-Prompt passen 40 % bis 72 % (Buch ist von etwa 3 bis 6 Sekunden offen).
    - **Schriftgröße**.
 4. Nicht mehr gewünscht? „Entfernen“ (oder den Haken bei „Das hochgeladene Video … zeigen“ wegnehmen): dann kommt wieder das gezeichnete Buch.
+
+## Das erste echte Video (Gemini, 10 Sekunden)
+Die Standardwerte der Karte „Alert-Video“ sind auf das Video abgestimmt, das Marcel mit Gemini erzeugt hat (1280×720, 10 Sekunden, rosa Hintergrund, Buch öffnet sich bei etwa 2 s, ist von 2,5 bis 6,5 s offen, schließt sich bis 7,5 s, danach ruht das geschlossene Buch noch 2,5 s):
+- Der Hintergrund muss nicht reines Magenta sein, ein kräftiges Rosa wird auch ausgeschnitten.
+- **Breite 90 %**, Mitte bei **46 %** der Bildhöhe. Das Buch ist im Video klein, deshalb wird es groß eingeblendet.
+- **Rechte Seite** (Text): von links 53 %, von oben 26 %, Breite 18 %, Höhe 46 %. **Linke Seite** (Symbol, Art, Zahl, bei Raids das Profilbild) liegt spiegelbildlich dazu, ausschaltbar mit „Auch die linke Seite beschriften“.
+- Text erscheint bei **28 %** (Buch ist offen), verschwindet bei **63 %** (Buch beginnt zuzuklappen).
+- **Alert endet bei 78 %**: Danach blendet der Bot das Video aus, statt die ruhige Strecke mit geschlossenem Buch zu zeigen. Bei Videos ohne Leerlauf am Ende „Alert endet bei“ auf 100 stellen.
+- Der Ton des Videos wird nicht abgespielt.
+- Ein Video mit anderem Aufbau braucht andere Werte: Zeitraum (Von/Bis) nach der Zeit, in der das Buch offen ist, Textfeld nach der Lage der Seiten.
+- Läuft das MP4 in OBS nicht, hilft ein Umwandeln in WebM (zum Beispiel mit einem Online-Konverter oder `ffmpeg -i video.mp4 -c:v libvpx-vp9 -b:v 1.5M -an video.webm`).
+
+Tipp für einen besseren Prompt bei Gemini: das Buch gleich zu Beginn näher zeigen (es füllt nur etwa die Hälfte des Bildes) und das Video kürzer halten (8 Sekunden), ohne ruhige Strecke am Ende.
