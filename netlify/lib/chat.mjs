@@ -7,6 +7,7 @@ import { addTask, completeTask, getTasks } from './tasks.mjs';
 import { addViewerWords, addWords, getWords, setAbsolute } from './words.mjs';
 import { announceCredit, getTimer, say, startBreak, startFocus, stopTimer, tick } from './timer.mjs';
 import { fill, fmtDuration, fmtNumber, pushEvent } from './util.mjs';
+import * as streamPause from './pause.mjs';
 import { storedTokens } from './twitch.mjs';
 import { clearMusik, setMusik } from './musik.mjs';
 import { addPages, getPages, setPages } from './pages.mjs';
@@ -32,6 +33,7 @@ const COMMANDS = {
   song: 'song', musik: 'song',
   seiten: 'pages', seitenziel: 'pagegoal', stream: 'stream',
   pause: 'pause',
+  auszeit: 'streampause', zurueck: 'streamweiter', weiter: 'streamweiter',
   stop: 'stop', stopp: 'stop',
   szene: 'scene', ort: 'scene',
   wetter: 'weather', tageszeit: 'daytime', zeit: 'daytime', hintergrund: 'backdrop',
@@ -39,7 +41,7 @@ const COMMANDS = {
   rangliste: 'ranking', top: 'ranking', punkte: 'points',
   hilfe: 'help', befehle: 'help', commands: 'help',
 };
-const MOD_ONLY = new Set(['sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
+const MOD_ONLY = new Set(['streampause', 'streamweiter', 'sprint', 'pause', 'stop', 'scene', 'song', 'stream', 'weather', 'daytime', 'backdrop']);
 const BROADCASTER_ONLY = new Set(['goal', 'pgoal', 'pages', 'pagegoal']);
 // Nur im Zimmer-Modus (Figuren der Zuschauer); in der Landschaft sind sie pausiert
 const ZIMMER_ONLY = new Set(['sit', 'leave', 'figure', 'rank']);
@@ -76,6 +78,7 @@ export async function handleChat(e, settings = null) {
   if (!action) return { ok: true };
   if (e.message_id && !(await db.setIfNew(`seen/chat-${e.message_id}`, Date.now()))) return { ok: true }; // doppelt zugestellt
   if (ZIMMER_ONLY.has(action) && settings.szeneModus !== 'zimmer') return { ok: true };
+  if ((action === 'streampause' || action === 'streamweiter') && !settings.pauseEnabled) return { ok: true };
   if (action === 'streak' && !settings.checkinEnabled) return { ok: true };
   if ((action === 'ranking' || action === 'points') && !settings.pointsEnabled) return { ok: true };
   if (MOD_ONLY.has(action) && !isMod) return { ok: true };
@@ -92,6 +95,8 @@ const pre = (s) => s.commandPrefix;
 async function run(action, ctx) {
   const { id, name, args, settings } = ctx;
   switch (action) {
+    case 'streampause': { const state = await streamPause.start(streamPause.parseArgs(args), settings); return settings.pauseChat ? streamPause.startReply(state, settings) : null; }
+    case 'streamweiter': { const was = await streamPause.stop(); return was.active && settings.pauseChat ? streamPause.endReply(settings) : null; }
     case 'sit': return doSit(ctx);
     case 'weather': case 'daytime': case 'backdrop': return setLook(action, args, settings);
     case 'streak': return (await cooling(`streak-${id}`, settings.commandCooldown)) ? null : streakReply(settings, id, name);
