@@ -116,6 +116,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,
+    kameraRahmen: settings.kameraRahmen,
     glas: { farbe: settings.glasFarbe, staerke: settings.glasStaerke, unschaerfe: settings.glasUnschaerfe },
     hintergrund: await hintergrundOf(settings, resolveTime(settings, new Date(now)), resolveSeason(settings, new Date(now)), Math.min(1, Math.max(0, progress))),
     musik,

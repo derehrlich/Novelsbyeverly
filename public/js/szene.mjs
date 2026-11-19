@@ -285,14 +285,34 @@ function plank(c, w) {
 }
 
 // Rahmen um das Kamerabild. Das Innere wird durchsichtig geschnitten: In OBS liegt die Kamera unter dem Overlay.
-function cameraFrame(c, k) {
+// stil: holz (Holzrahmen mit Blättern, wie in der gemalten Landschaft) | papier | glas | keiner (nur das Loch, kein Rahmen)
+export const KAMERA_RAHMEN = ['holz', 'papier', 'glas', 'keiner'];
+export function cameraFrame(c, k, stil = 'holz') {
   const { x, y, w, h } = k;
+  if (stil === 'papier') {
+    rr(c, x - 18, y - 18, w + 36, h + 36, 32, '#fbf6eb', '#bba98a', 4);
+    rr(c, x - 9, y - 9, w + 18, h + 18, 26, null, alpha('#bba98a', 0.55), 2);
+  } else if (stil === 'glas') {
+    rr(c, x - 20, y - 20, w + 40, h + 40, 34, lg(c, x, y - 20, x, y + h + 20, [[0, 'rgba(255,255,255,.62)'], [1, 'rgba(210,225,235,.4)']]), 'rgba(255,255,255,.75)', 3);
+    rr(c, x - 8, y - 8, w + 16, h + 16, 26, null, 'rgba(255,255,255,.5)', 2);
+  } else if (stil !== 'keiner') {
   rr(c, x - 22, y - 22, w + 44, h + 44, 34, lg(c, x, y - 22, x, y + h + 22, [[0, '#d9bf94'], [1, '#a88660']]), alpha('#2b2118', 0.3), 3);
   rr(c, x - 12, y - 12, w + 24, h + 24, 26, null, alpha('#fff6e0', 0.35), 3);
   for (const [lx, ly, a] of [[x - 14, y + 30, -0.4], [x - 8, y + 56, -0.9], [x + w + 14, y + h - 30, 2.7], [x + w + 8, y + h - 56, 2.2], [x + w * 0.3, y - 18, 0.9], [x + w * 0.7, y + h + 18, 3.9]]) leaf(c, lx, ly, 48, 17, a, '#7f9d6f');
+  }
   c.globalCompositeOperation = 'destination-out';
   rr(c, x, y, w, h, 20, '#000000');
   c.globalCompositeOperation = 'source-over';
+}
+
+/** Bild (Data-URL) für `mask-image`: überall sichtbar, nur das Kamerafenster durchsichtig. Damit liegt die Kamera in OBS nicht hinter dem Hintergrund. */
+export function kameraMaske(k) {
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  c.globalCompositeOperation = 'destination-out';
+  rr(c, k.x, k.y, k.w, k.h, 20, '#000000');
+  return cv.toDataURL('image/png');
 }
 
 export class Szene {
