@@ -98,6 +98,30 @@ export async function setRedemptionStatus(redemptionId, rewardId, status) {
   }
 }
 
+// Streak-Retter-Reward: eigener Kanalpunkte-Reward (Zustand: config/state.streakRewardId). Ist er nicht nötig, wird er in Twitch ausgeschaltet.
+export async function ensureRescueReward(settings, wanted) {
+  const { user_id } = await userToken();
+  const state = (await db.get('config/state')) ?? {};
+  const { data: list } = await helix('GET', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id, only_manageable_rewards: 'true' } });
+  let reward = list.find((r) => r.id === state.streakRewardId) ?? list.find((r) => r.title === settings.streakRewardTitle);
+  if (!wanted) {
+    if (reward && reward.is_enabled) await helix('PATCH', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id, id: reward.id }, body: { is_enabled: false } }).catch(() => {});
+    if (state.streakRewardId) { delete state.streakRewardId; await db.set('config/state', state); }
+    return null;
+  }
+  const fields = { title: settings.streakRewardTitle, cost: settings.streakRewardCost, prompt: 'Rettet deine Besuchsserie (Streak), wenn du ein paar Streams verpasst hast.', is_enabled: true, background_color: '#C97B5A' };
+  if (!reward) {
+    try { reward = (await helix('POST', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id }, body: fields })).data[0]; } catch (e) {
+      if (e.message.includes('DUPLICATE_REWARD')) throw new Error(`Auf deinem Kanal gibt es schon einen Reward „${settings.streakRewardTitle}“, der nicht von dieser App stammt. Benenne oder lösche ihn in Twitch, oder wähle hier einen anderen Namen.`);
+      throw e;
+    }
+  } else if (reward.title !== fields.title || reward.cost !== fields.cost || reward.is_enabled === false) {
+    reward = (await helix('PATCH', 'channel_points/custom_rewards', { query: { broadcaster_id: user_id, id: reward.id }, body: { title: fields.title, cost: fields.cost, is_enabled: true } })).data[0];
+  }
+  await db.set('config/state', { ...((await db.get('config/state')) ?? {}), streakRewardId: reward.id });
+  return reward;
+}
+
 // Legt den Check-in-Reward an oder passt ihn an und merkt sich die ID. Ist er nicht nötig, wird er in Twitch ausgeschaltet.
 export async function ensureCheckinReward(settings, wanted) {
   const { user_id } = await userToken();
@@ -132,7 +156,7 @@ export async function listSubscriptions(webhookUrl) {
 // Alte Abos entfernen und neu anlegen: Reward-Einlösungen (falls nötig) und Chat.
 // Das Chat-Abo läuft über den Bot-Account, wenn einer verbunden ist (Twitch verlangt dann seine Berechtigungen und
 // channel:bot vom Kanal), sonst über den Kanal selbst. Fehlt etwas, kommt eine Meldung statt eines Abbruchs.
-export async function subscribe(webhookUrl, { rewardId = null, chat = true, alerts = false, raids = false } = {}) {
+export async function subscribe(webhookUrl, { rewardId = null, rescueRewardId = null, chat = true, alerts = false, raids = false } = {}) {
   const channel = await storedTokens('broadcaster');
   if (!channel) throw new Error('Twitch ist noch nicht verbunden');
   const bot = await storedTokens('bot');
@@ -145,6 +169,7 @@ export async function subscribe(webhookUrl, { rewardId = null, chat = true, aler
   });
   const warnings = [];
   if (rewardId) await create(EVENT_TYPE, { broadcaster_user_id: channel.user_id, reward_id: rewardId });
+  if (rescueRewardId) await create(EVENT_TYPE, { broadcaster_user_id: channel.user_id, reward_id: rescueRewardId });
   if (chat) {
     const reader = bot ?? channel;
     const missing = ROLES.broadcaster.scopes.filter((sc) => Array.isArray(channel.scopes) && !channel.scopes.includes(sc));

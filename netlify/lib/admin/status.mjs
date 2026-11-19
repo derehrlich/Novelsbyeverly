@@ -1,6 +1,6 @@
 // GET /api/admin/state: Umgebungsvariablen, Twitch-Verbindungen, Reward, Webhooks und Überblick.
 import { db } from '../store.mjs';
-import { getSettings, needsAlerts, needsChat, needsRaids, needsReward } from '../settings.mjs';
+import { getSettings, needsAlerts, needsChat, needsRaids, needsRescue, needsReward } from '../settings.mjs';
 import { activeSeats, communityMinutes } from '../people.mjs';
 import { getTimer, sprintsToday } from '../timer.mjs';
 import { getWords } from '../words.mjs';
@@ -22,7 +22,7 @@ export async function status({ req, route, method }) {
   if (channel && process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET) {
     try {
       const subs = await listSubscriptions(webhookUrl);
-      const expected = (needsChat(settings) ? 1 : 0) + (needsReward(settings) && state.rewardId ? 1 : 0) + (needsAlerts(settings) ? ALERT_TYPES.length : 0) + (needsRaids(settings) ? 1 : 0);
+      const expected = (needsChat(settings) ? 1 : 0) + (needsReward(settings) && state.rewardId ? 1 : 0) + (needsRescue(settings) && state.streakRewardId ? 1 : 0) + (needsAlerts(settings) ? ALERT_TYPES.length : 0) + (needsRaids(settings) ? 1 : 0);
       const notReady = subs.find((x) => x.status !== 'enabled');
       subscription = !subs.length ? 'keine' : notReady ? notReady.status : subs.length < expected ? 'unvollständig – bitte neu einrichten' : 'enabled';
     } catch (e) { subscriptionError = e.message; }
@@ -47,7 +47,7 @@ export async function status({ req, route, method }) {
     modus: settings.szeneModus,
     words: await getWords(settings),
     seated: (await activeSeats(settings)).length,
-    features: { checkin: settings.checkinEnabled, points: settings.pointsEnabled, alerts: settings.alertsEnabled, raids: settings.raidEnabled },
+    features: { rescue: settings.streakRescueEnabled, checkin: settings.checkinEnabled, points: settings.pointsEnabled, alerts: settings.alertsEnabled, raids: settings.raidEnabled },
     checkinsToday: settings.checkinEnabled ? (await db.list(`checked/${streamDay(settings)}/`)).length : 0,
     communityHours: Math.floor((await communityMinutes()) / 60),
   });

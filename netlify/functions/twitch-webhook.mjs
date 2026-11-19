@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import { db } from '../lib/store.mjs';
 import { getSettings } from '../lib/settings.mjs';
-import { handleRedemption } from '../lib/checkin.mjs';
+import { handleRedemption, handleRescue } from '../lib/checkin.mjs';
 import { handleChat } from '../lib/chat.mjs';
 import { handleAlert, handleRaid } from '../lib/alerts.mjs';
 import { ALERT_TYPES, CHAT_TYPE, RAID_TYPE } from '../lib/twitch.mjs';
@@ -49,13 +49,14 @@ export default async (req) => {
       return new Response(null, { status: 204 });
     }
     const state = (await db.get('config/state')) ?? {};
-    if (!state.rewardId || e.reward?.id !== state.rewardId) return new Response(null, { status: 204 }); // nur der eigene Check-in-Reward
+    const isRescue = Boolean(state.streakRewardId) && e.reward?.id === state.streakRewardId;
+    if (!isRescue && (!state.rewardId || e.reward?.id !== state.rewardId)) return new Response(null, { status: 204 }); // nur die eigenen Rewards (Check-in, Streak-Retter)
     // Twitch wiederholt Zustellungen: jede Einlösung nur einmal verarbeiten
     if (!(await db.setIfNew(`seen/${e.id}`, Date.now()))) return new Response(null, { status: 204 });
     try {
-      await handleRedemption({ id: e.id, user_id: e.user_id, user_name: e.user_name, reward: e.reward }, await getSettings());
+      await (isRescue ? handleRescue : handleRedemption)({ id: e.id, user_id: e.user_id, user_name: e.user_name, reward: e.reward }, await getSettings());
     } catch (err) {
-      console.error('Check-in fehlgeschlagen:', err);
+      console.error('Reward fehlgeschlagen:', err);
       await db.delete(`seen/${e.id}`); // Twitch darf es erneut versuchen
       return text('error', 500);
     }

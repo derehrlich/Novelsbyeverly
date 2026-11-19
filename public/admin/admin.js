@@ -264,6 +264,14 @@ const SCHEMA = [
     ['alertVideoVon', 'Text erscheint ab (% der Videolänge)', 'number'], ['alertVideoBis', 'Text verschwindet bei (% der Videolänge)', 'number'],
     ['alertVideoSchrift', 'Schriftgröße (%)', 'number'],
   ]],
+  ['Streak-Retter', [
+    ['streakRescueEnabled', 'Streak-Retter aktivieren (zweiter Kanalpunkte-Reward)', 'bool', 'Wer ein paar Streams verpasst hat, kann seine Besuchsserie mit Kanalpunkten retten. Braucht eingeschalteten Check-in. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
+    ['streakRewardTitle', 'Reward-Name', 'text'], ['streakRewardCost', 'Preis (Kanalpunkte)', 'number'], ['rescueMaxDays', 'Rettet höchstens so viele verpasste Streams', 'number', 'Eine Lücke bis zur Schonfrist verzeiht der Bot ohnehin. Gerettet werden nur Lücken der letzten 7 Stream-Tage.'],
+    ['rescueTemplate', 'Chatnachricht bei erfolgreicher Rettung', 'area', '{user} {days} {streak}'],
+    ['rescueNotNeededTemplate', 'Nachricht, wenn die Streak nicht in Gefahr ist (Punkte werden erstattet)', 'area', '{user}'],
+    ['rescueTooLongTemplate', 'Nachricht, wenn die Lücke zu lang oder zu alt ist (Punkte werden erstattet)', 'area', '{user}'],
+    ['rescueTitle', 'Buch im Overlay: Überschrift', 'text', '{user} {days} {streak}'], ['rescueMessage', 'Buch im Overlay: Text', 'text', '{user} {days} {streak}'],
+  ]],
   ['Check-in und Streak', [
     ['checkinEnabled', 'Check-in aktivieren (Besuche und Streak zählen)', 'bool', 'Ein Kanalpunkte-Reward „Check-in“, einmal pro Stream-Tag. Der Reward wird beim Speichern automatisch bei Twitch angelegt.'],
     ['checkinRewardTitle', 'Check-in-Reward: Name', 'text'], ['checkinRewardCost', 'Check-in-Reward: Preis (Kanalpunkte)', 'number'],
@@ -325,9 +333,9 @@ const SCHEMA = [
 ];
 let current = null;
 // Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
-const TOGGLE_GROUPS = new Set(['Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
+const TOGGLE_GROUPS = new Set(['Streak-Retter', 'Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
-const SYNC_KEYS = ['alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
+const SYNC_KEYS = ['streakRescueEnabled', 'streakRewardTitle', 'streakRewardCost', 'alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
 const openFolds = new Set();
 const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 

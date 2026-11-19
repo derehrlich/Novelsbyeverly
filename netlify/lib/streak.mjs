@@ -20,16 +20,42 @@ export async function getStreamDays() {
  * Streak über alle Stream-Tage. Ein verpasster Stream wird bis zur Schonfrist (grace) verziehen, danach reißt die Streak.
  * Der heutige Tag ist erst nach seinem Ende ein Fehltag. Rückgabe: aktuelle Streak und persönlicher Rekord.
  */
-export function computeStreak({ days = [] }, streamDays, today, grace) {
+export function computeStreak({ days = [], saved = [] }, streamDays, today, grace) {
   const attended = new Set(days);
+  const bridged = new Set(saved); // vom Streak-Retter überbrückte Tage: zählen nicht mit, reißen aber auch nicht
   let current = 0, record = 0, misses = 0;
   for (const d of streamDays) {
     if (d > today) break;
     if (attended.has(d)) { current++; misses = 0; record = Math.max(record, current); }
+    else if (bridged.has(d)) misses = 0;
     else if (d === today) continue;
     else if (++misses > grace) current = 0;
   }
   return { current, record };
+}
+
+// Wie viele Stream-Tage zurück eine Lücke liegen darf, damit der Streak-Retter sie noch schließt
+export const RESCUE_WINDOW = 7;
+
+/**
+ * Lücke, die der Streak-Retter schließen kann: die jüngste Folge verpasster Stream-Tage seit dem ersten Besuch.
+ * status: 'ok' (rettbar, days = die Tage), 'none' (keine Lücke oder schon verziehen), 'toolong' (zu lang oder zu lange her)
+ */
+export function findRescue({ days = [], saved = [] }, streamDays, today, grace, maxDays) {
+  const attended = new Set(days);
+  const bridged = new Set(saved);
+  const first = [...days].sort()[0];
+  const past = streamDays.filter((d) => d < today && first && d >= first);
+  let run = [], last = [];
+  for (const d of past) {
+    if (attended.has(d) || bridged.has(d)) { if (run.length) last = run; run = []; }
+    else run.push(d);
+  }
+  if (run.length) last = run; // die Lücke reicht bis gestern
+  if (last.length <= grace) return { status: 'none', days: [] };
+  const recent = past.slice(-RESCUE_WINDOW).includes(last.at(-1));
+  if (last.length > maxDays || !recent) return { status: 'toolong', days: last };
+  return { status: 'ok', days: last };
 }
 
 export async function streakFor(userId, today, settings) {

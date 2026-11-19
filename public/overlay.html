@@ -280,8 +280,8 @@ function nextBanner() {
 }
 
 // ---- Alerts (Follow, Sub, Gift, Bits, Raid) als Buch, eins nach dem anderen
-const BUCH_ZEICHEN = { follow: '🌱', sub: '💛', resub: '💛', gift: '🎁', cheer: '✨', raid: '🌟' };
-const BUCH_ART = { follow: 'Neu im Zimmer', sub: 'Neues Abo', resub: 'Abo-Jubiläum', gift: 'Sub-Geschenk', cheer: 'Bits', raid: 'Raid' };
+const BUCH_ZEICHEN = { rescue: '🛟', follow: '🌱', sub: '💛', resub: '💛', gift: '🎁', cheer: '✨', raid: '🌟' };
+const BUCH_ART = { rescue: 'Streak gerettet', follow: 'Neu im Zimmer', sub: 'Neues Abo', resub: 'Abo-Jubiläum', gift: 'Sub-Geschenk', cheer: 'Bits', raid: 'Raid' };
 const buchSchlange = []; let buchLaeuft = false;
 function buch(ev) { buchSchlange.push(ev); if (!buchLaeuft) naechstesBuch(); }
 // Eigenes Video (Admin → Alerts): läuft einmal ab, der Text erscheint zwischen „Von“ und „Bis“ (in Prozent der Videolänge).
@@ -327,7 +327,7 @@ function videoBuch(ev, kind, cfg) {
     const p = v.duration > 0 ? v.currentTime / v.duration * 100 : 0, an = p >= cfg.von && p < cfg.bis;
     if (an !== zeigt) {
       zeigt = an; txt.classList.toggle('da', an);
-      if (an) { chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }
+      if (an) { chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, rescue: 120, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }
     }
   };
   v.play().then(() => { raf = requestAnimationFrame(frame); }).catch(() => ende(false));
@@ -349,12 +349,12 @@ function naechstesBuch(nurGezeichnet = false, wieder = null) {
   if (ev.type === 'raid' && ev.avatar) { const im = document.createElement('img'); im.className = 'avatar'; im.src = ev.avatar; im.alt = ''; links.append(im); }
   else { const g = document.createElement('div'); g.className = 'gross'; g.textContent = BUCH_ZEICHEN[kind] ?? '📖'; links.append(g); }
   const art = document.createElement('div'); art.className = 'art'; art.textContent = BUCH_ART[kind] ?? ''; links.append(art);
-  const zahl = ev.type === 'raid' ? `${ev.viewers}` : kind === 'cheer' ? `${fmt.format(ev.bits ?? 0)}` : kind === 'gift' ? `${ev.total ?? 1}×` : kind === 'resub' ? `${ev.months} Mon.` : '';
+  const zahl = ev.type === 'raid' ? `${ev.viewers}` : kind === 'cheer' ? `${fmt.format(ev.bits ?? 0)}` : kind === 'gift' ? `${ev.total ?? 1}×` : kind === 'resub' ? `${ev.months} Mon.` : kind === 'rescue' ? `${ev.streak} 🔥` : '';
   if (zahl) { const z = document.createElement('div'); z.className = 'zahl'; z.textContent = zahl; links.append(z); }
   $('buch').append(el);
   const hold = Math.max(3000, ev.ms || 7000), RAUS = 900, AUF = 1200;
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('da')));
-  setTimeout(() => { el.classList.add('offen'); chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }, RAUS);
+  setTimeout(() => { el.classList.add('offen'); chime(kind === 'raid' || kind === 'gift' ? [660, 880, 1100, 1320] : [660, 990, 1320]); const n = { raid: 220, rescue: 120, gift: 140, sub: 90, resub: 90, cheer: 70 }[kind] ?? 0; if (n) burst(960, 380, n, 1.3); }, RAUS);
   setTimeout(() => el.classList.remove('offen'), RAUS + AUF + hold);
   setTimeout(() => el.classList.remove('da'), RAUS + AUF * 2 + hold);
   setTimeout(() => { el.remove(); naechstesBuch(); }, RAUS + AUF * 2 + hold + 800);
@@ -590,7 +590,7 @@ if (q.has('vorschau')) {
     seats: [], events: [], cursor: 'x',
   });
   apply(mk());
-  const BUCH_DEMO = { follow: { type: 'alert', kind: 'follow', user: 'Lena', title: 'Willkommen, Lena!', message: 'folgt jetzt dem Schreibzimmer 🌱' }, sub: { type: 'alert', kind: 'sub', user: 'Lena', title: 'Lena ist dabei!', message: 'Neues Abo (Stufe 1)' }, resub: { type: 'alert', kind: 'resub', user: 'Lena', months: 6, title: 'Lena ist 6 Monate dabei!', message: 'Stufe 1', extra: 'Immer wieder gerne!' }, gift: { type: 'alert', kind: 'gift', user: 'Lena', total: 5, title: 'Lena verschenkt Abos!', message: '5 Sub(s) für die Community' }, cheer: { type: 'alert', kind: 'cheer', user: 'Lena', bits: 500, title: 'Lena schickt Bits!', message: '500 Bits', extra: 'Cheer500 für dich!' }, raid: { type: 'raid', raider: 'Lena', viewers: 24, game: 'Just Chatting', raids: 3, title: 'Raid von Lena!', message: '24 Schreibfreunde kommen vorbei' } };
+  const BUCH_DEMO = { rescue: { type: 'alert', kind: 'rescue', user: 'Lena', streak: 12, days: 2, title: 'Streak gerettet!', message: 'Lena: 2 verpasste(r) Stream(s) überbrückt – Streak: 12' }, follow: { type: 'alert', kind: 'follow', user: 'Lena', title: 'Willkommen, Lena!', message: 'folgt jetzt dem Schreibzimmer 🌱' }, sub: { type: 'alert', kind: 'sub', user: 'Lena', title: 'Lena ist dabei!', message: 'Neues Abo (Stufe 1)' }, resub: { type: 'alert', kind: 'resub', user: 'Lena', months: 6, title: 'Lena ist 6 Monate dabei!', message: 'Stufe 1', extra: 'Immer wieder gerne!' }, gift: { type: 'alert', kind: 'gift', user: 'Lena', total: 5, title: 'Lena verschenkt Abos!', message: '5 Sub(s) für die Community' }, cheer: { type: 'alert', kind: 'cheer', user: 'Lena', bits: 500, title: 'Lena schickt Bits!', message: '500 Bits', extra: 'Cheer500 für dich!' }, raid: { type: 'raid', raider: 'Lena', viewers: 24, game: 'Just Chatting', raids: 3, title: 'Raid von Lena!', message: '24 Schreibfreunde kommen vorbei' } };
   if (BUCH_DEMO[q.get('ereignis')]) setTimeout(() => handleEvent({ ...BUCH_DEMO[q.get('ereignis')], ms: 6000 }), 300);
   else if (q.get('ereignis')) setTimeout(() => handleEvent({ type: q.get('ereignis'), writers: 6, minutes: 25, streamerWords: 420, words: 2000, name: 'Lena', rank: 'Federkiel', item: 'Katze' }), 300);
 } else {

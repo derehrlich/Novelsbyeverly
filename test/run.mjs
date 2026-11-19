@@ -1128,6 +1128,73 @@ await test('Eigene Pausen: Befehlswort, Text, Minuten, Emoji und Bild je Pause',
   await bad([]);
 });
 
+console.log('Streak-Retter');
+await test('Streak-Retter: Lücken finden und überbrücken (reine Rechnung)', async () => {
+  const days = ['2026-11-01', '2026-11-02', '2026-11-05', '2026-11-06'];
+  const sd = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07'];
+  assert.deepEqual(streakLib.computeStreak({ days }, sd, '2026-11-07', 1), { current: 2, record: 2 }); // zwei verpasste Streams reißen sie
+  assert.deepEqual(streakLib.computeStreak({ days, saved: ['2026-11-03', '2026-11-04'] }, sd, '2026-11-07', 1), { current: 4, record: 4 }); // gerettet: überbrückt, zählt nicht mit
+  assert.deepEqual(streakLib.findRescue({ days }, sd, '2026-11-07', 1, 3), { status: 'ok', days: ['2026-11-03', '2026-11-04'] });
+  assert.equal(streakLib.findRescue({ days }, sd, '2026-11-07', 2, 3).status, 'none'); // innerhalb der Schonfrist
+  assert.equal(streakLib.findRescue({ days }, sd, '2026-11-07', 1, 1).status, 'toolong'); // länger als erlaubt
+  assert.equal(streakLib.findRescue({ days: ['2026-11-01', '2026-11-02'] }, sd, '2026-11-07', 1, 9).days.length, 4); // Lücke bis gestern
+  assert.equal(streakLib.findRescue({ days, saved: ['2026-11-03', '2026-11-04'] }, sd, '2026-11-07', 1, 3).status, 'none'); // schon gerettet
+  assert.equal(streakLib.findRescue({ days: [] }, sd, '2026-11-07', 1, 3).status, 'none'); // noch nie da gewesen
+  const alt = Array.from({ length: 12 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+  assert.equal(streakLib.findRescue({ days: ['2026-10-01', ...alt.slice(3)] }, alt, '2026-10-20', 1, 20).status, 'toolong'); // Lücke am 2. und 3.: länger als 7 Stream-Tage her
+});
+await test('Streak-Retter: eigener Reward, Webhook, Rettung, Erstattung und Buch im Overlay', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const { streamDay } = await mod('lib/util.mjs');
+  await saveSettings({ checkinEnabled: true, streakRescueEnabled: true, streakGrace: 1, rescueMaxDays: 3, chatEnabled: true });
+  assert.equal((await adminCall('PUT', 'settings', { streakRewardTitle: (await getSettings()).checkinRewardTitle }, cookie)).status, 200);
+  assert.equal((await adminCall('POST', 'setup', {}, cookie)).status, 400); // gleicher Name wie der Check-in-Reward
+  await saveSettings({ streakRewardTitle: 'Streak-Retter' });
+  const res = await adminCall('POST', 'setup', {}, cookie);
+  assert.equal(res.body.rescueReward, 'Streak-Retter');
+  const st = await db.get('config/state'); assert.ok(st.streakRewardId); assert.notEqual(st.streakRewardId, st.rewardId);
+  assert.ok(subs.some((x) => x.type === 'channel.channel_points_custom_reward_redemption.add' && x.condition.reward_id === st.streakRewardId));
+  const settings = await getSettings();
+  const back = (n) => streamDay(settings, new Date(Date.now() - n * 86_400_000));
+  for (let n = 6; n >= 1; n -= 1) await db.setIfNew(`streamday/${back(n)}`, 1);
+  const mk = (id, days) => db.set(`user/${id}`, { name: id, minutes: 0, sprints: 0, words: 0, days, figure: {}, lastSlot: null });
+  await mk('r1', [back(6), back(5), back(2), back(1)]); // Lücke: zwei Streams
+  await mk('r2', [back(6), back(5)]); // Lücke: vier Streams, zu lang
+  await mk('r3', [back(6), back(5), back(4), back(3), back(2), back(1)]); // keine Lücke
+  const rescue = redeemWith(st.streakRewardId);
+  const statuses = () => calls.filter((c) => c.path.endsWith('/custom_rewards/redemptions')).map((c) => c.body.status);
+  const before = (await events()).length, s0 = statuses().length;
+  assert.equal((await rescue('x1', 'r1', 'Lena')).status, 204);
+  assert.match(lastChat().message, /Lena rettet die Streak! 2 verpasste\(r\) Stream\(s\) überbrückt – Streak: 4/);
+  const ev = (await events()).slice(before).at(-1);
+  assert.deepEqual({ type: ev.type, kind: ev.kind, user: ev.user, streak: ev.streak, days: ev.days, title: ev.title }, { type: 'alert', kind: 'rescue', user: 'Lena', streak: 4, days: 2, title: 'Streak gerettet!' });
+  assert.deepEqual((await db.get('user/r1')).saved, [back(4), back(3)]);
+  assert.deepEqual(statuses().slice(s0), ['FULFILLED']);
+  assert.equal(streakLib.computeStreak(await db.get('user/r1'), await streakLib.getStreamDays(), streamDay(settings), 1).current, 4);
+  // zweiter Versuch: nichts mehr zu retten, Punkte zurück
+  await rescue('x2', 'r1', 'Lena');
+  assert.match(lastChat().message, /nicht in Gefahr.*Punkte bekommst du zurück/);
+  assert.equal(statuses().at(-1), 'CANCELED');
+  // zu lang, keine Lücke, unbekannte Person
+  await rescue('x3', 'r2', 'Ben'); assert.match(lastChat().message, /zu lang oder zu lange her/); assert.equal(statuses().at(-1), 'CANCELED');
+  await rescue('x4', 'r3', 'Kai'); assert.match(lastChat().message, /nicht in Gefahr/); assert.equal(statuses().at(-1), 'CANCELED');
+  await rescue('x5', 'neu1', 'Neu'); assert.match(lastChat().message, /nicht in Gefahr/);
+  assert.equal((await db.get('user/r2')).saved, undefined);
+  // doppelt zugestellte Einlösung zählt nur einmal
+  const n = statuses().length; await rescue('x5', 'neu1', 'Neu'); assert.equal(statuses().length, n);
+  // Testknopf im Admin
+  const b = (await events()).length; assert.equal((await adminCall('POST', 'test/event', { kind: 'rescue' }, cookie)).status, 200);
+  assert.equal((await events()).slice(b).at(-1).kind, 'rescue');
+  // Sicherung und Ausschalten
+  assert.ok((await backupLib.buildBackup()).entries[`rescue/r1/${back(3)}`]);
+  await saveSettings({ streakRescueEnabled: false });
+  const off = await adminCall('POST', 'setup', {}, cookie); assert.equal(off.body.rescueReward, null);
+  assert.equal((await db.get('config/state')).streakRewardId, undefined);
+  assert.equal((await rescue('x6', 'r2', 'Ben')).status, 204); assert.equal(statuses().length, n); // nichts mehr
+  await saveSettings({ checkinEnabled: false });
+});
+
 console.log('Startbildschirm');
 const ssLib = await mod('lib/startscreen.mjs');
 const ssPub = (await mod('functions/startscreen.mjs')).default;

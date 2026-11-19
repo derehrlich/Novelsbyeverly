@@ -2,6 +2,7 @@
 import { db } from '../store.mjs';
 import { getSettings, saveSettings } from '../settings.mjs';
 import { handleAlert, handleRaid } from '../alerts.mjs';
+import { rescueCard } from '../checkin.mjs';
 import { activeSeats, newUser, saveUser, sit } from '../people.mjs';
 import { startBreak, startFocus, stopTimer, tick } from '../timer.mjs';
 import { addWords, getWords, resetDay, setAbsolute, setToday } from '../words.mjs';
@@ -114,6 +115,7 @@ export async function tests({ route, method, body }) {
       await handleAlert(type, e, { ...settings, alertsEnabled: true, alertFollow: true, alertSub: true, alertGift: true, alertCheer: true, alertCheerMin: 0 }, { chat: false });
       return json({ ok: true });
     }
+    if (body.kind === 'rescue') { await pushEvent(rescueCard(settings, 'Lena', 12, 2)); return json({ ok: true }); } // Testknopf: schreibt nichts in den Chat
     if (body.kind === 'raid') {
       await handleRaid({ from_broadcaster_user_id: '0', from_broadcaster_user_name: 'Lena', from_broadcaster_user_login: 'lena', viewers: 24 }, { ...settings, raidEnabled: true, raidMinViewers: 0 }, { chat: false, record: false });
       return json({ ok: true });
