@@ -981,6 +981,38 @@ await test('Alerts: Testknöpfe im Admin zeigen das Banner auch bei ausgeschalte
   assert.equal(chatSent().length, chat0); // Tests schreiben nichts in den Chat
   assert.equal(alertsLib.tierName('3000'), 'Stufe 3');
 });
+await test('Eigene Alert-Töne: je Alert-Art hochladen, ausliefern, im Overlay-Stand, Sicherung, entfernen', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const soundFn = (await mod('functions/alert-sound.mjs')).default;
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.from([36, 0, 0, 0]), Buffer.from('WAVEfmt '), Buffer.alloc(40, 1)]);
+  const mp3 = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(300, 2)]);
+  const b64 = (b) => b.toString('base64');
+  assert.equal((await adminCall('GET', 'sounds', null)).status, 401);
+  let r = await adminCall('GET', 'sounds', null, cookie);
+  assert.deepEqual(r.body.slots.map((x) => x.id), ['follow', 'sub', 'resub', 'gift', 'cheer', 'raid', 'rescue']); assert.ok(r.body.slots.every((x) => !x.version));
+  assert.deepEqual((await viewNow()).alertSounds, {}); assert.equal((await viewNow()).alertSoundVolume, 80);
+  assert.equal((await adminCall('POST', 'sounds/keller', { name: 'x', data: b64(wav) }, cookie)).status, 404);
+  assert.equal((await adminCall('POST', 'sounds/raid', { name: 'x', data: '' }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'sounds/raid', { name: 'x.mp3', data: b64(Buffer.from('das ist kein Ton, nur Text')) }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'sounds/raid', { name: 'gross.wav', data: b64(Buffer.concat([wav, Buffer.alloc(1_600_000)])) }, cookie)).status, 413);
+  r = await adminCall('POST', 'sounds/raid', { name: 'Gong<b>.wav', data: `data:audio/wav;base64,${b64(wav)}` }, cookie);
+  assert.equal(r.status, 200); const raid = r.body.slots.find((x) => x.id === 'raid'); assert.deepEqual({ name: raid.name, size: raid.size }, { name: 'Gongb', size: wav.length });
+  await adminCall('POST', 'sounds/follow', { name: 'Klingel.mp3', data: b64(mp3) }, cookie);
+  const urls = (await viewNow()).alertSounds;
+  assert.deepEqual(Object.keys(urls).sort(), ['follow', 'raid']); assert.match(urls.raid, /^\/api\/alert-sound\?slot=raid&v=\d+$/);
+  let f = await soundFn(new Request(`https://x${urls.raid}`));
+  assert.equal(f.status, 200); assert.equal(f.headers.get('content-type'), 'audio/wav'); assert.equal(Buffer.from(await f.arrayBuffer()).length, wav.length);
+  assert.equal((await soundFn(new Request(`https://x${urls.follow}`))).headers.get('content-type'), 'audio/mpeg');
+  assert.equal((await soundFn(new Request('https://x/api/alert-sound?slot=sub'))).status, 404); // kein eigener Ton
+  assert.equal((await soundFn(new Request('https://x/api/alert-sound?slot=../../config'))).status, 404);
+  assert.equal(normalize({ alertSoundVolume: 150 }).settings.alertSoundVolume, 100);
+  const bk = await backupLib.buildBackup(); assert.ok(bk.entries['sound/index']); assert.ok(bk.entries['sound/file/raid']);
+  assert.equal((await adminCall('POST', 'sounds/raid', { name: 'neu.ogg', data: b64(Buffer.concat([Buffer.from('OggS'), Buffer.alloc(50, 3)])) }, cookie)).body.slots.find((x) => x.id === 'raid').name, 'neu'); // ersetzen
+  for (const slot of ['raid', 'follow']) assert.equal((await adminCall('DELETE', `sounds/${slot}`, null, cookie)).status, 200);
+  assert.deepEqual((await viewNow()).alertSounds, {}); assert.equal((await soundFn(new Request('https://x/api/alert-sound?slot=raid'))).status, 404);
+  assert.equal((await adminCall('DELETE', 'sounds/keller', null, cookie)).status, 404);
+});
 await test('Alert-Video: hochladen, im Overlay-Stand mit Textfeld, ausschaltbar, entfernen', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];

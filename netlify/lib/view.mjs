@@ -13,6 +13,7 @@ import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
 import { cleanFigur } from '../../public/js/katalog.mjs';
 import { WAHL_KEY, videoUrl } from './videos.mjs';
+import { soundUrls } from './alertsounds.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
 
@@ -108,6 +109,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
     pavillon: !!settings.pavillonZeigen,
     alertVideo: await alertVideoOf(settings),
+    alertSounds: await soundUrls(), alertSoundVolume: settings.alertSoundVolume,
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,

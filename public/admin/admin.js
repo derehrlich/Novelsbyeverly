@@ -230,6 +230,7 @@ const SCHEMA = [
     ['alertsEnabled', 'Alerts aktivieren (Follow, Abo, Geschenk, Bits)', 'bool', 'Im Overlay klappt ein Buch auf und zeigt das Ereignis. Nach dem Einschalten wird automatisch bei Twitch angemeldet. Beim ersten Mal einmal unter „Einrichtung“ den Kanal neu verbinden, damit Twitch die neuen Berechtigungen erteilt.'],
     ['alertFollow', 'Neue Follower zeigen', 'bool'], ['alertSub', 'Abos und Abo-Jubiläen zeigen', 'bool'], ['alertGift', 'Verschenkte Abos zeigen', 'bool'], ['alertCheer', 'Bits zeigen', 'bool'],
     ['alertCheerMin', 'Bits erst ab dieser Menge zeigen', 'number'], ['alertSeconds', 'So lange bleibt das Buch offen (Sekunden)', 'number'],
+    ['alertSoundVolume', 'Lautstärke der eigenen Töne (0 bis 100)', 'number'],
     ['alertChat', 'Danke im Chat schreiben (auch bei Raids)', 'bool', 'Der Bot antwortet im Chat. Braucht, dass der Chat-Bot verbunden ist.'],
   ]],
   ['Raids', [
@@ -777,6 +778,27 @@ $('pauseListe').onchange = run(async (e) => {
 });
 $('pauseCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/pause`).then(() => meldung('Kopiert'));
 
+// ---- Eigene Töne für die Alerts
+let soundAudio = null;
+async function loadSounds() {
+  const box = $('soundListe'); if (!box) return;
+  const d = await api('GET', 'sounds');
+  box.innerHTML = `<table><thead><tr><th>Alert</th><th>Eigener Ton</th><th></th></tr></thead><tbody>${d.slots.map((s) => `<tr><td><b>${esc(s.label)}</b></td><td>${s.version ? `<b>${esc(s.name)}</b> <span class="video-da">✓ ${Math.max(1, Math.round(s.size / 1000))} KB</span>` : '<span class="leise">Standard-Klang</span>'}</td><td>
+    <label class="knopf hell klein" for="snd-${s.id}">${s.version ? 'Ersetzen' : 'Ton wählen'}</label><input type="file" id="snd-${s.id}" data-snd="${s.id}" accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg" hidden>
+    ${s.version ? `<button class="hell klein" data-hoer="${s.id}" data-v="${s.version}" type="button">▶ Anhören</button><button class="hell klein" data-sndweg="${s.id}" type="button">Entfernen</button>` : ''}
+    <button class="hell klein" data-sndtest="${s.id}" type="button">Alert ausprobieren</button></td></tr>`).join('')}</tbody></table>`;
+  for (const inp of box.querySelectorAll('[data-snd]')) inp.onchange = run(async (e) => {
+    const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    if (file.size > d.maxKb * 1000) throw new Error(`Die Datei ist zu groß (höchstens ${d.maxKb} KB)`);
+    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Die Datei konnte nicht gelesen werden')); r.readAsDataURL(file); });
+    await api('POST', `sounds/${inp.dataset.snd}`, { name: file.name, data }); await loadSounds(); meldung('Ton gespeichert ✓');
+  });
+  for (const b of box.querySelectorAll('[data-sndweg]')) b.onclick = run(async () => { await api('DELETE', `sounds/${b.dataset.sndweg}`); await loadSounds(); meldung('Ton entfernt'); });
+  for (const b of box.querySelectorAll('[data-hoer]')) b.onclick = () => { soundAudio?.pause(); soundAudio = new Audio(`/api/alert-sound?slot=${b.dataset.hoer}&v=${b.dataset.v}`); soundAudio.volume = Math.min(1, Math.max(0, (current?.alertSoundVolume ?? 80) / 100)); soundAudio.play().catch(() => meldung('Der Ton lässt sich hier nicht abspielen')); };
+  const TEST = { follow: 'follow', sub: 'sub', resub: 'resub', gift: 'gift', cheer: 'cheer', raid: 'raid', rescue: 'rescue' };
+  for (const b of box.querySelectorAll('[data-sndtest]')) b.onclick = run(async () => { await api('POST', 'test/event', { kind: TEST[b.dataset.sndtest] }); meldung('Gesendet – schau und hör ins Overlay'); });
+}
+
 // ---- Alert-Video (Buch, das aufklappt): ein Video, auf dessen Seite der Bot den Text einblendet
 async function loadAlertVideo() {
   const box = $('alertVideo'); if (!box) return;
@@ -824,7 +846,7 @@ async function start() {
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {}); loadSounds().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));
