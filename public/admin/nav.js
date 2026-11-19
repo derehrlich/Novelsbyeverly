@@ -2,7 +2,7 @@
 // Eine neue Seite braucht hier eine Zeile und in index.html einen <div class="tab-panel" data-panel="…">.
 export const NAV = [
   ['', [['start', '🏠', 'Übersicht']]],
-  ['Stream', [['pomodoro', '🍅', 'Pomodoro'], ['ziel', '🎯', 'Ziel'], ['landschaft', '🌳', 'Landschaft und Stefanie'], ['todo', '📝', 'To-Do-Liste'], ['musik', '🎵', 'Musik'], ['alerts', '🔔', 'Alerts und Raids'], ['auszeit', '☕', 'Stream-Pause']]],
+  ['Stream', [['pomodoro', '🍅', 'Pomodoro'], ['ziel', '🎯', 'Ziel'], ['landschaft', '🌳', 'Landschaft und Stefanie'], ['todo', '📝', 'To-Do-Liste'], ['musik', '🎵', 'Musik'], ['alerts', '🔔', 'Alerts und Raids'], ['auszeit', '☕', 'Stream-Pause'], ['startscreen', '🚀', 'Startbildschirm']]],
   ['Overlay', [['anordnung', '🧩', 'Anordnung'], ['design', '🎨', 'Design und Hintergrund'], ['adressen', '🔗', 'OBS-Adressen und Test']]],
   ['Zuschauer', [['checkin', '✅', 'Check-in, Streak und Punkte'], ['mitschreibende', '👥', 'Mitschreibende']]],
   ['Chat', [['chat', '💬', 'Chat und Befehle']]],

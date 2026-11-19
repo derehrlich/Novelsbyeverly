@@ -678,6 +678,42 @@ async function loadVideos() {
   for (const b of document.querySelectorAll('#videos [data-weg-s], #videoBib [data-weg-s]')) b.onclick = run(async () => { await fetch(`/api/admin/video?s=${b.dataset.wegS}&z=${b.dataset.wegZ}`, { method: 'DELETE', headers: { 'x-upload': '1' } }); await loadVideos(); schedulePreview(0); meldung('Video entfernt'); });
 }
 
+// ---- Startbildschirm: Vorlauf starten, verlängern, beenden, Texte, Sprüche und Hintergrund
+let ssData = null;
+const ssSet = (id, val) => { if (document.activeElement !== $(id)) $(id).value = val ?? ''; };
+function renderSs() {
+  const { config: c, state: s } = ssData;
+  $('ssUrl').textContent = `${location.origin}/startscreen`; $('ssUrl2').textContent = `${location.origin}/startscreen?bg=0`;
+  ssSet('ssMin', c.minutes); ssSet('ssRot', c.rotateSeconds); ssSet('ssTitle', c.title); ssSet('ssSub', c.subtitle); ssSet('ssEnd', c.endText); ssSet('ssFacts', c.anecdotes);
+  $('ssProg').checked = c.showProgress;
+  const bg = c.bgName ? `Hintergrund: ${esc(c.bgName)}${c.bgKind === 'html' ? ' (animierte HTML-Datei)' : ''}` : 'Hintergrund: der eingebaute Abend';
+  const left = s.active ? Math.round((s.until - Date.now()) / 60_000) : 0;
+  $('ssInfo').innerHTML = `${bg}. ${s.active ? (left > 0 ? `<b>Läuft:</b> noch etwa ${left} Min bis ${new Date(s.until).toLocaleTimeString('de-DE', { timeStyle: 'short' })} Uhr.` : '<b>Läuft:</b> Zeit ist um, der Schlusstext steht. „Beenden“ blendet ihn aus.') : 'Gerade ausgeblendet.'}`;
+  $('ssStart').textContent = s.active ? `Neu starten (${c.minutes} Min)` : `Startbildschirm starten (${c.minutes} Min)`;
+  $('ssStop').disabled = !s.active; $('ssPlus').disabled = !s.active; $('ssBgReset').disabled = !c.bgName;
+}
+const ssForm = () => ({ minutes: $('ssMin').value, rotateSeconds: $('ssRot').value, title: $('ssTitle').value, subtitle: $('ssSub').value, endText: $('ssEnd').value, showProgress: $('ssProg').checked, anecdotes: $('ssFacts').value });
+async function loadSs() { ssData = await api('GET', 'startscreen'); renderSs(); }
+$('ssSave').onclick = run(async () => { ssData = await api('PUT', 'startscreen', ssForm()); renderSs(); meldung('Gespeichert ✓'); });
+$('ssStart').onclick = run(async () => { await api('PUT', 'startscreen', ssForm()); ssData = await api('POST', 'startscreen/start', { minutes: $('ssMin').value }); renderSs(); meldung('Startbildschirm läuft ✓'); });
+$('ssPlus').onclick = run(async () => { ssData = await api('POST', 'startscreen/extend', { minutes: 5 }); renderSs(); meldung('5 Minuten dazu ✓'); });
+$('ssStop').onclick = run(async () => { ssData = await api('POST', 'startscreen/stop', {}); renderSs(); meldung('Ausgeblendet ✓'); });
+$('ssDefault').onclick = run(async () => { if (!confirm('Die Liste durch die Beispiel-Sprüche ersetzen? (Erst mit „Texte speichern“ gilt es.)')) return; $('ssFacts').value = ssData.defaultAnecdotes; });
+$('ssCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/startscreen`).then(() => meldung('Kopiert'));
+$('ssBgReset').onclick = run(async () => { if (!confirm('Eigenen Hintergrund entfernen und wieder den eingebauten Abend zeigen?')) return; ssData = await api('DELETE', 'startscreen/bg', {}); renderSs(); meldung('Eingebauter Hintergrund aktiv ✓'); });
+$('ssBg').onchange = async (e) => { // Auswählen lädt gleich hoch; große Bilder werden vorher im Browser verkleinert
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  const err = (m) => { $('ssErr').textContent = m ? `⚠️ ${m}` : ''; };
+  try {
+    err(`Lade „${file.name}“ (${mb(file.size)}) hoch …`);
+    const isHtmlFile = /\.html?$/i.test(file.name) || file.type === 'text/html';
+    let data;
+    if (!isHtmlFile && file.type !== 'image/gif' && file.type.startsWith('image/') && file.size > 800_000) data = await shrinkImage(file, 0.9);
+    else data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Die Datei konnte nicht gelesen werden')); r.readAsDataURL(file); });
+    ssData = await api('POST', 'startscreen/bg', { name: file.name, data }); renderSs(); err(''); meldung('Hintergrund hochgeladen ✓');
+  } catch (x) { err(`Hochladen von „${file.name}“ hat nicht geklappt: ${x.message}`); }
+};
+
 // ---- Stream-Pause: von Hand starten und beenden
 let pauseData = null;
 function renderPause(liste = true) {
@@ -778,7 +814,7 @@ async function start() {
   show(true);
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
-  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {});
+  loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {});
   if (new URLSearchParams(location.search).has('verbunden')) { history.replaceState(null, '', '/admin/'); meldung('Verbunden – jetzt auf „Reward & Webhooks abgleichen“ klicken'); showPage('einrichtung'); }
 }
 start().catch(() => show(false));

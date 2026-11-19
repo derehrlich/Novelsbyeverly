@@ -16,6 +16,11 @@
   status = 200
 
 [[redirects]]
+  from = "/startscreen"
+  to = "/startscreen.html"
+  status = 200
+
+[[redirects]]
   from = "/pause"
   to = "/pause.html"
   status = 200

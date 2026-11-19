@@ -1128,6 +1128,62 @@ await test('Eigene Pausen: Befehlswort, Text, Minuten, Emoji und Bild je Pause',
   await bad([]);
 });
 
+console.log('Startbildschirm');
+const ssLib = await mod('lib/startscreen.mjs');
+const ssPub = (await mod('functions/startscreen.mjs')).default;
+const ssBg = (await mod('functions/startscreen-bg.mjs')).default;
+const ssNow = async () => (await ssPub(new Request('https://x/api/startscreen'))).json();
+await test('Startbildschirm: Texte prüfen, Vorlauf starten, verlängern, beenden', async () => {
+  assert.deepEqual(ssLib.parseAnecdotes('Kaffee | Ohne Kaffee kein Kapitel\n\n  Nur ein Text  \n| kaputt'), [{ head: 'Kaffee', text: 'Ohne Kaffee kein Kapitel' }, { head: '', text: 'Nur ein Text' }, { head: '', text: '| kaputt' }]);
+  assert.equal(ssLib.parseAnecdotes(Array.from({ length: 150 }, (_, i) => `Zeile ${i}`).join('\n')).length, 100);
+  const c = await ssLib.updateConfig({ minutes: 999, rotateSeconds: 1, title: '   ', endText: '' });
+  assert.deepEqual({ min: c.minutes, rot: c.rotateSeconds, title: c.title, end: c.endText }, { min: 240, rot: 4, title: 'Gleich geht’s los!', end: 'Das Schreibzimmer ist geöffnet! ✍️' });
+  await ssLib.updateConfig({ minutes: 10, rotateSeconds: 9 });
+  assert.equal((await ssNow()).show, false); // bis zum Start unsichtbar
+  const t0 = 1_700_000_000_000;
+  let st = await ssLib.start(undefined, t0); assert.deepEqual(st, { active: true, startedAt: t0, until: t0 + 600_000 });
+  assert.equal((await ssLib.start(3, t0)).until, t0 + 180_000);
+  st = await ssLib.extend(5, t0 + 60_000); assert.equal(st.until, t0 + 180_000 + 300_000);
+  await ssLib.stop(); assert.equal((await ssLib.getState()).active, false);
+  st = await ssLib.extend(5, t0); assert.equal(st.until, t0 + 300_000); // läuft nichts: neu starten
+  const v = await ssNow();
+  assert.deepEqual({ show: v.show, title: v.title, bg: v.bg, n: v.anecdotes.length > 20, now: Math.abs(v.now - Date.now()) < 5000 }, { show: true, title: 'Gleich geht’s los!', bg: null, n: true, now: true });
+  await ssLib.stop();
+});
+await test('Startbildschirm: im Admin steuern, Hintergrund als Bild oder HTML-Datei, Sicherung', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('GET', 'startscreen', null)).status, 401);
+  let r = await adminCall('PUT', 'startscreen', { title: 'Heute: Kapitel 7', subtitle: 'Kaffee ist fertig', minutes: 20, showProgress: false, anecdotes: 'Kaffee | Ohne Kaffee kein Kapitel' }, cookie);
+  assert.deepEqual({ t: r.body.config.title, m: r.body.config.minutes, p: r.body.config.showProgress, a: r.body.config.anecdotes }, { t: 'Heute: Kapitel 7', m: 20, p: false, a: 'Kaffee | Ohne Kaffee kein Kapitel' });
+  r = await adminCall('POST', 'startscreen/start', {}, cookie);
+  assert.equal(r.body.state.active, true); assert.equal(Math.round((r.body.state.until - r.body.state.startedAt) / 60_000), 20);
+  const u0 = r.body.state.until; r = await adminCall('POST', 'startscreen/extend', { minutes: 5 }, cookie);
+  assert.equal(r.body.state.until, u0 + 300_000);
+  assert.equal((await ssNow()).showProgress, false);
+  // Hintergrund
+  assert.equal((await adminCall('POST', 'startscreen/bg', { name: 'x', data: '' }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'startscreen/bg', { name: 'x.png', data: Buffer.from('kein Bild, nur Text').toString('base64') }, cookie)).status, 400);
+  assert.equal((await adminCall('POST', 'startscreen/bg', { name: 'gross.png', data: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8_100_000)]).toString('base64') }, cookie)).status, 413);
+  r = await adminCall('POST', 'startscreen/bg', { name: 'Abend<b>.png', data: PNG1 }, cookie);
+  assert.equal(r.status, 200); assert.equal(r.body.config.bgName, 'Abend<b>.png'.replace(/[<>"]/g, '')); assert.equal(r.body.config.bgKind, 'image');
+  let img = await ssBg(new Request('https://x/api/startscreen-bg?v=1'));
+  assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png'); assert.equal(img.headers.get('content-security-policy'), null);
+  assert.match((await ssNow()).bg, /^\/api\/startscreen-bg\?v=\d+$/);
+  const html = '<!doctype html><html><body><canvas id=c></canvas><script>1</script></body></html>';
+  r = await adminCall('POST', 'startscreen/bg', { name: 'Animation.html', data: Buffer.from(html).toString('base64') }, cookie);
+  assert.equal(r.body.config.bgKind, 'html');
+  img = await ssBg(new Request('https://x/api/startscreen-bg?v=2'));
+  assert.match(img.headers.get('content-type'), /^text\/html/); assert.equal(img.headers.get('content-security-policy'), 'sandbox allow-scripts'); // abgeschottet
+  assert.equal(await img.text(), html);
+  const b = await backupLib.buildBackup();
+  assert.ok(b.entries['startscreen/config']); assert.ok(b.entries['startbg/image']); assert.equal(b.entries['startscreen/state'], undefined); // der Lauf-Zustand ist kurzlebig
+  await adminCall('POST', 'startscreen/stop', {}, cookie);
+  r = await adminCall('DELETE', 'startscreen/bg', null, cookie);
+  assert.equal(r.body.config.bgName, null); assert.equal((await ssBg(new Request('https://x/api/startscreen-bg'))).status, 404); assert.equal((await ssNow()).bg, null);
+  await adminCall('PUT', 'startscreen', { title: 'Gleich geht’s los!', showProgress: true, minutes: 10 }, cookie);
+});
+
 console.log('Videos als Ausblick');
 const videoUp = admin; // der Upload ist eine Admin-Route: /api/admin/video
 const videoGet = (await mod('functions/overlay-video.mjs')).default;
