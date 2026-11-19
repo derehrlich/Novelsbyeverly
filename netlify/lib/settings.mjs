@@ -74,7 +74,7 @@ export const DEFAULTS = {
   cheerTemplate: 'Danke für {bits} Bits, {user}! ✨',
   raidTemplate: 'Willkommen {raider} und {viewers} Raider! 💛 Ihr seid {visit}. Schaut gern bei {url} vorbei.',
   // Alert als eigenes Video (statt des gezeichneten Buchs): Ort und Größe, Textfeld und Zeitraum des Textes, alles in Prozent
-  alertVideoAn: true, alertVideoKey: true, alertVideoLinks: true, alertVideoB: 90, alertVideoY: 46, alertVideoTX: 53, alertVideoTY: 26, alertVideoTB: 18, alertVideoTH: 46, alertVideoVon: 28, alertVideoBis: 63, alertVideoEnde: 78, alertVideoSchrift: 100,
+  alertVideoAn: true, alertVideoKey: true, alertVideoLinks: true, alertVideoB: 90, alertVideoY: 46, alertVideoTX: 53, alertVideoTY: 26, alertVideoTB: 19, alertVideoTH: 46, alertVideoVon: 28, alertVideoBis: 63, alertVideoEnde: 78, alertVideoSchrift: 80,
   // Stream-Pause (Overlay /pause, Chat: !auszeit und !zurueck), aus bis zum Einschalten
   pauseEnabled: false, pauseChat: true, pauseDefaultText: 'Kurze Pause', pauseSubtitle: 'Gleich geht es weiter!',
   pauseStartTemplate: '☕ {text} – gleich geht es weiter!', pauseEndTemplate: '▶️ Weiter geht’s!',
@@ -202,8 +202,22 @@ export function normalize(input, base = DEFAULTS) {
   return { settings: out };
 }
 
+// Die ersten Standardwerte des Alert-Videos wurden beim Speichern im Admin festgehalten und blieben dann auch nach Verbesserungen
+// der Standardwerte stehen. Sind alle neun noch genau auf dem alten Stand (also nie bewusst geändert), gelten wieder die aktuellen.
+const OLD_ALERT_VIDEO = [
+  { alertVideoB: 62, alertVideoY: 40, alertVideoTX: 54, alertVideoTY: 26, alertVideoTB: 36, alertVideoTH: 48, alertVideoVon: 40, alertVideoBis: 72, alertVideoSchrift: 100 }, // erste Fassung
+  { alertVideoB: 90, alertVideoY: 46, alertVideoTX: 53, alertVideoTY: 26, alertVideoTB: 18, alertVideoTH: 46, alertVideoVon: 28, alertVideoBis: 63, alertVideoSchrift: 100 }, // zweite Fassung (Schrift war zu groß)
+];
+export function migrateStored(stored) {
+  const old = OLD_ALERT_VIDEO.find((sig) => Object.entries(sig).every(([k, v]) => stored[k] === v));
+  if (!old) return stored;
+  const out = { ...stored };
+  for (const k of Object.keys(old)) delete out[k];
+  return out;
+}
+
 export async function getSettings() {
-  const stored = (await db.get('config/settings')) ?? {};
+  const stored = migrateStored((await db.get('config/settings')) ?? {});
   return { ...DEFAULTS, ...stored, layout: normalizeLayout(stored.layout) };
 }
 
