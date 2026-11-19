@@ -202,7 +202,7 @@ const OPT = {
 const SCHEMA = [
   ['Darstellung', [
     ['szeneModus', 'Darstellung', 'select', 'Die Tische mit Figuren der Zuschauer sind pausiert und lassen sich hier wieder einschalten.'],
-    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
+    ['jahreszeit', 'Jahreszeit', 'select'], ['tageszeit', 'Tageszeit', 'select'], ['wachstumQuelle', 'Landschaft wächst mit', 'select'], ['pavillonZeigen', 'Pavillon mit Stefanie zeigen', 'bool', 'Aus: die gemalte Landschaft hat keinen Pavillon und keine sitzende Stefanie. Der Pavillon ist nur ausgeblendet, nicht gelöscht.'], ['stefanieTaetigkeit', 'Stefanie im Pavillon', 'select'],
   ]],
   ['Pomodoro', [
     ['focusMinutes', 'Dauer eines Pomodoros (Minuten)', 'number'], ['breakMinutes', 'Kurze Pause (Minuten)', 'number'],
@@ -477,7 +477,7 @@ $('restoreDatei').onchange = run(async (e) => {
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
 let previewTimer = 0, previewBusy = false, previewAgain = false, previewProgress = null; // Fortschritt nur zum Ausprobieren in der Vorschau
-const PREVIEW_KEYS = ['jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+const PREVIEW_KEYS = ['pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {

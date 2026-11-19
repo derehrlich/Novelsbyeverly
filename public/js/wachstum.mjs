@@ -419,7 +419,7 @@ function snowman(c, x, y, p) {
 }
 
 // ---- Die Wachstumsebene (alles, was mit dem Fortschritt wächst)
-function paintGrowth(c, season, zeit, p) {
+function paintGrowth(c, season, zeit, p, pavillon = true) {
   const P = PAL[season];
   const snow = season === 'winter' ? p : 0;
   if (season === 'winter') { // Schnee deckt den Boden nach und nach zu
@@ -434,7 +434,7 @@ function paintGrowth(c, season, zeit, p) {
   hillLife(c, season, p);
   const things = [];
   things.push({ y: BAUM.y, draw: () => drawTree(c, BAUM.x, BAUM.y, BAUM.s, { leafAmt, tones: P.tree, season, p, snow }) });
-  things.push({ y: PAVILLON.y, draw: () => drawPavillon(c, season, zeit, p, snow) });
+  if (pavillon) things.push({ y: PAVILLON.y, draw: () => drawPavillon(c, season, zeit, p, snow) });
   if (season === 'winter') {
     things.push({ y: 712, draw: () => { fir(c, 90, 712, 1.1, snow); fir(c, 1530, 704, 0.9, snow); fir(c, 1850, 716, 1.15, snow); } });
     things.push({ y: 900, draw: () => snowman(c, 1480, 910, p) });
@@ -443,7 +443,7 @@ function paintGrowth(c, season, zeit, p) {
     const r = rng(404);
     for (let i = 0; i < 22; i += 1) {
       const nearTree = i < 8, nearPav = i >= 8 && i < 16;
-      const x = nearTree ? BAUM.x - 170 + r() * 340 : nearPav ? PAVILLON.x - 230 + r() * 460 : 40 + r() * (W - 80);
+      const x = nearTree ? BAUM.x - 170 + r() * 340 : nearPav && pavillon ? PAVILLON.x - 230 + r() * 460 : 40 + r() * (W - 80);
       const y = nearTree ? 730 + r() * 40 : nearPav ? 850 + r() * 50 : 720 + r() * 330;
       const th = 0.06 + r() * 0.6, g = clamp01((p - th) / 0.16);
       if (g > 0.02) things.push({ y, draw: () => pilze(c, x, y, 0.7 + (y - 700) / 360 * 0.9, g, r() * 0 + ((i * 0.37) % 1)) });
@@ -452,7 +452,7 @@ function paintGrowth(c, season, zeit, p) {
   for (const s of slotsFor(season)) {
     if (season === 'winter') things.push({ y: s.y, draw: () => (s.type === 'shrub' ? shrubWinter(c, s.x, s.y, s.s, snow, s.r) : tuft(c, s.x, s.y, s.s, 1, s.r, P.blades, snow)) });
     else {
-      if (s.x > PAVILLON.x - 290 && s.x < PAVILLON.x + 290 && s.y < PAVILLON.y + 140 && s.y > PAVILLON.y - 80) continue; // nichts vor oder im Pavillon (Stefanie soll zu sehen sein)
+      if (pavillon && s.x > PAVILLON.x - 290 && s.x < PAVILLON.x + 290 && s.y < PAVILLON.y + 140 && s.y > PAVILLON.y - 80) continue; // nichts vor oder im Pavillon (Stefanie soll zu sehen sein)
       const g = clamp01((p - s.thr) / 0.16);
       if (g <= 0.01) continue;
       things.push({ y: s.y, draw: () => (s.type === 'tuft' ? tuft(c, s.x, s.y, s.s, g, s.r, P.blades) : DRAW[s.type](c, s.x, s.y, s.s, g, s.r)) });
@@ -494,12 +494,13 @@ export class Wachstum {
     const bgKey = `${season}|${zeit}|${snowQ}`;
     if (bgKey !== this.bgKey) { this.bgKey = bgKey; const k = this.bg.getContext('2d'); k.clearRect(0, 0, W, H); paintBackground(k, season, zeit, snowQ); this.glKey = ''; }
     const pq = Math.round(p * 80) / 80;
-    const glKey = `${bgKey}|${pq}`;
-    if (glKey !== this.glKey) { this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq); }
+    const pav = view.pavillon !== false;
+    const glKey = `${bgKey}|${pq}|${pav}`;
+    if (glKey !== this.glKey) { this.glKey = glKey; const k = this.gl.getContext('2d'); k.clearRect(0, 0, W, H); paintGrowth(k, season, zeit, pq, pav); }
     c.drawImage(this.bg, 0, 0);
     if (zeit === 'morgen') for (let i = 0; i < 4; i += 1) ell(c, 300 + i * 480 + Math.sin(t / 5000 + i) * 60, 700 + (i % 2) * 24, 380, 36, alpha('#fff4ee', 0.2));
     c.drawImage(this.gl, 0, 0);
-    drawStefanie(c, view, t);
+    if (pav) drawStefanie(c, view, t);
     this.living(c, season, zeit, pq, t);
     const tint = SKY[zeit].tint;
     if (tint) { c.fillStyle = alpha(tint[0], tint[1]); c.fillRect(0, 0, W, H); }

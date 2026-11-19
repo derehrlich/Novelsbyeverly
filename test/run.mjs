@@ -895,6 +895,12 @@ await test('Jahreszeiten-Landschaft: Bilder hochladen, ausliefern, Rückfall auf
   assert.equal((await adminCall('DELETE', 'hintergrund/jz/winterB', null, cookie)).status, 200);
   await saveSettings({ hintergrund: 'landschaft' });
 });
+await test('Pavillon ist standardmäßig ausgeblendet und lässt sich wieder einschalten', async () => {
+  assert.equal((await viewNow()).pavillon, false);
+  await saveSettings({ pavillonZeigen: true });
+  assert.equal((await viewNow()).pavillon, true);
+  await saveSettings({ pavillonZeigen: false });
+});
 await test('Chat: !wetter, !tageszeit und !hintergrund nur für Moderation', async () => {
   const mod = { badges: [{ set_id: 'moderator' }] };
   const before = chatSent().length;

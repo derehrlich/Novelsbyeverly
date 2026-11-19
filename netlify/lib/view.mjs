@@ -101,6 +101,7 @@ export async function buildView(settings, since, now = Date.now(), { preview = f
     pomodoro: { done, goal: settings.pomodoroGoal, minutes: settings.focusMinutes },
     ziel,
     zeit: { startedAt: zeit.startedAt, quelle: zeit.quelle, goalMinutes: zeit.goalMinutes, fraction: zeit.fraction },
+    pavillon: !!settings.pavillonZeigen,
     stefanie: { figur: cleanFigur(settings.stefanieFigur), taetigkeit },
     layout: settings.layout,
     stil: settings.kartenStil,
