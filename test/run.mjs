@@ -856,6 +856,12 @@ await test('Szene im Overlay-Stand: Tageszeit und Wetter, Landschaft kennt keine
   await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto', wetter: 'klar' });
   assert.equal((await viewNow()).hintergrund.mode, 'landschaft');
 });
+await test('Kamera-Rahmen: Auswahl gilt im Overlay-Stand, unbekannte Werte werden abgelehnt', async () => {
+  assert.equal((await viewNow()).kameraRahmen, 'holz');
+  for (const stil of ['papier', 'glas', 'keiner', 'holz']) { await saveSettings({ kameraRahmen: stil }); assert.equal((await viewNow()).kameraRahmen, stil); }
+  assert.equal(normalize({ kameraRahmen: 'gold' }).error, 'kameraRahmen: unbekannter Wert');
+  const sz = await import('../public/js/szene.mjs'); assert.deepEqual(sz.KAMERA_RAHMEN, ['holz', 'papier', 'glas', 'keiner']);
+});
 await test('Raumbilder: hochladen je Szene, ausliefern, entfernen', async () => {
   const login = await adminCall('POST', 'login', { password: 'geheim' });
   const cookie = login.headers.get('set-cookie').split(';')[0];

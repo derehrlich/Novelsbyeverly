@@ -195,6 +195,7 @@ const OPT = {
   wetter: [['klar', 'Klar'], ['wolkig', 'Wolkig'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['schnee', 'Schnee'], ['nebel', 'Nebel']],
   wachstumQuelle: [['ziel', 'Ziel-Karte'], ['zeit', 'Streamzeit'], ['woerter', 'Wörter des Tages'], ['pomodoro', 'Pomodoros des Tages'], ['kombi', 'Mittel aus Zeit und Ziel']],
   appearOn: [['sit', 'Per Chatbefehl !sitzen'], ['checkin', 'Per Kanalpunkte-Reward „Check-in“'], ['both', 'Beides']],
+  kameraRahmen: [['holz', 'Holz mit Blättern (wie in der Landschaft)'], ['papier', 'Papier (cremefarben)'], ['glas', 'Glas (hell durchscheinend)'], ['keiner', 'Kein Rahmen (nur der Ausschnitt)']],
   kartenStil: [['papier', 'Papier (warme Karten, wie bisher)'], ['glas', 'Glas (durchsichtig und getönt)']],
   hintergrund: [['landschaft', 'Gemalte Landschaft mit Pavillon'], ['jahreszeiten', 'Jahreszeiten-Landschaft (Bilder von dir)'], ['bild', 'Eigenes Bild (Upload unten)'], ['zug', 'Zugabteil'], ['sitzecke', 'Sitzecke am Fenster'], ['stadt', 'Stadt'], ['see', 'See und Weitblick']],
   scene: Object.entries(SZENEN).map(([k, v]) => [k, v.label]),
@@ -312,6 +313,7 @@ const SCHEMA = [
     ['backupAutoEnabled', 'Jede Nacht automatisch sichern', 'bool'], ['backupHour', 'Ab wann (Uhr)', 'number'], ['backupKeep', 'So viele Sicherungen behalten', 'number'],
   ]],
   ['Kartenstil', [
+    ['kameraRahmen', 'Rahmen um das Kamerabild (Szenen, Jahreszeiten, eigenes Bild)', 'select', 'Das Kamerafenster liegt in OBS durchsichtig im Overlay, die Kamera kommt darunter. Position und Größe stellst du unter „Anordnung“ ein.'],
     ['kartenStil', 'Stil der Karten (Uhr, Ziel, To-Do, Musik, Banner)', 'select', 'Glas lässt das Bild dahinter verschwommen durchscheinen, getönt in der gewählten Farbe.'],
     ['glasFarbe', 'Glas: Farbton', 'color'],
     ['glasStaerke', 'Glas: Tönung (0 = klar, 90 = fast deckend)', 'range'],
@@ -537,7 +539,7 @@ $('restoreDatei').onchange = run(async (e) => {
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
 let previewTimer = 0, previewBusy = false, previewAgain = false, previewProgress = null; // Fortschritt nur zum Ausprobieren in der Vorschau
-const PREVIEW_KEYS = ['videoZug', 'videoSitzecke', 'videoStadt', 'videoSee', 'pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+const PREVIEW_KEYS = ['kameraRahmen', 'videoZug', 'videoSitzecke', 'videoStadt', 'videoSee', 'pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {

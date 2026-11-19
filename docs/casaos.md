@@ -61,3 +61,6 @@ npm ci
 ADMIN_PASSWORD=test EVENTSUB_SECRET=zufallstext123 SITE_URL=http://localhost:3000 npm start   # Daten in ./data
 npm test
 ```
+
+## Kamera im Overlay einbetten
+Die Kamera liegt in OBS **unter** dem Overlay. Das Overlay hat dafür ein durchsichtiges Fenster mit Rahmen. Position und Größe stellst du im Admin unter **Anordnung** ein, den Rahmen-Stil unter **Design und Hintergrund** („Rahmen um das Kamerabild“: Holz mit Blättern, Papier, Glas oder kein Rahmen). Das gilt für alle Hintergründe (Szenen, Jahreszeiten, eigenes Bild); die gemalte Landschaft zeichnet ihren Holzrahmen selbst.
