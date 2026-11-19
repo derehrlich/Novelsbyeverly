@@ -353,6 +353,7 @@ export class Kulisse {
       return;
     }
     if (this.vid && !this.vid.failed) return; // Video lädt noch: kurz nichts zeigen statt der Code-Szene
+    if (this.vid) { this.vid.dispose(); this.vid = null; this.scene = null; return; } // Video lässt sich nicht abspielen (kaputte Datei): Code-Szene neu aufbauen und die gezeichnete Landschaft zeigen
     sky(c, ww, wh, t, pal, w, 99 + S.name.length, 0.7 + wind * 2);
     c.save();
     if (S.name === 'zug') {

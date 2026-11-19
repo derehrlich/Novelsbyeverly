@@ -1,7 +1,7 @@
 // Video-Upload im Admin (Route /api/admin/video, nur mit Anmeldung): PUT ?s=<szene>&z=<zeit> mit der Videodatei als Inhalt, DELETE zum Entfernen, GET für die Übersicht.
 // Liegt bewusst unter /api/admin/…: So gilt dieselbe Anmeldung und derselbe Schutz (z. B. Cloudflare Access) wie für alle Admin-Aufrufe. Die Datei kommt roh, nicht als JSON, bis 80 MB.
 import { json } from '../http.mjs';
-import { MAX_VIDEO_BYTES, deleteVideo, listVideos, saveVideo, sniffVideo, validSlot, videosAvailable } from '../videos.mjs';
+import { MAX_VIDEO_BYTES, cleanName, deleteVideo, listVideos, saveVideo, sniffVideo, validSlot, videosAvailable } from '../videos.mjs';
 
 export async function video({ req, method }) {
   if (!videosAvailable()) return json({ error: 'Videos gibt es nur auf dem Heimserver (CasaOS), nicht auf Netlify' }, 501);
@@ -17,6 +17,6 @@ export async function video({ req, method }) {
   if (buf.length > MAX_VIDEO_BYTES) return json({ error: `Das Video ist zu groß (höchstens ${MAX_VIDEO_BYTES / 1048576} MB)` }, 413);
   const kind = sniffVideo(buf);
   if (!kind) return json({ error: 'Bitte ein Video als MP4 oder WebM wählen' }, 400);
-  const meta = await saveVideo(s, z, buf, kind);
-  return json({ ok: true, size: meta.size, version: meta.version });
+  const meta = await saveVideo(s, z, buf, kind, cleanName(u.searchParams.get('n')));
+  return json({ ok: true, size: meta.size, version: meta.version, name: meta.name });
 }

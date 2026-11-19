@@ -64,3 +64,12 @@ Je Szene eine dieser Zeilen **zusätzlich** in die Anfrage schreiben:
 - **Video bleibt schwarz oder zeigt nichts:** Erst im Admin in der Vorschau ansehen. Spielt es dort nicht, im Browser testen. Manche OBS-Versionen spielen H.264-MP4 nicht ab. Dann das Video als **WebM** speichern (zum Beispiel mit HandBrake oder ffmpeg) und neu hochladen.
 - **Zu groß:** Kürzer machen oder in 720p erstellen.
 - **Ruckelt beim Überblenden:** Das Video hat starke Bewegung am Anfang und Ende. Bitte um „calm, steady motion“ oder schneide Anfang und Ende etwas ab.
+
+## Bibliothek: bis zu 3 eigene Videos je Szene
+Im Admin unter Overlay → Hintergrund → „Videos als Ausblick“ gibt es unter der Tabelle die **Bibliothek**.
+Jede Szene (Zug, Sitzecke, Stadt, See) hat drei Plätze. Du lädst ein Video in einen Platz, der Dateiname wird als Name angezeigt.
+Mit der Auswahl „Läuft gerade“ bestimmst du, was die Szene zeigt:
+- **Nach Tageszeit**: wie bisher, je Tageszeit ein Video aus der Tabelle darüber.
+- **Platz 1, 2 oder 3**: dieses Video läuft zu jeder Tageszeit.
+- **Kein Video**: die gezeichnete Landschaft.
+Das Video muss MP4 oder WebM sein (höchstens 80 MB). Wenn eine Datei sich nicht abspielen lässt, zeigt der Bot automatisch die gezeichnete Landschaft.
