@@ -16,8 +16,23 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 let onShow = () => {};
+// Seiten abgewählter Funktionen (System → Funktionen): nicht im Menü, nicht in der Suche, nicht erreichbar
+let versteckt = new Set();
+function zeichneMenue() {
+  $('nav').innerHTML = NAV.map(([group, items]) => ({ group, items: items.filter(([k]) => !versteckt.has(k)) })).filter((g) => g.items.length)
+    .map(({ group, items }) => `${group ? `<h4>${esc(group)}</h4>` : ''}${items.map(([k, icon, label]) => `<a href="#${k}" data-page="${k}"><span>${icon}</span>${esc(label)}</a>`).join('')}`).join('');
+  for (const a of $('nav').querySelectorAll('a')) a.onclick = (e) => { e.preventDefault(); showPage(a.dataset.page); };
+}
+export function setHiddenPages(keys) {
+  versteckt = new Set(keys);
+  if (!$('nav')) return;
+  zeichneMenue();
+  const hash = location.hash.slice(1);
+  if (versteckt.has(hash)) showPage('start');
+  else for (const a of document.querySelectorAll('#nav a')) a.classList.toggle('aktiv', a.dataset.page === hash);
+}
 export function showPage(key, { focus = null } = {}) {
-  if (!PAGES.some((p) => p[0] === key)) key = 'start';
+  if (!PAGES.some((p) => p[0] === key) || versteckt.has(key)) key = 'start';
   for (const p of document.querySelectorAll('.tab-panel')) p.hidden = p.dataset.panel !== key;
   for (const a of document.querySelectorAll('#nav a')) a.classList.toggle('aktiv', a.dataset.page === key);
   if (location.hash !== `#${key}`) history.replaceState(null, '', `#${key}`);
@@ -38,10 +53,11 @@ function search(q) {
   const box = $('sucheTreffer'); const n = norm(q).trim();
   if (n.length < 2) { box.hidden = true; return; }
   const hits = [];
-  for (const [key, icon, label] of PAGES) if (norm(label).includes(n)) hits.push({ key, text: `${icon} ${label}`, sub: 'Seite' });
+  for (const [key, icon, label] of PAGES) if (!versteckt.has(key) && norm(label).includes(n)) hits.push({ key, text: `${icon} ${label}`, sub: 'Seite' });
   for (const feld of document.querySelectorAll('.tab-panel .feld')) {
     const l = feld.querySelector('label'); if (!l || !norm(l.textContent).includes(n)) continue;
     const key = feld.closest('.tab-panel').dataset.panel;
+    if (versteckt.has(key)) continue;
     hits.push({ key, text: l.textContent.trim(), sub: PAGES.find((p) => p[0] === key)?.[2] ?? '', feld });
   }
   box.innerHTML = hits.length ? hits.slice(0, 12).map((h, i) => `<button type="button" data-i="${i}"><b>${esc(h.text)}</b><small>${esc(h.sub)}</small></button>`).join('') : '<div class="leise">Nichts gefunden</div>';
@@ -51,8 +67,7 @@ function search(q) {
 
 export function initNav({ onShow: cb }) {
   onShow = cb;
-  $('nav').innerHTML = NAV.map(([group, items]) => `${group ? `<h4>${esc(group)}</h4>` : ''}${items.map(([k, icon, label]) => `<a href="#${k}" data-page="${k}"><span>${icon}</span>${esc(label)}</a>`).join('')}`).join('');
-  for (const a of $('nav').querySelectorAll('a')) a.onclick = (e) => { e.preventDefault(); showPage(a.dataset.page); };
+  zeichneMenue();
   $('menue').onclick = () => ($('nav').classList.contains('offen') ? closeDrawer() : openDrawer());
   $('scrim').onclick = closeDrawer;
   $('suche').oninput = (e) => search(e.target.value);

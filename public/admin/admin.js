@@ -1,6 +1,6 @@
 import { ITEMS, SLOTS, SZENEN, slotValues } from '../js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../js/layout.mjs';
-import { initNav, PAGES, PREVIEW_PAGES, showPage } from './nav.js';
+import { initNav, PAGES, PREVIEW_PAGES, setHiddenPages, showPage } from './nav.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -355,7 +355,7 @@ let current = null;
 // Gruppen mit Haken als Erstem: Die Kopfzeile zeigt an/aus
 const TOGGLE_GROUPS = new Set(['Eigene Befehle', 'Zitate', 'Shoutout', 'Streak-Retter', 'Stream-Pause', 'Alerts', 'Raids', 'Check-in und Streak', 'Punkte und Rangliste', 'Sicherung (nur Heimserver)']);
 // Änderungen an diesen Werten gleichen Reward und Webhooks bei Twitch gleich mit ab
-const SYNC_KEYS = ['customCommandsEnabled', 'streakRescueEnabled', 'streakRewardTitle', 'streakRewardCost', 'alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands'];
+const SYNC_KEYS = ['customCommandsEnabled', 'streakRescueEnabled', 'streakRewardTitle', 'streakRewardCost', 'alertsEnabled', 'raidEnabled', 'checkinEnabled', 'pointsEnabled', 'appearOn', 'checkinRewardTitle', 'checkinRewardCost', 'chatCommands', 'funktionenAus'];
 const openFolds = new Set();
 const RANGE = { glasStaerke: [0, 90], glasUnschaerfe: [0, 60], wind: [0, 100], kulisseTempo: [0, 100], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 
@@ -900,10 +900,27 @@ async function loadJz() {
 $('jzFortschritt').oninput = () => { previewProgress = Number($('jzFortschritt').value) / 100; $('jzFortschrittWert').textContent = `${$('jzFortschritt').value} %`; schedulePreview(150); };
 $('jzFortschrittAus').onclick = () => { previewProgress = null; $('jzFortschritt').value = 0; $('jzFortschrittWert').textContent = 'echter Stand'; schedulePreview(0); };
 
+// ---- Funktionen an- und abwählen (System)
+let funktionen = [];
+function wendeFunktionenAn() { setHiddenPages(funktionen.filter((f) => !f.on).flatMap((f) => f.pages)); }
+function renderFunktionen() {
+  $('funktionenListe').innerHTML = funktionen.map((f) => `<div class="feld"><label><input type="checkbox" data-fn="${esc(f.id)}"${f.on ? ' checked' : ''}> ${esc(f.label)}</label><div class="hinweis">${esc(f.hint)}</div></div>`).join('');
+  for (const box of $('funktionenListe').querySelectorAll('[data-fn]')) box.onchange = run(async () => {
+    const aus = funktionen.map((f) => (f.id === box.dataset.fn ? !box.checked : !f.on)).map((a, i) => (a ? funktionen[i].id : null)).filter(Boolean);
+    await api('PUT', 'settings', { funktionenAus: aus.join(',') });
+    await ladeFunktionen();
+    await loadSettings();
+    await syncTwitch(); // Rewards und Webhooks passend zu ein/aus nachziehen
+    await loadState();
+  });
+}
+async function ladeFunktionen() { funktionen = (await api('GET', 'funktionen')).items; wendeFunktionenAn(); renderFunktionen(); }
+
 let navReady = false;
 async function start() {
   await loadState(); // ohne Anmeldung bricht das hier ab und zeigt den Login
   show(true);
+  await ladeFunktionen().catch(() => {});
   if (!navReady) { navReady = true; initNav({ onShow: onPageShow }); }
   await Promise.all([loadSettings(), loadTasks(), loadUsers()]);
   loadSystem().catch(() => {}); loadBg().catch(() => {}); loadRaeume().catch(() => {}); loadVideos().catch(() => {}); loadJz().catch(() => {}); loadAlertVideo().catch(() => {}); loadPause().catch(() => {}); loadSs().catch(() => {}); loadSounds().catch(() => {}); loadCmds().catch(() => {}); loadQuotes().catch(() => {});

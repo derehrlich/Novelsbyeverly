@@ -1,6 +1,7 @@
 import { db } from './store.mjs';
 import { DEFAULT_FIGUR, MAX_PLAETZE, SZENEN, cleanFigur } from '../../public/js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
+import { applyFeatures, cleanOff } from './funktionen.mjs';
 
 export const DEFAULTS = {
   // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'zimmer' = Szene mit den Figuren der Zuschauer (pausiert)
@@ -82,6 +83,7 @@ export const DEFAULTS = {
   // Alert als eigenes Video (statt des gezeichneten Buchs): Ort und Größe, Textfeld und Zeitraum des Textes, alles in Prozent
   alertVideoAn: true, alertVideoKey: true, alertVideoLinks: true, alertVideoB: 90, alertVideoY: 46, alertVideoTX: 53, alertVideoTY: 26, alertVideoTB: 19, alertVideoTH: 46, alertVideoVon: 28, alertVideoBis: 63, alertVideoEnde: 78, alertVideoSchrift: 80,
   // Stream-Pause (Overlay /pause, Chat: !auszeit und !zurueck), aus bis zum Einschalten
+  funktionenAus: '', // abgewählte Funktionen (Kennungen, durch Komma): im Admin unsichtbar und nicht aktiv, siehe funktionen.mjs
   pauseEnabled: false, pauseChat: true, pauseDefaultText: 'Kurze Pause', pauseSubtitle: 'Gleich geht es weiter!',
   pauseStartTemplate: '☕ {text} – gleich geht es weiter!', pauseEndTemplate: '▶️ Weiter geht’s!',
   pavillonZeigen: false, // Pavillon mit Stefanie in der gemalten Landschaft (aus, der Code bleibt)
@@ -179,6 +181,7 @@ export function normalize(input, base = DEFAULTS) {
       out.musikUrl = u.slice(0, 300);
       continue;
     }
+    if (key === 'funktionenAus') { out.funktionenAus = cleanOff(value); continue; }
     if (key === 'glasFarbe') {
       if (!/^#[0-9a-f]{6}$/i.test(String(value ?? ''))) return { error: 'Die Glasfarbe muss so aussehen: #3b6f94' };
       out.glasFarbe = String(value).toLowerCase();
@@ -222,13 +225,18 @@ export function migrateStored(stored) {
   return out;
 }
 
-export async function getSettings() {
+// Gespeicherte Einstellungen, genau wie du sie eingestellt hast (für Admin-Formular und Speichern)
+export async function getRawSettings() {
   const stored = migrateStored((await db.get('config/settings')) ?? {});
   return { ...DEFAULTS, ...stored, layout: normalizeLayout(stored.layout) };
 }
+// Einstellungen, wie der Bot sie benutzt: abgewählte Funktionen sind darin ausgeschaltet
+export async function getSettings() {
+  return applyFeatures(await getRawSettings());
+}
 
 export async function saveSettings(input) {
-  const { settings, error } = normalize(input, await getSettings());
+  const { settings, error } = normalize(input, await getRawSettings());
   if (error) return { error };
   await db.set('config/settings', settings);
   return { settings };
