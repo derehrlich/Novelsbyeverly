@@ -4,9 +4,12 @@
 import { db } from '../store.mjs';
 import { json } from '../http.mjs';
 import * as ss from '../startscreen.mjs';
+import { getRawSettings } from '../settings.mjs';
+import { featureOn } from '../funktionen.mjs';
 
 export async function startscreenRoute({ route, method, body }) {
   if (route[0] !== 'startscreen') return;
+  if (!featureOn(await getRawSettings(), 'startscreen') && method !== 'GET') return json({ error: 'Der Startbildschirm ist abgewählt (System → Funktionen)' }, 403);
   const view = async () => json(await ss.adminView());
   if (route.length === 1 && method === 'GET') return view();
   if (route.length === 1 && method === 'PUT') { await ss.updateConfig(body); return view(); }

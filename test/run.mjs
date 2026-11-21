@@ -1485,4 +1485,37 @@ await test('Videos: entfernen löscht Datei und Eintrag', async () => {
   await videoUp(new Request('https://x/api/admin/video?s=stadt&z=abend', { method: 'DELETE', headers: { 'x-upload': '1', cookie } }));
 });
 
+console.log('Funktionen an- und abwählen');
+await test('Funktionen: abgewählt = unsichtbar und nicht aktiv, Einstellungen bleiben erhalten', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const { featureOn, cleanOff } = await mod('lib/funktionen.mjs');
+  assert.equal(cleanOff('alerts, quatsch ,musik,alerts'), 'alerts,musik'); // nur bekannte, ohne Doppelte, in fester Reihenfolge
+  await adminCall('PUT', 'settings', { funktionenAus: '', alertsEnabled: true, raidEnabled: true, pauseEnabled: true, musikQuelle: 'lokal', customCommandsEnabled: true, checkinEnabled: true }, cookie);
+  assert.equal((await getSettings()).alertsEnabled, true);
+  let r = await adminCall('GET', 'funktionen', null, cookie);
+  assert.ok(r.body.items.every((f) => f.on) && r.body.items.some((f) => f.id === 'alerts' && f.pages.includes('alerts')));
+  // abwählen: im Bot ausgeschaltet, im Admin-Formular steht weiter, was eingestellt war
+  await adminCall('PUT', 'settings', { funktionenAus: 'alerts,auszeit,musik,befehle,checkin,startscreen' }, cookie);
+  const eff = await getSettings();
+  assert.equal(eff.alertsEnabled, false); assert.equal(eff.raidEnabled, false); assert.equal(eff.pauseEnabled, false);
+  assert.equal(eff.musikQuelle, 'aus'); assert.equal(eff.customCommandsEnabled, false); assert.equal(eff.checkinEnabled, false);
+  assert.equal(featureOn(eff, 'alerts'), false);
+  r = await adminCall('GET', 'settings', null, cookie);
+  assert.equal(r.body.settings.alertsEnabled, true); assert.equal(r.body.settings.musikQuelle, 'lokal');
+  // Speichern mit abgewählter Funktion überschreibt die versteckten Werte nicht
+  await adminCall('PUT', 'settings', { focusMinutes: 30 }, cookie);
+  assert.equal((await adminCall('GET', 'settings', null, cookie)).body.settings.alertsEnabled, true);
+  // Overlay-Karte Musik weg, Startbildschirm und Pause zeigen nichts, Admin-Steuerung gesperrt
+  assert.equal((await ssNow()).show, false);
+  assert.equal((await adminCall('POST', 'startscreen/start', {}, cookie)).status, 403);
+  assert.equal((await adminCall('POST', 'pause/start', { text: 'x' }, cookie)).status, 403);
+  assert.equal((await (await (await mod('functions/pause.mjs')).default(new Request('https://x/api/pause'))).json()).show, false);
+  // wieder anwählen: alles wie vorher
+  await adminCall('PUT', 'settings', { funktionenAus: '' }, cookie);
+  const back = await getSettings();
+  assert.equal(back.alertsEnabled, true); assert.equal(back.musikQuelle, 'lokal'); assert.equal(back.checkinEnabled, true);
+  await saveSettings({ alertsEnabled: false, raidEnabled: false, pauseEnabled: false, musikQuelle: 'aus', customCommandsEnabled: false, checkinEnabled: false });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

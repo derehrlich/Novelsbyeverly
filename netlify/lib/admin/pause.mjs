@@ -3,6 +3,7 @@
 //   PUT pause/presets { presets: [...] } | POST pause/icon/<id> { data } | DELETE pause/icon/<id>
 import { json } from '../http.mjs';
 import { getSettings } from '../settings.mjs';
+import { featureOn } from '../funktionen.mjs';
 import * as pause from '../pause.mjs';
 import { COMMAND_WORDS } from '../chat.mjs';
 import { getCommands } from '../befehle.mjs';
@@ -10,6 +11,7 @@ import { getCommands } from '../befehle.mjs';
 export async function pauseRoute({ route, method, body }) {
   if (route[0] !== 'pause') return;
   const settings = await getSettings();
+  if (!featureOn(settings, 'auszeit') && method !== 'GET') return json({ error: 'Die Stream-Pause ist abgewählt (System → Funktionen)' }, 403);
   const view = async () => {
     const presets = await pause.getPresets();
     return json({ state: await pause.getState(), defaultText: settings.pauseDefaultText, enabled: settings.pauseEnabled, prefix: settings.commandPrefix, max: pause.MAX_PRESETS,
