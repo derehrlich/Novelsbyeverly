@@ -851,7 +851,7 @@ await test('Szene im Overlay-Stand: Tageszeit und Wetter, Landschaft kennt keine
   await saveSettings({ hintergrund: 'zug', tageszeit: 'nacht', wetter: 'regen', wind: 70, kulisseTempo: 80 });
   const v = await viewNow();
   assert.equal(v.hintergrund.mode, 'kulisse');
-  assert.deepEqual({ ...v.hintergrund.kulisse, saison: undefined }, { name: 'zug', zeit: 'nacht', saison: undefined, wetter: 'regen', wind: 70, tempo: 80, plate: null, video: null });
+  assert.deepEqual({ ...v.hintergrund.kulisse, saison: undefined }, { name: 'zug', zeit: 'nacht', saison: undefined, wetter: 'regen', wind: 70, tempo: 80, plate: null, video: null, embed: null });
   assert.equal(v.tageszeit, 'abend'); // die gemalte Landschaft hat keine eigene Nacht
   await saveSettings({ hintergrund: 'landschaft', tageszeit: 'auto', wetter: 'klar' });
   assert.equal((await viewNow()).hintergrund.mode, 'landschaft');
@@ -1516,6 +1516,26 @@ await test('Funktionen: abgewählt = unsichtbar und nicht aktiv, Einstellungen b
   const back = await getSettings();
   assert.equal(back.alertsEnabled, true); assert.equal(back.musikQuelle, 'lokal'); assert.equal(back.checkinEnabled, true);
   await saveSettings({ alertsEnabled: false, raidEnabled: false, pauseEnabled: false, musikQuelle: 'aus', customCommandsEnabled: false, checkinEnabled: false });
+});
+
+console.log('Video-Link');
+await test('Video-Link: YouTube und direkte Adresse prüfen, im Overlay-Stand je Szene', async () => {
+  const { parseVideoLink } = await mod('lib/videos.mjs');
+  const id = 'dQw4w9WgXcQ';
+  for (const u of [`https://www.youtube.com/watch?v=${id}&t=5`, `https://youtu.be/${id}?si=x`, `https://m.youtube.com/shorts/${id}`, `https://www.youtube.com/embed/${id}`, `https://www.youtube-nocookie.com/embed/${id}`, `https://www.youtube.com/live/${id}`]) assert.deepEqual(parseVideoLink(u), { kind: 'youtube', id }, u);
+  assert.deepEqual(parseVideoLink('https://beispiel.de/clip.mp4?x=1'), { kind: 'datei', url: 'https://beispiel.de/clip.mp4?x=1' });
+  for (const u of ['', 'quatsch', 'http://youtu.be/dQw4w9WgXcQ', 'https://www.youtube.com/watch?v=zu-kurz', 'https://www.youtube.com/playlist?list=PL1', 'https://beispiel.de/seite', 'javascript:alert(1)', 'https://evil.de/https://youtu.be/dQw4w9WgXcQ']) assert.equal(parseVideoLink(u), null, u);
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await adminCall('PUT', 'settings', { videoLinkSee: 'https://beispiel.de/seite' }, cookie)).status, 400); // kein erlaubter Link
+  assert.equal((await adminCall('PUT', 'settings', { videoLinkSee: `https://youtu.be/${id}`, videoSee: 'link', hintergrund: 'see' }, cookie)).status, 200);
+  let v = await viewNow();
+  assert.deepEqual(v.hintergrund.kulisse.embed, { kind: 'youtube', id }); assert.equal(v.hintergrund.kulisse.video, null);
+  await adminCall('PUT', 'settings', { videoLinkSee: 'https://beispiel.de/ausblick.webm' }, cookie);
+  v = await viewNow(); assert.equal(v.hintergrund.kulisse.video, 'https://beispiel.de/ausblick.webm'); assert.equal(v.hintergrund.kulisse.embed, null);
+  await adminCall('PUT', 'settings', { videoLinkSee: '' }, cookie); // Auswahl „link“ ohne Link: gezeichnete Landschaft
+  v = await viewNow(); assert.equal(v.hintergrund.kulisse.video, null); assert.equal(v.hintergrund.kulisse.embed, null);
+  await saveSettings({ hintergrund: 'landschaft', videoSee: 'zeit', videoLinkSee: '' });
 });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

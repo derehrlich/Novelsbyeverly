@@ -12,10 +12,22 @@ import { resolveSeason, resolveTime } from './zeiten.mjs';
 import { getPages } from './pages.mjs';
 import { fmtHM, streamInfo } from './streamzeit.mjs';
 import { cleanFigur } from '../../public/js/katalog.mjs';
-import { WAHL_KEY, videoUrl } from './videos.mjs';
+import { LINK_KEY, WAHL_KEY, parseVideoLink, videoUrl } from './videos.mjs';
 import { soundUrls } from './alertsounds.mjs';
 
 export const STREAMER_TASKS = 'streamer'; // Aufgaben-Schlüssel, falls Twitch noch nicht verbunden ist
+
+// Video für eine Szene: Datei (Zeit, Bibliothek), Link zu einer Videodatei oder eingebettetes YouTube-Video
+async function videoOf(settings, h, zeit) {
+  const wahl = settings[WAHL_KEY[h]];
+  if (wahl === 'link') {
+    const l = parseVideoLink(settings[LINK_KEY[h]]);
+    if (l?.kind === 'youtube') return { video: null, embed: { kind: 'youtube', id: l.id } };
+    if (l?.kind === 'datei') return { video: l.url, embed: null };
+    return { video: null, embed: null }; // Link fehlt oder ist ungültig: gezeichnete Landschaft
+  }
+  return { video: await videoUrl(h, zeit, wahl), embed: null };
+}
 
 export async function streamerId() {
   return (await storedTokens('broadcaster'))?.user_id ?? STREAMER_TASKS;
@@ -44,7 +56,7 @@ export async function hintergrundOf(settings, zeit, saison, progress = 0) {
   if (h === 'bild' && settings.hintergrundVersion) return { mode: 'bild', url: `/api/overlay-bg?v=${settings.hintergrundVersion}` };
   if (SZENEN_KULISSE.includes(h)) {
     const v = settings[RAUM_KEY[h]];
-    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null, video: await videoUrl(h, zeit, settings[WAHL_KEY[h]]) } };
+    return { mode: 'kulisse', kulisse: { name: h, zeit, saison, wetter: settings.wetter, wind: settings.wind, tempo: settings.kulisseTempo, plate: v ? `/api/overlay-bg?plate=${h}&v=${v}` : null, ...(await videoOf(settings, h, zeit)) } };
   }
   return { mode: 'landschaft' };
 }

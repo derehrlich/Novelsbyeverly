@@ -2,6 +2,7 @@ import { db } from './store.mjs';
 import { DEFAULT_FIGUR, MAX_PLAETZE, SZENEN, cleanFigur } from '../../public/js/katalog.mjs';
 import { DEFAULT_LAYOUT, normalizeLayout } from '../../public/js/layout.mjs';
 import { applyFeatures, cleanOff } from './funktionen.mjs';
+import { LINK_FEHLER, parseVideoLink } from './videos.mjs';
 
 export const DEFAULTS = {
   // Darstellung: 'wachstum' = Landschaft, die mit dem Fortschritt zuwächst; 'zimmer' = Szene mit den Figuren der Zuschauer (pausiert)
@@ -60,6 +61,7 @@ export const DEFAULTS = {
   wordGoal: 1000,
   unlocksEnabled: true,
   // Module im Overlay (auf dem Regalbrett und im Zimmer)
+  videoLinkZug: '', videoLinkSitzecke: '', videoLinkStadt: '', videoLinkSee: '', // Video-Link je Szene (YouTube oder direkte Adresse), läuft bei Auswahl „link“
   videoZug: 'zeit', videoSitzecke: 'zeit', videoStadt: 'zeit', videoSee: 'zeit', // welches Video je Szene läuft: zeit (nach Tageszeit) | b1 b2 b3 (Bibliothek) | aus
   // Alerts und Raids (aus, bis sie im Admin eingeschaltet werden). Platzhalter stehen in {geschweiften Klammern}
   alertsEnabled: false, raidEnabled: false,
@@ -152,7 +154,7 @@ export const DEFAULTS = {
 
 const INT = { alertSoundVolume: [0, 100], streakRewardCost: [1, 1000000], rescueMaxDays: [1, 14], alertVideoB: [20, 100], alertVideoY: [0, 100], alertVideoTX: [0, 95], alertVideoTY: [0, 95], alertVideoTB: [5, 100], alertVideoTH: [5, 100], alertVideoVon: [0, 95], alertVideoBis: [1, 100], alertVideoEnde: [10, 100], alertVideoSchrift: [40, 250], alertCheerMin: [1, 100000], alertSeconds: [3, 30], raidSeconds: [3, 40], raidMinViewers: [0, 10000], seitenGoal: [0, 5000], streamGoalMinutes: [10, 1440], pomodoroGoal: [0, 30], longBreakMinutes: [1, 90], longBreakEvery: [0, 12], maxSeats: [1, MAX_PLAETZE], seatIdleMinutes: [10, 720], focusMinutes: [1, 180], breakMinutes: [1, 60], dayRolloverHour: [0, 12], wordGoal: [0, 1_000_000], checkinRewardCost: [1, 1_000_000], commandCooldown: [0, 300], maxTasks: [1, 10], streakGrace: [0, 5], pointsWeightMsg: [0, 1000], pointsWeightDay: [0, 1000], pointsWeightCheckin: [0, 1000], pointsMsgCap: [1, 500], pointsMsgGap: [0, 3600], pointsRankSize: [1, 10], backupHour: [0, 23], backupKeep: [1, 60], glasStaerke: [0, 90], glasUnschaerfe: [0, 60], hintergrundVersion: [0, 9_999_999_999_999], wind: [0, 100], kulisseTempo: [0, 100], raumZug: [0, 9_999_999_999_999], raumSitzecke: [0, 9_999_999_999_999], raumStadt: [0, 9_999_999_999_999], raumSee: [0, 9_999_999_999_999], jzFruehlingA: [0, 9_999_999_999_999], jzFruehlingB: [0, 9_999_999_999_999], jzSommerA: [0, 9_999_999_999_999], jzSommerB: [0, 9_999_999_999_999], jzHerbstA: [0, 9_999_999_999_999], jzHerbstB: [0, 9_999_999_999_999], jzWinterA: [0, 9_999_999_999_999], jzWinterB: [0, 9_999_999_999_999], jzBlumen: [0, 9_999_999_999_999], jzBlaetter: [0, 9_999_999_999_999], jzBluete: [0, 9_999_999_999_999], jzWieseVon: [40, 99], jzWieseBis: [41, 100], jzBaumX: [0, 100], jzStammBreite: [0, 80], jzKroneBreite: [10, 100], jzKroneVon: [0, 60], jzDichte: [0, 100], jzFall: [0, 100] };
 const BOOL = ['customCommandsEnabled', 'quoteEnabled', 'soEnabled', 'alertVideoLinks', 'streakRescueEnabled', 'pauseEnabled', 'pauseChat', 'alertVideoAn', 'alertVideoKey', 'alertsEnabled', 'raidEnabled', 'alertFollow', 'alertSub', 'alertGift', 'alertCheer', 'alertChat', 'pavillonZeigen', 'autoBreak', 'autoCycle', 'unlocksEnabled', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'chatEnabled', 'chatCommands', 'announceSprint', 'checkinEnabled', 'milestoneEnabled', 'pointsEnabled', 'backupAutoEnabled'];
-const VIDEO_WAHL = ['zeit', 'b1', 'b2', 'b3', 'aus'];
+const VIDEO_WAHL = ['zeit', 'b1', 'b2', 'b3', 'link', 'aus'];
 const ENUM = { kameraRahmen: ['holz', 'papier', 'glas', 'keiner'], videoZug: VIDEO_WAHL, videoSitzecke: VIDEO_WAHL, videoStadt: VIDEO_WAHL, videoSee: VIDEO_WAHL, appearOn: ['sit', 'checkin', 'both'], scene: Object.keys(SZENEN), szeneModus: ['wachstum', 'zimmer'], jahreszeit: ['auto', 'fruehling', 'sommer', 'herbst', 'winter'], tageszeit: ['auto', 'morgen', 'mittag', 'abend', 'nacht'], wachstumQuelle: ['ziel', 'zeit', 'woerter', 'pomodoro', 'kombi'], zielArt: ['woerter', 'seiten', 'zeit', 'pomodoros'], stefanieTaetigkeit: ['auto', 'laptop', 'buch'], musikQuelle: ['aus', 'lokal', 'server'], kartenStil: ['papier', 'glas'], hintergrund: ['landschaft', 'jahreszeiten', 'bild', 'zug', 'sitzecke', 'stadt', 'see'], wetter: ['klar', 'wolkig', 'regen', 'gewitter', 'schnee', 'nebel'] };
 
 export const seatsOnReward = (s) => s.appearOn === 'checkin' || s.appearOn === 'both';
@@ -179,6 +181,12 @@ export function normalize(input, base = DEFAULTS) {
       const u = String(value ?? '').trim();
       if (u && !/^https?:\/\/[^\s]+$/i.test(u)) return { error: 'Die Musik-Adresse muss mit http:// oder https:// beginnen' };
       out.musikUrl = u.slice(0, 300);
+      continue;
+    }
+    if (key.startsWith('videoLink')) {
+      const t = String(value ?? '').trim();
+      if (t && !parseVideoLink(t)) return { error: LINK_FEHLER };
+      out[key] = t;
       continue;
     }
     if (key === 'funktionenAus') { out.funktionenAus = cleanOff(value); continue; }

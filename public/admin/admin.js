@@ -406,6 +406,7 @@ async function loadSettings() {
   current = settings;
   renderFolds(settings);
   renderScenes(settings);
+  renderVideoLinks();
   fillMusik(settings); fillZiele(settings); fillStefanie(settings);
   loadPages().catch(() => {}); loadStream().catch(() => {});
   if (!layoutState) loadLayout(settings.layout);
@@ -543,7 +544,7 @@ $('restoreDatei').onchange = run(async (e) => {
 // Der Server rechnet den Stand aus (POST /api/admin/preview), die Seite schickt ihn an den Rahmen. Gespeichert wird weiterhin mit „Speichern“.
 let activePage = 'start';
 let previewTimer = 0, previewBusy = false, previewAgain = false, previewProgress = null; // Fortschritt nur zum Ausprobieren in der Vorschau
-const PREVIEW_KEYS = ['kameraRahmen', 'videoZug', 'videoSitzecke', 'videoStadt', 'videoSee', 'pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
+const PREVIEW_KEYS = ['kameraRahmen', 'videoZug', 'videoSitzecke', 'videoStadt', 'videoSee', 'videoLinkZug', 'videoLinkSitzecke', 'videoLinkStadt', 'videoLinkSee', 'pavillonZeigen', 'jahreszeit', 'tageszeit', 'wachstumQuelle', 'zielArt', 'stefanieTaetigkeit', 'szeneModus', 'scene', 'moduleBlume', 'moduleKerze', 'moduleBuecher', 'moduleDeko', 'pomodoroGoal', 'focusMinutes', 'kartenStil', 'glasFarbe', 'glasStaerke', 'glasUnschaerfe', 'hintergrund', 'wetter', 'wind', 'kulisseTempo', 'jzWieseVon', 'jzWieseBis', 'jzBaumX', 'jzStammBreite', 'jzKroneBreite', 'jzKroneVon', 'jzDichte', 'jzFall', 'musikQuelle', 'musikUrl', 'wordGoal', 'seitenGoal', 'streamGoalMinutes', 'unlocksEnabled'];
 function collectDraft() {
   const d = {};
   for (const el of document.querySelectorAll('[data-k]')) {
@@ -667,7 +668,25 @@ async function loadRaeume() {
 // ---- Videos als Ausblick (Szene × Tageszeit)
 const VIDEO_ZEITEN = [['morgen', 'Morgen'], ['mittag', 'Mittag'], ['abend', 'Abend'], ['nacht', 'Nacht']];
 const mb = (b) => `${(b / 1048576).toFixed(1).replace('.', ',')} MB`;
+const WAHL_KEY = { zug: 'videoZug', sitzecke: 'videoSitzecke', stadt: 'videoStadt', see: 'videoSee' };
+const LINK_KEY = { zug: 'videoLinkZug', sitzecke: 'videoLinkSitzecke', stadt: 'videoLinkStadt', see: 'videoLinkSee' };
+const linkKurz = (l) => String(l).replace(/^https?:\/\/(www\.)?/, '').slice(0, 40);
+function renderVideoLinks() {
+  const box = $('videoLinks'); if (!box || !current) return;
+  box.innerHTML = `<table><thead><tr><th>Szene</th><th>Link</th><th></th></tr></thead><tbody>${RAUM_SZENEN.map(([k, label]) => `<tr><td><b>${label}</b></td><td><input type="url" data-link="${k}" value="${esc(current[LINK_KEY[k]] ?? '')}" placeholder="https://www.youtube.com/watch?v=…" style="width:100%;min-width:220px"></td><td><button class="gruen klein" data-link-ok="${k}">Speichern und abspielen</button> ${current[LINK_KEY[k]] ? `<button class="hell klein" data-link-weg="${k}">Entfernen</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
+  for (const b of box.querySelectorAll('[data-link-ok]')) b.onclick = run(async () => {
+    const k = b.dataset.linkOk, link = box.querySelector(`[data-link="${k}"]`).value.trim();
+    const st = await api('PUT', 'settings', link ? { [LINK_KEY[k]]: link, [WAHL_KEY[k]]: 'link', hintergrund: k } : { [LINK_KEY[k]]: '' });
+    current = st.settings; renderScenes(st.settings); renderFolds(st.settings); renderVideoLinks(); loadVideos().catch(() => {}); schedulePreview(0); meldung(link ? 'Video-Link gespeichert, die Szene spielt ihn jetzt' : 'Link entfernt');
+  });
+  for (const b of box.querySelectorAll('[data-link-weg]')) b.onclick = run(async () => {
+    const k = b.dataset.linkWeg;
+    const st = await api('PUT', 'settings', { [LINK_KEY[k]]: '', ...(current[WAHL_KEY[k]] === 'link' ? { [WAHL_KEY[k]]: 'zeit' } : {}) });
+    current = st.settings; renderScenes(st.settings); renderFolds(st.settings); renderVideoLinks(); loadVideos().catch(() => {}); schedulePreview(0); meldung('Link entfernt');
+  });
+}
 async function loadVideos() {
+  renderVideoLinks();
   let res, data;
   try { res = await fetch('/api/admin/video', { cache: 'no-store' }); data = await res.json(); } catch { data = null; }
   if (!res?.ok || !data?.videos) { $('videos').innerHTML = `<span class="leise">${esc(data?.error ?? 'Die Videos konnten nicht geladen werden. Bitte die Seite neu laden und, falls es bleibt, neu anmelden.')}</span>`; return; }
@@ -675,11 +694,10 @@ async function loadVideos() {
     const v = data.videos[k]?.[z];
     return `<td>${v ? `<span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;
   }).join('')}</tr>`).join('')}</tbody></table>`;
-  const WAHL_KEY = { zug: 'videoZug', sitzecke: 'videoSitzecke', stadt: 'videoStadt', see: 'videoSee' };
   const BIB = ['b1', 'b2', 'b3'];
   $('videoBib').innerHTML = `<table><thead><tr><th>Szene</th><th>Läuft gerade</th>${BIB.map((_, i) => `<th>Platz ${i + 1}</th>`).join('')}</tr></thead><tbody>${RAUM_SZENEN.map(([k, label]) => {
     const wahl = current?.[WAHL_KEY[k]] ?? 'zeit';
-    const opts = [['zeit', 'Nach Tageszeit'], ...BIB.map((z, i) => [z, `Platz ${i + 1}${data.videos[k]?.[z] ? `: ${data.videos[k][z].name || 'ohne Namen'}` : ' (leer)'}`]), ['aus', 'Kein Video (gezeichnete Landschaft)']];
+    const opts = [['zeit', 'Nach Tageszeit'], ...BIB.map((z, i) => [z, `Platz ${i + 1}${data.videos[k]?.[z] ? `: ${data.videos[k][z].name || 'ohne Namen'}` : ' (leer)'}`]), ...(current?.[LINK_KEY[k]] ? [['link', `Video-Link: ${linkKurz(current[LINK_KEY[k]])}`]] : []), ['aus', 'Kein Video (gezeichnete Landschaft)']];
     return `<tr><td><b>${label}</b></td><td><select data-wahl="${k}">${opts.map(([v, l]) => `<option value="${v}"${v === wahl ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></td>${BIB.map((z) => {
       const v = data.videos[k]?.[z];
       return `<td>${v ? `<b>${esc(v.name || 'ohne Namen')}</b> <span class="video-da">✓ ${mb(v.size)}</span><br>` : ''}<label class="knopf hell klein" for="vid-${k}-${z}">${v ? 'Ersetzen' : 'Video wählen'}</label><input type="file" id="vid-${k}-${z}" data-s="${k}" data-z="${z}" accept="video/mp4,video/webm" hidden>${v ? `<button class="hell klein" data-weg-s="${k}" data-weg-z="${z}">Entfernen</button>` : ''}</td>`;

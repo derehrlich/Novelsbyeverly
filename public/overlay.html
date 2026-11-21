@@ -133,6 +133,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
    --glas = Tönung, --glas-a = Stärke in Prozent, --glas-blur = Unschärfe. Werte kommen aus dem Admin (Seite „Design und Hintergrund“). */
 #kamerarahmen { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
 #kulisse, #jahreszeit { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+#kulisseVideo { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; pointer-events: none; background: #000; }
+#kulisseVideo iframe { width: 1920px; height: 1080px; border: 0; }
 #bg { position: absolute; inset: 0; width: 1920px; height: 1080px; background-size: cover; background-position: center; }
 body.glas { --text: #fff; --leise: rgba(255, 255, 255, .74); --rand: rgba(255, 255, 255, .42); --fokus: rgba(255, 255, 255, .95); --pause: #ffd9a0; --bereit: rgba(255, 255, 255, .5); }
 body.glas .card, body.glas .ereignis, body.glas .modul {
@@ -169,6 +171,7 @@ body.glas #musik .eq i, body.glas #musik .eq i:nth-child(n) { background: rgba(2
 <div id="stage">
   <div id="kamera" hidden>Kamera</div>
   <div id="bg" hidden></div>
+  <div id="kulisseVideo" hidden></div>
   <canvas id="kulisse" width="1920" height="1080" hidden></canvas>
   <canvas id="jahreszeit" width="1920" height="1080" hidden></canvas>
   <canvas id="szene" hidden></canvas>
@@ -555,7 +558,7 @@ function applyKamera() {
   const k = view?.layout?.kamera, cv = $('kamerarahmen');
   const an = bildModus && teile.has('szene') && k?.on;
   cv.hidden = !an;
-  const layers = [$('bg'), $('kulisse'), $('jahreszeit')];
+  const layers = [$('bg'), $('kulisseVideo'), $('kulisse'), $('jahreszeit')];
   if (!an) { if (kameraKey) { kameraKey = ''; for (const l of layers) { l.style.maskImage = 'none'; l.style.webkitMaskImage = 'none'; } } return; }
   const stil = view.kameraRahmen ?? 'holz';
   const key = `${k.x},${k.y},${k.w},${k.h},${stil}`;
@@ -602,7 +605,8 @@ function applyDesign() {
   bg.hidden = !(mode === 'bild' && teile.has('szene'));
   if (mode === 'bild') { const url = `url("${v.hintergrund.url}")`; if (bg.style.backgroundImage !== url) bg.style.backgroundImage = url; }
   $('kulisse').hidden = !(kulisseModus && teile.has('szene'));
-  if (kulisseModus) { kulisse ??= new Kulisse($('kulisse')); kulisse.set(v.hintergrund.kulisse); }
+  if (kulisseModus) { kulisse ??= new Kulisse($('kulisse'), $('kulisseVideo')); kulisse.set(v.hintergrund.kulisse); }
+  $('kulisseVideo').hidden = $('kulisse').hidden || !kulisse?.hatEinbettung;
   $('jahreszeit').hidden = !(jzModus && teile.has('szene'));
   if (jzModus) { landschaft ??= new Landschaft($('jahreszeit')); landschaft.set(v.hintergrund.jz); }
   $('szene').hidden = !teile.has('szene') || bildModus;
