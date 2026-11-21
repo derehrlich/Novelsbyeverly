@@ -73,3 +73,11 @@ Mit der Auswahl „Läuft gerade“ bestimmst du, was die Szene zeigt:
 - **Platz 1, 2 oder 3**: dieses Video läuft zu jeder Tageszeit.
 - **Kein Video**: die gezeichnete Landschaft.
 Das Video muss MP4 oder WebM sein (höchstens 80 MB). Wenn eine Datei sich nicht abspielen lässt, zeigt der Bot automatisch die gezeichnete Landschaft.
+
+## Video-Link statt Datei (zum Beispiel YouTube)
+Im Admin unter **Design und Hintergrund → Videos als Ausblick → „Video-Link statt Datei“** trägst du pro Szene einen Link ein und klickst „Speichern und abspielen“.
+
+- **YouTube:** `https://www.youtube.com/watch?v=…`, `https://youtu.be/…`, Shorts-, Live- und Embed-Links. Das Video läuft stumm in einer Schleife hinter dem Raumbild, sichtbar durchs Fenster. Wetter und Tageslicht legt der Bot darüber, das Video wird passend zur Tageszeit abgedunkelt.
+- **Direkte Adresse:** eine https-Adresse, die auf eine `.mp4`- oder `.webm`-Datei zeigt. Diese läuft wie ein hochgeladenes Video, auch mit weicher Überblendung am Ende.
+- **Einschränkungen bei YouTube:** Das Video muss zum Einbetten freigegeben sein (viele Musik- und Filmvideos sind es nicht, dann zeigt der Player eine Fehlermeldung). Titel oder Logo können kurz erscheinen. Die weiche Überblendung am Schleifenende gibt es nur bei Dateien. Ob ein Video einbettbar ist, siehst du am besten in der Live-Vorschau.
+- Die Auswahl „Video-Link“ steht danach auch unter „Läuft gerade“ in der Bibliothek. Mit „Entfernen“ fällt die Szene auf die Tageszeit-Videos zurück.

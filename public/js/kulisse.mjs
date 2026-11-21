@@ -285,7 +285,8 @@ class VideoLoop {
 function cover(c, el, ww, wh) { const vw = el.videoWidth || ww, vh = el.videoHeight || wh; const f = Math.max(ww / vw, wh / vh); c.drawImage(el, (ww - vw * f) / 2, (wh - vh * f) / 2, vw * f, vh * f); }
 
 export class Kulisse {
-  constructor(canvas) {
+  constructor(canvas, host = null) {
+    this.host = host; this.frame = null; this.embedId = null; this.hatEinbettung = false;
     this.cv = canvas; this.c = canvas.getContext('2d'); this.cfg = null; this.key = ''; this.scene = null; this.room = null; this.graded = null;
     this.p = null; this.last = 0; this.flash = 0; this.nextFlash = 4000; this.dust = Array.from({ length: 46 }, (_, i) => ({ x: rng(i)() * W, y: rng(i + 99)() * H, v: 4 + rng(i + 7)() * 10, p: i }));
     this.roomKey = '';
@@ -296,8 +297,25 @@ export class Kulisse {
     const old = this.cfg; this.cfg = cfg;
     if (!old || old.name !== cfg.name || old.plate !== cfg.plate) this.loadRoom(cfg);
     if (!old || old.video !== cfg.video) { this.vid?.dispose(); this.vid = cfg.video ? new VideoLoop(cfg.video) : null; this.scene = null; }
-    const key = `${cfg.name}|${cfg.zeit}|${cfg.wetter}`;
+    this.setEinbettung(cfg);
+    const key = `${cfg.name}|${cfg.zeit}|${cfg.wetter}|${this.hatEinbettung ? 1 : 0}`;
     if (key !== this.key) { this.key = key; this.scene = null; this.graded = null; }
+  }
+
+  // YouTube-Video als Ausblick: ein eingebetteter Player hinter dem Raumbild, das Fenster im Raumbild ist durchsichtig. Wetter und Licht legt der Bot darüber.
+  setEinbettung(cfg) {
+    const id = cfg.embed?.kind === 'youtube' && this.host ? cfg.embed.id : null;
+    this.hatEinbettung = Boolean(id);
+    if (!id) { if (this.frame) { this.frame.remove(); this.frame = null; this.embedId = null; } return; }
+    if (this.embedId !== id) {
+      this.frame?.remove();
+      const f = document.createElement('iframe');
+      f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&modestbranding=1&rel=0&playsinline=1&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0`;
+      f.allow = 'autoplay; encrypted-media'; f.referrerPolicy = 'strict-origin-when-cross-origin'; f.tabIndex = -1; f.title = 'Video als Ausblick';
+      this.host.append(f); this.frame = f; this.embedId = id;
+    }
+    const pal = ZEIT[cfg.zeit] ?? ZEIT.abend, w = WET[cfg.wetter] ?? WET.klar; // Tageszeit und Wetter färben auch den Player
+    this.frame.style.filter = `brightness(${(pal.bright * w.bright).toFixed(3)}) saturate(${(1 - w.gray * 0.3).toFixed(3)})`;
   }
 
   async loadRoom(cfg) {
@@ -314,7 +332,7 @@ export class Kulisse {
   buildScene() {
     const { name, zeit, wetter } = this.cfg; const win = this.room.win;
     const pal = ZEIT[zeit] ?? ZEIT.abend; const w = WET[wetter] ?? WET.klar; const seed = 1234 + name.length * 77;
-    this.scene = { name, pal, w, ...(this.vid ? {} : SCENES[name](win.w, win.h, pal, w, seed)) }; // mit Video braucht es die Code-Schichten nicht
+    this.scene = { name, pal, w, ...(this.vid || this.hatEinbettung ? {} : SCENES[name](win.w, win.h, pal, w, seed)) }; // mit Video braucht es die Code-Schichten nicht
     this.p = makeParticles(win.w, win.h);
   }
 
@@ -345,8 +363,8 @@ export class Kulisse {
 
   drawOutside(c, ww, wh, t, dt) {
     const S = this.scene; const { pal, w } = S; const cfg = this.cfg; const tempo = (cfg.tempo ?? 50) / 50; const wind = (cfg.wind ?? 30) / 100;
-    if (this.vid?.ready) { // Video als Ausblick, Wetter legt der Bot darüber
-      this.vid.draw(c, ww, wh);
+    if (this.vid?.ready || this.hatEinbettung) { // Video als Ausblick (Datei oder eingebettet), Wetter legt der Bot darüber
+      this.vid?.draw(c, ww, wh);
       if (w.nebel > 0.4) { c.fillStyle = css(pal.haze, 0.14 * w.nebel); c.fillRect(0, 0, ww, wh); }
       this.weather(c, ww, wh, t, dt, S, wind);
       const gl2 = c.createLinearGradient(0, 0, ww, wh); gl2.addColorStop(0, 'rgba(255,255,255,.06)'); gl2.addColorStop(0.4, 'rgba(255,255,255,0)'); c.fillStyle = gl2; c.fillRect(0, 0, ww, wh);

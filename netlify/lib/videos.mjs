@@ -9,7 +9,8 @@ export const VIDEO_SZENEN = ['zug', 'sitzecke', 'stadt', 'see'];
 export const VIDEO_ZEITEN = ['morgen', 'mittag', 'abend', 'nacht'];
 // Bibliothek: je Szene bis zu drei eigene Videos (Plätze b1 b2 b3), unabhängig von der Tageszeit. Welches läuft, steht je Szene in der Einstellung video<Szene>: zeit | b1 | b2 | b3 | aus
 export const VIDEO_BIB = ['b1', 'b2', 'b3'];
-export const VIDEO_WAHL = ['zeit', ...VIDEO_BIB, 'aus'];
+export const VIDEO_WAHL = ['zeit', ...VIDEO_BIB, 'link', 'aus']; // link = Video-Link (YouTube oder direkte MP4/WebM-Adresse) statt Datei
+export const LINK_KEY = { zug: 'videoLinkZug', sitzecke: 'videoLinkSitzecke', stadt: 'videoLinkStadt', see: 'videoLinkSee' };
 export const WAHL_KEY = { zug: 'videoZug', sitzecke: 'videoSitzecke', stadt: 'videoStadt', see: 'videoSee' };
 export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 export const videosAvailable = () => Boolean(process.env.LOCAL_STORE_DIR);
@@ -63,3 +64,25 @@ export async function videoUrl(szene, zeit, wahl = 'zeit') {
   const m = await getVideoMeta(szene, slot);
   return m && fs.existsSync(videoFile(m, szene, slot)) ? `/api/overlay-video?s=${szene}&z=${slot}&v=${m.version}` : null;
 }
+
+/** Video-Link prüfen: YouTube (als eingebettetes Video) oder eine direkte https-Adresse auf eine MP4-/WebM-Datei.
+ *  Liefert { kind: 'youtube', id } | { kind: 'datei', url } | null (leer oder nicht erlaubt). */
+export function parseVideoLink(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw || raw.length > 300) return null;
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== 'https:') return null;
+  const host = u.hostname.toLowerCase().replace(/^(www|m|music)\./, '');
+  const okId = (id) => (/^[\w-]{11}$/.test(id ?? '') ? id : null);
+  let id = null;
+  if (host === 'youtu.be') id = okId(u.pathname.split('/')[1]);
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    const [, kind, vid] = u.pathname.split('/');
+    id = kind === 'watch' ? okId(u.searchParams.get('v')) : ['embed', 'shorts', 'live', 'v'].includes(kind) ? okId(vid) : null;
+  }
+  if (id) return { kind: 'youtube', id };
+  if (/\.(mp4|webm|m4v)$/i.test(u.pathname)) return { kind: 'datei', url: u.href };
+  return null;
+}
+export const LINK_FEHLER = 'Bitte einen YouTube-Link (https://www.youtube.com/watch?v=… oder https://youtu.be/…) oder eine direkte https-Adresse auf eine MP4- oder WebM-Datei eintragen';
