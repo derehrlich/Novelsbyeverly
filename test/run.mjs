@@ -1538,4 +1538,28 @@ await test('Video-Link: YouTube und direkte Adresse prüfen, im Overlay-Stand je
   await saveSettings({ hintergrund: 'landschaft', videoSee: 'zeit', videoLinkSee: '' });
 });
 
+console.log('Alerts einzeln');
+await test('Alerts einzeln: Zeigen, Ton-Modus und Lautstärke je Art, Overlay-Stand und Abo-Jubiläum getrennt', async () => {
+  const login = await adminCall('POST', 'login', { password: 'geheim' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const { buildAlert } = await mod('lib/alerts.mjs');
+  let r = await adminCall('PUT', 'settings', { alertModeFollow: 'aus', alertVolRaid: 35, alertModeRaid: 'standard' }, cookie);
+  assert.equal(r.status, 200);
+  assert.equal((await adminCall('PUT', 'settings', { alertModeFollow: 'laut' }, cookie)).status, 400); // unbekannter Modus
+  const v = await viewNow();
+  assert.deepEqual(v.alertMix.follow, { mode: 'aus', vol: 100 });
+  assert.deepEqual(v.alertMix.raid, { mode: 'standard', vol: 35 });
+  assert.deepEqual(v.alertMix.sub, { mode: 'eigen', vol: 100 });
+  assert.equal(Object.keys(v.alertMix).length, 7); // alle Alert-Arten
+  await adminCall('PUT', 'settings', { alertVolSub: 250 }, cookie); // über 100 wird gekappt
+  assert.equal((await getSettings()).alertVolSub, 100);
+  // Jubiläum getrennt von neuen Abos
+  const base = { ...(await getSettings()), alertSub: true, alertResub: true };
+  const ev = { user_name: 'Lena', tier: '1000', cumulative_months: 5, message: { text: 'hi' } };
+  assert.equal(buildAlert('channel.subscription.message', ev, base).card.kind, 'resub');
+  assert.equal(buildAlert('channel.subscription.message', ev, { ...base, alertResub: false }), null);
+  assert.equal(buildAlert('channel.subscribe', { user_name: 'Lena', tier: '1000' }, { ...base, alertResub: false }).card.kind, 'sub');
+  await saveSettings({ alertModeFollow: 'eigen', alertVolRaid: 100, alertModeRaid: 'eigen' });
+});
+
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ' – es gibt Fehler (siehe oben)' : ''}`);

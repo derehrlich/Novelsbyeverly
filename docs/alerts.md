@@ -33,3 +33,10 @@ Admin → Stream → **Alerts und Raids** → Karte **„Eigene Töne“**: Für
 
 ## Kein Ton im normalen Browser?
 Ein Browser (Chrome, Edge …) schaltet den Ton einer Seite erst frei, wenn du **einmal auf die Seite klickst**. Das gilt nur für den Test im Browser-Tab. In OBS ist das nicht nötig. Seit dem Update weckt das Overlay den Ton bei jedem Alert und beim ersten Klick von selbst auf.
+
+## Jeder Alert einzeln
+Unter „Alerts und Raids → Jeder Alert einzeln“ hat jede Art (Follow, Abo, Abo-Jubiläum, Geschenk-Abos, Bits, Raid, Streak-Rettung) eine eigene Zeile:
+- **Zeigen:** den Alert ein- oder ausschalten (Abo-Jubiläum getrennt von neuen Abos; die Streak-Rettung hängt am Check-in).
+- **Ton:** „Eigener Ton (sonst Klang)“, „Immer der Klang“ oder „Stumm“.
+- **Lautstärke:** nur für diesen Alert, 0 bis 100 Prozent. Die Gesamtlautstärke (weiter unten bei „Alerts“) gilt zusätzlich für die eigenen Töne.
+- **Eigener Ton:** hochladen, anhören, entfernen und den Alert ausprobieren.
