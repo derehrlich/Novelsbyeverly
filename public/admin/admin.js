@@ -233,9 +233,9 @@ const SCHEMA = [
   ]],
   ['Alerts', [
     ['alertsEnabled', 'Alerts aktivieren (Follow, Abo, Geschenk, Bits)', 'bool', 'Im Overlay klappt ein Buch auf und zeigt das Ereignis. Nach dem Einschalten wird automatisch bei Twitch angemeldet. Beim ersten Mal einmal unter „Einrichtung“ den Kanal neu verbinden, damit Twitch die neuen Berechtigungen erteilt.'],
-    ['alertFollow', 'Neue Follower zeigen', 'bool'], ['alertSub', 'Abos und Abo-Jubiläen zeigen', 'bool'], ['alertGift', 'Verschenkte Abos zeigen', 'bool'], ['alertCheer', 'Bits zeigen', 'bool'],
+    ['alertFollow', 'Neue Follower zeigen', 'bool'], ['alertSub', 'Neue Abos zeigen', 'bool'], ['alertResub', 'Abo-Jubiläen zeigen (braucht auch „Neue Abos zeigen“)', 'bool'], ['alertGift', 'Verschenkte Abos zeigen', 'bool'], ['alertCheer', 'Bits zeigen', 'bool'],
     ['alertCheerMin', 'Bits erst ab dieser Menge zeigen', 'number'], ['alertSeconds', 'So lange bleibt das Buch offen (Sekunden)', 'number'],
-    ['alertSoundVolume', 'Lautstärke der eigenen Töne (0 bis 100)', 'number'],
+    ['alertSoundVolume', 'Gesamtlautstärke der eigenen Töne (0 bis 100)', 'number'],
     ['alertChat', 'Danke im Chat schreiben (auch bei Raids)', 'bool', 'Der Bot antwortet im Chat. Braucht, dass der Chat-Bot verbunden ist.'],
   ]],
   ['Raids', [
@@ -861,10 +861,28 @@ let soundAudio = null;
 async function loadSounds() {
   const box = $('soundListe'); if (!box) return;
   const d = await api('GET', 'sounds');
-  box.innerHTML = `<table><thead><tr><th>Alert</th><th>Eigener Ton</th><th></th></tr></thead><tbody>${d.slots.map((s) => `<tr><td><b>${esc(s.label)}</b></td><td>${s.version ? `<b>${esc(s.name)}</b> <span class="video-da">✓ ${Math.max(1, Math.round(s.size / 1000))} KB</span>` : '<span class="leise">Standard-Klang</span>'}</td><td>
+  if (!current) current = (await api('GET', 'settings')).settings;
+  const AN = { follow: 'alertFollow', sub: 'alertSub', resub: 'alertResub', gift: 'alertGift', cheer: 'alertCheer', raid: 'raidEnabled' }; // Schalter „Alert zeigen“ je Art (Streak-Rettung hängt am Check-in)
+  const K = (id) => id[0].toUpperCase() + id.slice(1);
+  const MODI = [['eigen', 'Eigener Ton (sonst Klang)'], ['standard', 'Immer der Klang'], ['aus', 'Stumm']];
+  box.innerHTML = `<table><thead><tr><th>Alert</th><th>Zeigen</th><th>Ton</th><th>Lautstärke</th><th>Eigener Ton</th></tr></thead><tbody>${d.slots.map((s) => {
+    const mode = current[`alertMode${K(s.id)}`] ?? 'eigen', vol = current[`alertVol${K(s.id)}`] ?? 100;
+    return `<tr><td><b>${esc(s.label)}</b></td>
+    <td>${AN[s.id] ? `<input type="checkbox" data-an="${AN[s.id]}"${current[AN[s.id]] ? ' checked' : ''} title="Alert im Overlay zeigen">` : '<span class="leise" title="Wird beim Check-in (Streak-Retter) ein- und ausgeschaltet">–</span>'}</td>
+    <td><select data-mode="${s.id}">${MODI.map(([v, l]) => `<option value="${v}"${v === mode ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
+    <td><input type="range" min="0" max="100" step="5" value="${vol}" data-vol="${s.id}" style="width:90px"> <span class="leise" style="white-space:nowrap" data-volwert="${s.id}">${vol} %</span></td>
+    <td>${s.version ? `<b>${esc(s.name)}</b> <span class="video-da">✓ ${Math.max(1, Math.round(s.size / 1000))} KB</span><br>` : '<span class="leise">Standard-Klang</span><br>'}
     <label class="knopf hell klein" for="snd-${s.id}">${s.version ? 'Ersetzen' : 'Ton wählen'}</label><input type="file" id="snd-${s.id}" data-snd="${s.id}" accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg" hidden>
     ${s.version ? `<button class="hell klein" data-hoer="${s.id}" data-v="${s.version}" type="button">▶ Anhören</button><button class="hell klein" data-sndweg="${s.id}" type="button">Entfernen</button>` : ''}
-    <button class="hell klein" data-sndtest="${s.id}" type="button">Alert ausprobieren</button></td></tr>`).join('')}</tbody></table>`;
+    <button class="hell klein" data-sndtest="${s.id}" type="button">Alert ausprobieren</button></td></tr>`;
+  }).join('')}</tbody></table>`;
+  const speichere = async (body) => { const st = await api('PUT', 'settings', body); current = st.settings; renderFolds(st.settings); if ('raidEnabled' in body) await syncTwitch(); return st; };
+  for (const c of box.querySelectorAll('[data-an]')) c.onchange = run(async () => { await speichere({ [c.dataset.an]: c.checked }); meldung('Gespeichert'); });
+  for (const sel of box.querySelectorAll('[data-mode]')) sel.onchange = run(async () => { await speichere({ [`alertMode${K(sel.dataset.mode)}`]: sel.value }); meldung('Gespeichert'); });
+  for (const r of box.querySelectorAll('[data-vol]')) {
+    r.oninput = () => { box.querySelector(`[data-volwert="${r.dataset.vol}"]`).textContent = `${r.value} %`; };
+    r.onchange = run(async () => { await speichere({ [`alertVol${K(r.dataset.vol)}`]: Number(r.value) }); meldung('Gespeichert'); });
+  }
   for (const inp of box.querySelectorAll('[data-snd]')) inp.onchange = run(async (e) => {
     const file = e.target.files[0]; e.target.value = ''; if (!file) return;
     if (file.size > d.maxKb * 1000) throw new Error(`Die Datei ist zu groß (höchstens ${d.maxKb} KB)`);
@@ -872,7 +890,7 @@ async function loadSounds() {
     await api('POST', `sounds/${inp.dataset.snd}`, { name: file.name, data }); await loadSounds(); meldung('Ton gespeichert ✓');
   });
   for (const b of box.querySelectorAll('[data-sndweg]')) b.onclick = run(async () => { await api('DELETE', `sounds/${b.dataset.sndweg}`); await loadSounds(); meldung('Ton entfernt'); });
-  for (const b of box.querySelectorAll('[data-hoer]')) b.onclick = () => { soundAudio?.pause(); soundAudio = new Audio(`/api/alert-sound?slot=${b.dataset.hoer}&v=${b.dataset.v}`); soundAudio.volume = Math.min(1, Math.max(0, (current?.alertSoundVolume ?? 80) / 100)); soundAudio.play().catch(() => meldung('Der Ton lässt sich hier nicht abspielen')); };
+  for (const b of box.querySelectorAll('[data-hoer]')) b.onclick = () => { soundAudio?.pause(); soundAudio = new Audio(`/api/alert-sound?slot=${b.dataset.hoer}&v=${b.dataset.v}`); soundAudio.volume = Math.min(1, Math.max(0, (current?.alertSoundVolume ?? 80) / 100) * Math.min(1, Math.max(0, (current?.[`alertVol${K(b.dataset.hoer)}`] ?? 100) / 100))); soundAudio.play().catch(() => meldung('Der Ton lässt sich hier nicht abspielen')); };
   const TEST = { follow: 'follow', sub: 'sub', resub: 'resub', gift: 'gift', cheer: 'cheer', raid: 'raid', rescue: 'rescue' };
   for (const b of box.querySelectorAll('[data-sndtest]')) b.onclick = run(async () => { await api('POST', 'test/event', { kind: TEST[b.dataset.sndtest] }); meldung('Gesendet – schau und hör ins Overlay'); });
 }

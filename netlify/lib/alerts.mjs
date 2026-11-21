@@ -22,7 +22,7 @@ export function buildAlert(type, e, settings) {
       if (e.is_gift || !settings.alertSub) return null; // Geschenkte Subs zeigt der Gift-Alert, sonst käme jeder doppelt
       return { card: card('sub', { tier, months: 1 }, { tier, months: 1 }), template: settings.subTemplate, vars: { user, tier, months: 1 } };
     case 'channel.subscription.message': {
-      if (!settings.alertSub) return null;
+      if (!settings.alertSub || !settings.alertResub) return null;
       const months = Number(e.cumulative_months) || 1;
       return { card: card('resub', { tier, months, extra: String(e.message?.text ?? '').slice(0, 140) }, { tier, months }), template: settings.subTemplate, vars: { user, tier, months } };
     }
